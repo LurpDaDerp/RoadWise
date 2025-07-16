@@ -1,0 +1,44 @@
+//StackNavigator.js
+import React from 'react';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import DashboardScreen from '../screens/DashboardScreen';
+import DriveScreen from '../screens/DriveScreen';
+import RewardsScreen from '../screens/RewardsScreen';
+import LeaderboardScreen from '../screens/LeaderboardScreen';
+import SettingsStackNavigator from './SettingsStackNavigator';
+import LoginScreen from '../screens/LoginScreen';
+import SignUpScreen from '../screens/SignUpScreen';
+
+
+
+const Stack = createNativeStackNavigator();
+
+export default function StackNavigator() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="Dashboard"
+        component={DashboardScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Drive"
+        component={DriveScreen}
+        options={{
+          title: '',
+          headerTransparent: true,
+          headerBackTitle: 'Dashboard',
+        }}
+      />
+      <Stack.Screen name="Rewards" component={RewardsScreen} />
+      <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+      <Stack.Screen
+        name="SettingsStack"
+        component={SettingsStackNavigator}
+        options={{ headerShown: false }}  // Hide the main stack header, settings stack manages its own headers
+      />
+      <Stack.Screen name="Login" component={LoginScreen} options = {{ headerTransparent: true, headerTitle: '', }} />
+      <Stack.Screen name="SignUp" component={SignUpScreen} options = {{ headerTransparent: true, headerTitle: '', }} />
+    </Stack.Navigator>
+  );
+}
