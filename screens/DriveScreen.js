@@ -34,6 +34,10 @@ export default function DriveScreen({ route }) {
   const [showSpeedingWarning, setShowSpeedingWarning] = useState(true);
   const [showCurrentSpeed, setShowCurrentSpeed] = useState(true);
   const [showSpeedLimit, setShowSpeedLimit] = useState(true);
+  const [displayTotalPoints, setDisplayTotalPoints] = useState(false);
+  const [displayedPoints, setDisplayedPoints] = useState(0);
+  const [startingPoints, setStartingPoints] = useState(route.params?.totalPoints ?? 0);
+
 
   const speedRef = useRef(0);
   const appState = useRef(AppState.currentState);
@@ -47,10 +51,10 @@ export default function DriveScreen({ route }) {
 
   const DEFAULT_SPEED_LIMIT_MPH = 25;
   const DEFAULT_SPEED_LIMIT_KPH = DEFAULT_SPEED_LIMIT_MPH * 1.60934;
-  const DEFAULT_DELAY = 100;
+  const DEFAULT_DELAY = 5000;
 
   useEffect(() => {
-    onAuthStateChanged(auth, () => {}); // still useful if you ever need user info
+    onAuthStateChanged(auth, () => {}); 
   }, []);
 
   useFocusEffect(
@@ -61,11 +65,17 @@ export default function DriveScreen({ route }) {
           const storedWarnings = await AsyncStorage.getItem('@speedingWarningsEnabled');
           const storedShowCurrentSpeed = await AsyncStorage.getItem('@showCurrentSpeed');
           const storedShowSpeedLimit = await AsyncStorage.getItem('@showSpeedLimit');
+          const storedDisplayMode = await AsyncStorage.getItem('@displayTotalPoints');
 
           if (storedUnit === 'mph' || storedUnit === 'kph') setUnit(storedUnit);
           if (storedWarnings !== null) setShowSpeedingWarning(storedWarnings === 'true');
           if (storedShowCurrentSpeed !== null) setShowCurrentSpeed(storedShowCurrentSpeed === 'true');
           if (storedShowSpeedLimit !== null) setShowSpeedLimit(storedShowSpeedLimit === 'true');
+          if (storedDisplayMode !== null) {
+            const val = storedDisplayMode === 'true';
+            console.log('Loaded displayTotalPoints setting:', val);
+            setDisplayTotalPoints(val);
+          }
         } catch (err) {
           console.warn('⚠️ Failed to load settings:', err);
         }
@@ -74,10 +84,19 @@ export default function DriveScreen({ route }) {
   );
 
   useEffect(() => {
-    const startPts = route.params?.totalPoints ?? 0;
-    startingPointsRef.current = startPts;
+    if (displayTotalPoints) {
+      setDisplayedPoints(startingPoints + pointsThisDrive);
+    } else {
+      setDisplayedPoints(pointsThisDrive);
+    }
+  }, [pointsThisDrive, displayTotalPoints, startingPoints]);
+
+
+  useEffect(() => {
+    setStartingPoints(route.params?.totalPoints ?? 0);
     setPointsThisDrive(0);
   }, []);
+
 
   useEffect(() => {
     speedRef.current = speed;
@@ -92,10 +111,9 @@ export default function DriveScreen({ route }) {
       isAppActive.current = !nowInactive;
 
       if (wasActive && nowInactive) {
-        // We already continuously save points, so no need to save here.
         backgroundTimeout.current = setTimeout(() => {
           navigation.navigate('Dashboard', {
-            updatedPoints: startingPointsRef.current + pointsThisDrive,
+            updatedPoints: startingPoints + pointsThisDrive,
           });
         }, 2 * 60 * 1000);
       }
@@ -204,7 +222,6 @@ export default function DriveScreen({ route }) {
     if (currentSpeed > effectiveSpeedLimit * 1.5) delay = 100000;
 
     pointTimer.current = setTimeout(() => {
-      setPointsThisDrive((prev) => prev + 1);
       if (currentSpeed > speedThreshold) {
         setPointsThisDrive((prev) => prev + 1);
       }
@@ -262,7 +279,7 @@ export default function DriveScreen({ route }) {
         <View style={styles.pointsContainer}>
           <View style={styles.pointsWrapper}>
             <Text style={styles.points} adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.2}>
-              {startingPointsRef.current + pointsThisDrive}
+              {displayedPoints}
             </Text>
           </View>
           <Text style={styles.pointsLabel}>Points</Text>
@@ -289,7 +306,6 @@ export default function DriveScreen({ route }) {
   );
 }
 
-// styles remain unchanged, omitted here for brevity
 
 const styles = StyleSheet.create({
   background: { flex: 1 },

@@ -3,25 +3,22 @@ import {
   View, Text, StyleSheet, ImageBackground, TouchableOpacity, Switch,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
-import { useNavigation, useTheme } from '@react-navigation/native';
 
 const STORAGE_KEYS = {
   speedUnit: '@speedUnit',
   warningsEnabled: '@speedingWarningsEnabled',
   showCurrentSpeed: '@showCurrentSpeed',
   showSpeedLimit: '@showSpeedLimit',
+  displayTotalPoints: '@displayTotalPoints',
 };
 
 export default function DriveScreenSettings() {
-  const navigation = useNavigation();
   const [speedUnit, setSpeedUnit] = useState('mph');
   const [warningsEnabled, setWarningsEnabled] = useState(true);
   const [showCurrentSpeed, setShowCurrentSpeed] = useState(true);
   const [showSpeedLimit, setShowSpeedLimit] = useState(true);
-  const { colors } = useTheme();
-
+  const [displayTotalPoints, setDisplayTotalPoints] = useState(false);
   useEffect(() => {
     (async () => {
       try {
@@ -36,6 +33,10 @@ export default function DriveScreenSettings() {
 
         const storedShowSpeedLimit = await AsyncStorage.getItem(STORAGE_KEYS.showSpeedLimit);
         if (storedShowSpeedLimit !== null) setShowSpeedLimit(storedShowSpeedLimit === 'true');
+
+        const storedDisplayMode = await AsyncStorage.getItem(STORAGE_KEYS.displayTotalPoints);
+        if (storedDisplayMode !== null) setDisplayTotalPoints(storedDisplayMode === 'true');
+
       } catch (e) {
         console.warn('⚠️ Failed to load settings:', e);
       }
@@ -115,6 +116,21 @@ export default function DriveScreenSettings() {
                 thumbColor={showCurrentSpeed ? '#ffffff' : '#f4f3f4'}
             />
         </View>
+        
+        <View style={styles.settingRowToggle}>
+          <Text style={styles.settingLabel}>Show Total Points</Text>
+          <Switch
+            value={displayTotalPoints}
+            onValueChange={async (value) => {
+              setDisplayTotalPoints(value);
+              await AsyncStorage.setItem(STORAGE_KEYS.displayTotalPoints, value.toString());
+            }}
+            trackColor={{ false: '#767577', true: '#86ff7d' }}
+            thumbColor={displayTotalPoints ? '#ffffff' : '#f4f3f4'}
+          />
+        </View>
+
+
       </View>
     </ImageBackground>
   );

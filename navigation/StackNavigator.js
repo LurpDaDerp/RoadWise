@@ -31,11 +31,11 @@ export default function StackNavigator() {
         }}
       />
       <Stack.Screen name="Rewards" component={RewardsScreen} />
-      <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+      <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options = {{ headerTransparent: true, headerTitle: '', }}/>
       <Stack.Screen
         name="SettingsStack"
         component={SettingsStackNavigator}
-        options={{ headerShown: false }}  // Hide the main stack header, settings stack manages its own headers
+        options={{ headerShown: false }}  
       />
       <Stack.Screen name="Login" component={LoginScreen} options = {{ headerTransparent: true, headerTitle: '', }} />
       <Stack.Screen name="SignUp" component={SignUpScreen} options = {{ headerTransparent: true, headerTitle: '', }} />

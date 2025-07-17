@@ -1,24 +1,168 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-
-const leaderboard = [
-  { id: 1, name: 'Alice', points: 1234 },
-  { id: 2, name: 'Bob', points: 980 },
-  { id: 3, name: 'You', points: 750 },
-];
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { db } from '../utils/firebase'; 
+import { ImageBackground } from 'expo-image';
 
 export default function LeaderboardScreen() {
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [currentUserPlacement, setCurrentUserPlacement] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      try {
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
+        const currentUid = currentUser?.uid || null;
+        setCurrentUserId(currentUid);
+
+        const leaderboardRef = collection(db, 'users');
+
+        const leaderboardQuery = query(leaderboardRef, orderBy('points', 'desc'), limit(10));
+        const querySnapshot = await getDocs(leaderboardQuery);
+
+        const topResults = [];
+        let isCurrentUserInTop10 = false;
+
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          const id = doc.id;
+
+          const user = {
+            id,
+            name: data.username || 'N/A',
+            points: data.points || 0,
+          };
+
+          if (id === currentUid) isCurrentUserInTop10 = true;
+
+          topResults.push(user);
+        });
+
+        setLeaderboard(topResults);
+
+        if (!isCurrentUserInTop10 && currentUid) {
+          // Get full list to find placement
+          const allSnapshot = await getDocs(query(leaderboardRef, orderBy('points', 'desc')));
+
+          let rank = 1;
+          for (const doc of allSnapshot.docs) {
+            if (doc.id === currentUid) {
+              const data = doc.data();
+              setCurrentUserPlacement({
+                id: doc.id,
+                name: data.username || 'You',
+                points: data.points || 0,
+                rank,
+              });
+              break;
+            }
+            rank++;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeaderboard();
+  }, []);
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Leaderboard</Text>
-      {leaderboard.map(user => (
-        <Text key={user.id}>{user.name}: {user.points}</Text>
-      ))}
-    </View>
+    <ImageBackground source={require('../assets/leaderboardback.jpg')} style={styles.background} resizeMode="cover">
+      <View style={styles.overlay}>
+        <Text style={styles.title}>Leaderboard</Text>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <>
+            {Array.from({ length: 10 }, (_, index) => {
+              const user = leaderboard[index];
+              const isCurrentUser = user?.id === currentUserId;
+
+              return (
+                <View
+                  key={index}
+                  style={[styles.row, isCurrentUser && styles.currentUserRow]}
+                >
+                  <Text style={[styles.name, isCurrentUser && styles.currentUserText]}>
+                    {index + 1}. {user ? user.name : 'N/A'}
+                  </Text>
+                  <Text style={[styles.points, isCurrentUser && styles.currentUserText]}>
+                    {user ? user.points : ''}
+                  </Text>
+                </View>
+              );
+            })}
+
+            {currentUserPlacement && (
+              <>
+                <View style={{ height: 20 }} />
+                <View style={[styles.row, styles.currentUserRow]}>
+                  <Text style={[styles.name, styles.currentUserText]}>
+                    {currentUserPlacement.rank}. {currentUserPlacement.name}
+                  </Text>
+                  <Text style={[styles.points, styles.currentUserText]}>
+                    {currentUserPlacement.points}
+                  </Text>
+                </View>
+              </>
+            )}
+          </>
+        )}
+      </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 20 },
+  background: { flex: 1 },
+  overlay: { flex: 1, padding: 24, backgroundColor: 'rgba(0, 0, 0, 0.2)' },
+  container: {
+    flex: 1,
+    paddingTop: 80,
+    paddingHorizontal: 24,
+    backgroundColor: '#000',
+  },
+  title: {
+    paddingTop: 100,
+    fontSize: 36,
+    fontWeight: 'bold',
+    marginBottom: 40,
+    textAlign: 'center',
+    color: 'white',
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderBottomWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  name: {
+    fontSize: 18,
+    color: 'white',
+    
+  },
+  points: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  currentUserRow: {
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderColor: '#4CAF50',
+    borderWidth: 2,
+    borderRadius: 15,
+  },
+  currentUserText: {
+    color: '#4CAF50',
+    fontWeight: 'bold',
+  },
 });

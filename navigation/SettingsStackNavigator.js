@@ -1,8 +1,8 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import SettingsScreen from '../screens/SettingsScreen';  // The main Settings selection page
-import DriveScreenSettings from '../screens/DriveScreenSettings'; // Sub-setting screens
-import GeneralSettings from '../screens/GeneralSettings'; // Example
+import SettingsScreen from '../screens/SettingsScreen';  
+import DriveScreenSettings from '../screens/DriveScreenSettings'; 
+import GeneralSettings from '../screens/GeneralSettings'; 
 import DashboardSettings from '../screens/DashboardSettings';
 import AccountSettings from '../screens/AccountSettings';
 

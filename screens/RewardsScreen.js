@@ -13,6 +13,6 @@ export default function RewardsScreen({ route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  points: { fontSize: 28, fontWeight: 'bold', marginBottom: 20 },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', color: 'white' },
+  points: { fontSize: 28, fontWeight: 'bold', marginBottom: 20, color: 'white' },
 });

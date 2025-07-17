@@ -35,11 +35,9 @@ export default function AccountSettings() {
         const uid = currentUser.uid;
 
         try {
-          // Fetch total points
           const userPoints = await getUserPoints(uid);
           setPoints(userPoints);
 
-          // Fetch username from Firestore
           const userDocRef = doc(db, 'users', uid);
           const userDocSnap = await getDoc(userDocRef);
           if (userDocSnap.exists()) {
@@ -108,7 +106,6 @@ export default function AccountSettings() {
       const trimmed = editedUsername.trim();
       const uid = user.uid;
 
-      // Check if the username is taken by someone else
       const q = query(collection(db, 'users'), where('username', '==', trimmed));
       const querySnapshot = await getDocs(q);
 

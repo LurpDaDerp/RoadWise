@@ -41,7 +41,7 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigation.navigate('Dashboard'); // redirect on successful login
+      navigation.navigate('Dashboard'); 
     } catch (error) {
       Alert.alert('Login Failed', error.message);
     }

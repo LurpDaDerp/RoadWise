@@ -73,7 +73,7 @@ export default function DashboardScreen({ route }) {
     return unsubscribe;
   }, []);
 
-  // Fade helpers
+  // Fade animation helpers
   const fadeInContent = () => {
     Animated.timing(contentOpacity, {
       toValue: 1,
@@ -93,7 +93,7 @@ export default function DashboardScreen({ route }) {
       }).start(() => resolve());
     });
 
-  // On focus, reload points from storage
+  // On screen focus, reload points from storage
   useFocusEffect(
     React.useCallback(() => {
       let isActive = true;
@@ -125,7 +125,6 @@ export default function DashboardScreen({ route }) {
 
             if (!isActive) return;
 
-            // <-- Removed resetting to storedPoints here --
 
           } catch (e) {
             console.error('Error loading points on focus:', e);
@@ -148,10 +147,10 @@ export default function DashboardScreen({ route }) {
     }, [user])
   );
 
-  // Animate points smoothly
+  // Animate 
   const animatePoints = (from, to) => {
     const diff = Math.abs(to - from);
-    const duration = Math.min(1000, Math.max(500, diff * 20)); // Clamp between 500ms and 2000ms
+    const duration = Math.min(1000, Math.max(500, diff * 20)); 
     animatedPoints.setValue(from);
     Animated.timing(animatedPoints, {
       toValue: to,

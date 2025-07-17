@@ -14,7 +14,7 @@ export default function SignUpScreen() {
   const navigation = useNavigation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState(''); // <-- Add this
+  const [username, setUsername] = useState(''); 
 
   const handleSignUp = async () => {
     if (!username.trim()) {
