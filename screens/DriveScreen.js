@@ -51,7 +51,7 @@ export default function DriveScreen({ route }) {
 
   const DEFAULT_SPEED_LIMIT_MPH = 25;
   const DEFAULT_SPEED_LIMIT_KPH = DEFAULT_SPEED_LIMIT_MPH * 1.60934;
-  const DEFAULT_DELAY = 5000;
+  const DEFAULT_DELAY = 100;
 
   useEffect(() => {
     onAuthStateChanged(auth, () => {}); 
@@ -73,7 +73,6 @@ export default function DriveScreen({ route }) {
           if (storedShowSpeedLimit !== null) setShowSpeedLimit(storedShowSpeedLimit === 'true');
           if (storedDisplayMode !== null) {
             const val = storedDisplayMode === 'true';
-            console.log('Loaded displayTotalPoints setting:', val);
             setDisplayTotalPoints(val);
           }
         } catch (err) {
@@ -243,6 +242,16 @@ export default function DriveScreen({ route }) {
   const currentLimit = Number(speedLimit ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
   const isSpeeding = Math.round(speed) > currentLimit * 1.25;
 
+  const getFontSizeForPoints = (points) => {
+    const digits = points.toString().length;
+    const maxFontSize = 120;
+    const minFontSize = 60;
+
+    const scale = Math.min(digits, 8) / 8;
+    return maxFontSize - scale * (maxFontSize - minFontSize);
+  };
+
+
   useEffect(() => {
     Animated.timing(warningOpacity, {
       toValue: showSpeedingWarning && isSpeeding ? 1 : 0,
@@ -278,7 +287,7 @@ export default function DriveScreen({ route }) {
       <View style={styles.container}>
         <View style={styles.pointsContainer}>
           <View style={styles.pointsWrapper}>
-            <Text style={styles.points} adjustsFontSizeToFit numberOfLines={1} minimumFontScale={0.2}>
+            <Text style={[styles.points, { fontSize: getFontSizeForPoints(displayedPoints) }]}>
               {displayedPoints}
             </Text>
           </View>

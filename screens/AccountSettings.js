@@ -65,7 +65,6 @@ export default function AccountSettings() {
         const stored = await AsyncStorage.getItem('totalPoints');
         const totalPoints = stored ? parseFloat(stored) : 0;
         await saveUserPoints(uid, totalPoints);
-        console.log("points updated 5");
       }
 
       await signOut(auth);

@@ -119,7 +119,6 @@ export default function DashboardScreen({ route }) {
               await AsyncStorage.removeItem('@pointsThisDrive');
               if (user) {
                 await saveUserPoints(user.uid, newTotal);
-                console.log("points updated 1");
               }
             }
 
@@ -172,7 +171,6 @@ export default function DashboardScreen({ route }) {
           const key = getStorageKey(user.uid);
           await AsyncStorage.setItem(key, updated.toString());
           await saveUserPoints(user.uid, updated);
-          console.log("points updated 2");
         } else {
           await AsyncStorage.setItem('totalPoints', updated.toString());
         }

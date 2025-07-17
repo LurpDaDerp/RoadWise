@@ -15,7 +15,7 @@ export default function SettingsStackNavigator() {
       <Stack.Screen
         name="SettingsMain"
         component={SettingsScreen}
-        options={{ headerShown: false }}
+        options={{ headerShown: false , headerTitle: '' }}
       />
       <Stack.Screen 
         name="DriveScreenSettings" 

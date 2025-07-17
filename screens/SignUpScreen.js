@@ -42,7 +42,6 @@ export default function SignUpScreen() {
       });
 
       await saveUserPoints(uid, 0);
-      console.log("points updated 4");
       await AsyncStorage.setItem('totalPoints', '0');
 
       navigation.reset({
