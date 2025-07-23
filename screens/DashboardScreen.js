@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: scale(56),
     fontWeight: '500',
-    marginBottom: verticalScale(24),
+    marginBottom: verticalScale(30),
     color: '#fff',
   },
   pointsBackground: {

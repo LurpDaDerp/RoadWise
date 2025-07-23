@@ -1,9 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Dimensions,
+} from 'react-native';
+import {
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  limit,
+} from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-import { db } from '../utils/firebase'; 
+import { db } from '../utils/firebase';
 import { ImageBackground } from 'expo-image';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const scale = screenWidth / 375;
 
 export default function LeaderboardScreen() {
   const [leaderboard, setLeaderboard] = useState([]);
@@ -20,8 +35,11 @@ export default function LeaderboardScreen() {
         setCurrentUserId(currentUid);
 
         const leaderboardRef = collection(db, 'users');
-
-        const leaderboardQuery = query(leaderboardRef, orderBy('points', 'desc'), limit(10));
+        const leaderboardQuery = query(
+          leaderboardRef,
+          orderBy('points', 'desc'),
+          limit(10)
+        );
         const querySnapshot = await getDocs(leaderboardQuery);
 
         const topResults = [];
@@ -45,8 +63,9 @@ export default function LeaderboardScreen() {
         setLeaderboard(topResults);
 
         if (!isCurrentUserInTop10 && currentUid) {
-          // Get full list to find placement
-          const allSnapshot = await getDocs(query(leaderboardRef, orderBy('points', 'desc')));
+          const allSnapshot = await getDocs(
+            query(leaderboardRef, orderBy('points', 'desc'))
+          );
 
           let rank = 1;
           for (const doc of allSnapshot.docs) {
@@ -74,7 +93,11 @@ export default function LeaderboardScreen() {
   }, []);
 
   return (
-    <ImageBackground source={require('../assets/leaderboardback.jpg')} style={styles.background} resizeMode="cover">
+    <ImageBackground
+      source={require('../assets/leaderboardback.jpg')}
+      style={styles.background}
+      resizeMode="cover"
+    >
       <View style={styles.overlay}>
         <Text style={styles.title}>Leaderboard</Text>
         {loading ? (
@@ -90,10 +113,14 @@ export default function LeaderboardScreen() {
                   key={index}
                   style={[styles.row, isCurrentUser && styles.currentUserRow]}
                 >
-                  <Text style={[styles.name, isCurrentUser && styles.currentUserText]}>
+                  <Text
+                    style={[styles.name, isCurrentUser && styles.currentUserText]}
+                  >
                     {index + 1}. {user ? user.name : 'N/A'}
                   </Text>
-                  <Text style={[styles.points, isCurrentUser && styles.currentUserText]}>
+                  <Text
+                    style={[styles.points, isCurrentUser && styles.currentUserText]}
+                  >
                     {user ? user.points : ''}
                   </Text>
                 </View>
@@ -102,7 +129,7 @@ export default function LeaderboardScreen() {
 
             {currentUserPlacement && (
               <>
-                <View style={{ height: 20 }} />
+                <View style={{ height: 20 * scale }} />
                 <View style={[styles.row, styles.currentUserRow]}>
                   <Text style={[styles.name, styles.currentUserText]}>
                     {currentUserPlacement.rank}. {currentUserPlacement.name}
@@ -122,36 +149,33 @@ export default function LeaderboardScreen() {
 
 const styles = StyleSheet.create({
   background: { flex: 1 },
-  overlay: { flex: 1, padding: 24, backgroundColor: 'rgba(0, 0, 0, 0.2)' },
-  container: {
+  overlay: {
     flex: 1,
-    paddingTop: 80,
-    paddingHorizontal: 24,
-    backgroundColor: '#000',
+    padding: 24 * scale,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   title: {
-    paddingTop: 100,
-    fontSize: 36,
+    paddingTop: 40 * scale,
+    fontSize: 36 * scale,
     fontWeight: 'bold',
-    marginBottom: 40,
+    marginBottom: 20 * scale,
     textAlign: 'center',
     color: 'white',
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingVertical: 10 * scale,
+    paddingHorizontal: 25 * scale,
     borderBottomWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   name: {
-    fontSize: 18,
+    fontSize: 18 * scale,
     color: 'white',
-    
   },
   points: {
-    fontSize: 18,
+    fontSize: 18 * scale,
     fontWeight: 'bold',
     color: 'white',
   },
@@ -159,7 +183,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     borderColor: '#4CAF50',
     borderWidth: 2,
-    borderRadius: 15,
+    borderRadius: 15 * scale,
   },
   currentUserText: {
     color: '#4CAF50',
