@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   background: { flex: 1 },
   darkOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: 'rgba(0,0,0,0.15)',
   },
   overlay: {
     flex: 1,

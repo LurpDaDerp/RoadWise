@@ -208,7 +208,7 @@ export default function AccountSettings() {
           </TouchableOpacity>
         </>
       ) : (
-        <TouchableOpacity style={styles.loginButton} onPress={() => navigation.navigate('Dashboard', { screen: 'Login' })}>
+        <TouchableOpacity style={styles.loginButton} onPress={() => navigation.navigate('Home', { screen: 'Login' })}>
           <Text style={styles.loginButtonText}>Log In</Text>
         </TouchableOpacity>
       )}

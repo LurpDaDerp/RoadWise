@@ -81,9 +81,6 @@ export default function DriveScreenSettings() {
           />
         </View>
 
-        
-
-        {/* New toggles */}
         <View style={styles.settingRowToggle}>
           <Text style={styles.settingLabel}>Show Current Speed</Text>
           <Switch
@@ -137,17 +134,42 @@ export default function DriveScreenSettings() {
 }
 
 const styles = StyleSheet.create({
-  background: { flex: 1 },
-  overlay: { flex: 1, padding: 24, backgroundColor: 'rgba(0, 0, 0, 0.4)' },
-  menuButton: { position: 'absolute', top: 70, left: 20 },
-  title: { fontSize: 36, fontWeight: 'bold', color: '#fff', marginTop: 75, marginBottom: 48, alignSelf: 'center' },
-  settingRow: { marginBottom: 20 },
+  background: { 
+    flex: 1 
+  },
+  overlay: { 
+    flex: 1, 
+    padding: 24, 
+    backgroundColor: 'rgba(0, 0, 0, 0.4)' 
+  },
+  menuButton: { 
+    position: 'absolute', 
+    top: 70, 
+    left: 20 
+  },
+  title: { 
+    fontSize: 36, 
+    fontWeight: 'bold', 
+    color: '#fff', 
+    marginTop: 50, 
+    marginBottom: 48, 
+    alignSelf: 'center' 
+  },
+  settingRow: { 
+    marginBottom: 20 
+  },
   settingRowToggle: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
   },
-  settingLabel: { fontSize: 18, marginBottom: 12, color: '#fff' },
-  segmentedControl: { height: 40 },
+  settingLabel: { 
+    fontSize: 18, 
+    marginBottom: 12, 
+    color: '#fff' 
+  },
+  segmentedControl: { 
+    height: 40 
+  },
 });

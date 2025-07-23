@@ -9,14 +9,20 @@ import {
   DefaultTheme,
 } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
+import { MaterialIcons } from '@expo/vector-icons'; 
 
 import StackNavigator from './navigation/StackNavigator';
 import SettingsStackNavigator from './navigation/SettingsStackNavigator';
 
+import { ThemeProvider } from './context/ThemeContext';
+import { useContext } from 'react';
+import { ThemeContext } from './context/ThemeContext';
+
+
 const Drawer = createDrawerNavigator();
 
 function AppNavigation() {
-  const colorScheme = useColorScheme();
+  const { resolvedTheme } = useContext(ThemeContext);
   const appState = useRef(AppState.currentState);
   const navigationRef = useNavigationContainerRef();
 
@@ -37,7 +43,7 @@ function AppNavigation() {
               index: 0,
               routes: [
                 {
-                  name: 'Main',
+                  name: 'Home',
                   state: {
                     routes: [{ name: 'Dashboard' }],
                   },
@@ -57,24 +63,40 @@ function AppNavigation() {
   return (
     <NavigationContainer
       ref={navigationRef}
-      theme={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
+      theme={resolvedTheme === 'dark' ? DarkTheme : DefaultTheme}
     >
-      <Drawer.Navigator initialRouteName="Dashboard">
+
+      <Drawer.Navigator initialRouteName="Home">
         <Drawer.Screen
-          name="Dashboard"
+          name="Home"
           component={StackNavigator}
-          options={{ headerShown: false }}
+          options={{
+            headerShown: false,
+            drawerIcon: ({ color, size }) => (
+              <MaterialIcons name="home" size={size} color={color} />
+            ),
+          }}
         />
         <Drawer.Screen
           name="Settings"
           component={SettingsStackNavigator}
-          options={{ headerShown: false }}
+          options={{
+            headerShown: false,
+            drawerIcon: ({ color, size }) => (
+              <MaterialIcons name="settings" size={size} color={color} />
+            ),
+          }}
         />
       </Drawer.Navigator>
     </NavigationContainer>
   );
 }
 
+
 export default function App() {
-  return <AppNavigation />;
+  return (
+    <ThemeProvider>
+      <AppNavigation />
+    </ThemeProvider>
+  );
 }
