@@ -16,6 +16,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../utils/firebase';
 
+import { Dimensions } from 'react-native';
+const { width, height } = Dimensions.get('window');
+
+const scale = (size) => (width / 375) * size; // 375 is iPhone 11 width baseline
+const verticalScale = (size) => (height / 812) * size; // 812 is iPhone 11 height baseline
+const moderateScale = (size, factor = 0.5) =>
+  size + (scale(size) - size) * factor;
+
+
 const AnimatedImageBackground = Animated.createAnimatedComponent(ImageBackground);
 const HERE_API_KEY = 'G7cQbMXnjvzDsZwUEsc8yqVt001VXP3arshuxR4dHXQ';
 const GRID_RESOLUTION = 0.001;
@@ -195,22 +204,31 @@ export default function DriveScreen({ route }) {
 
   const fetchSpeedLimit = async (lat, lon, unit) => {
     try {
-      const url = `https://router.hereapi.com/v8/routes?transportMode=car&origin=${lat},${lon}&destination=${lat},${lon}&return=summary,polyline&apikey=${HERE_API_KEY}`;
+      const delta = 0.0005; // slight offset for valid route
+      const destLat = lat + delta;
+      const destLon = lon + delta;
+
+      const url = `https://router.hereapi.com/v8/routes?transportMode=car&origin=${lat},${lon}&destination=${destLat},${destLon}&return=summary,spans&apikey=${HERE_API_KEY}`;
       const res = await fetch(url);
       const data = await res.json();
+
       const spans = data?.routes?.[0]?.sections?.[0]?.spans;
       if (!spans?.length) return null;
+
       for (const span of spans) {
         if (span.speedLimit?.speed) {
           const limitKph = span.speedLimit.speed;
           return unit === 'kph' ? limitKph : limitKph * 0.621371;
         }
       }
+
       return null;
-    } catch {
+    } catch (error) {
+      console.warn('Failed to fetch speed limit:', error);
       return null;
     }
   };
+
 
   const scheduleNextPoint = () => {
     const currentSpeed = speedRef.current;
@@ -324,21 +342,19 @@ const styles = StyleSheet.create({
   },
   speedLimitContainer: {
     position: 'absolute',
-    top: 60,
-    right: 10,
-    width: 120,
-    height: 120,
+    top: verticalScale(60),
+    right: scale(10),
+    width: scale(100),
+    height: scale(100),
   },
   speedLimitSign: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    width: '100%',
-    height: '100%',
   },
   speedLimitText: {
-    paddingTop: 50,
-    fontSize: 46,
+    paddingTop: verticalScale(50),
+    fontSize: scale(36),
     fontWeight: 'bold',
     color: '#000',
     textAlign: 'center',
@@ -347,7 +363,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 25,
+    paddingVertical: verticalScale(25),
   },
   pointsContainer: {
     flex: 1,
@@ -360,36 +376,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   points: {
-    marginTop: 100,
-    fontSize: 120,
+    marginTop: verticalScale(100),
+    fontSize: scale(120),
     fontWeight: 'bold',
     color: '#fff',
     textShadowColor: '#fff',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 12,
+    textShadowRadius: scale(12),
     textAlign: 'center',
   },
   pointsLabel: {
-    fontSize: 24,
+    fontSize: scale(24),
     color: '#fff',
-    marginTop: 8,
+    marginTop: verticalScale(8),
   },
   speedBackground: {
     width: '100%',
-    paddingVertical: 105,
+    paddingVertical: verticalScale(120),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: -90,
-    borderRadius: 20,
+    marginBottom: verticalScale(-100),
+    borderRadius: scale(20),
     overflow: 'hidden',
   },
   speedText: {
-    fontSize: 48,
+    fontSize: scale(48),
     fontWeight: 'bold',
     color: '#fff',
     textShadowColor: '#000',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 4,
+    textShadowRadius: scale(4),
   },
   warningOverlay: {
     position: 'absolute',
@@ -403,13 +419,13 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   warningOverlayText: {
-    fontSize: 32,
+    fontSize: scale(32),
     fontWeight: 'bold',
     color: '#ff4444',
     textAlign: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: scale(20),
     textShadowColor: '#000',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 6,
+    textShadowRadius: scale(6),
   },
 });

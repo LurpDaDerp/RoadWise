@@ -19,6 +19,13 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../utils/firebase';
 import { getUserPoints, saveUserPoints } from '../utils/firestore';
 
+import { Dimensions } from 'react-native';
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+const scale = (size) => (SCREEN_WIDTH / 375) * size;
+const verticalScale = (size) => (SCREEN_HEIGHT / 812) * size;
+
+
 const getStorageKey = (uid) => `totalPoints_${uid}`;
 
 export default function DashboardScreen({ route }) {
@@ -288,7 +295,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingText: { color: '#fff', fontSize: 24 },
+  loadingText: { color: '#fff', fontSize: scale(24) },
   background: { flex: 1 },
   darkOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -296,36 +303,49 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    padding: 32,
+    padding: scale(32),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuButton: { position: 'absolute', top: 70, left: 30 },
+  menuButton: {
+    position: 'absolute',
+    top: verticalScale(70),
+    left: scale(30),
+  },
   loginButton: {
     position: 'absolute',
-    top: 70,
-    right: 30,
+    top: verticalScale(70),
+    right: scale(30),
     backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 16,
+    paddingVertical: verticalScale(6),
+    paddingHorizontal: scale(14),
+    borderRadius: scale(16),
   },
-  loginButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  header: { fontSize: 56, fontWeight: '500', marginBottom: 24, color: '#fff' },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: scale(16),
+    fontWeight: '600',
+  },
+  header: {
+    fontSize: scale(56),
+    fontWeight: '500',
+    marginBottom: verticalScale(24),
+    color: '#fff',
+  },
   pointsBackground: {
     width: '100%',
-    height: 250,
+    height: verticalScale(250),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 40,
-    borderRadius: 20,
+    marginBottom: verticalScale(40),
+    borderRadius: scale(20),
     overflow: 'hidden',
   },
   points: {
-    fontSize: 64,
+    fontSize: scale(64),
     fontWeight: 'bold',
-    marginTop: 90,
-    marginBottom: 4,
+    marginTop: verticalScale(90),
+    marginBottom: verticalScale(4),
     maxWidth: '60%',
     textAlign: 'center',
     color: '#fff',
@@ -333,37 +353,50 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
   },
-  pointsLabel: { fontSize: 20, marginBottom: 40, color: '#fff' },
+  pointsLabel: {
+    fontSize: scale(20),
+    marginBottom: verticalScale(40),
+    color: '#fff',
+  },
   driveButton: {
     backgroundColor: 'transparent',
     borderColor: '#fff',
     borderWidth: 2,
-    paddingVertical: 20,
-    paddingHorizontal: 40,
-    borderRadius: 20,
+    paddingVertical: verticalScale(20),
+    paddingHorizontal: scale(40),
+    borderRadius: scale(20),
     width: '100%',
-    marginBottom: 32,
+    marginBottom: verticalScale(32),
     alignItems: 'center',
   },
-  driveButtonText: { color: '#fff', fontSize: 30, fontWeight: 'bold' },
+  driveButtonText: {
+    color: '#fff',
+    fontSize: scale(30),
+    fontWeight: 'bold',
+  },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
-    columnGap: 16,
-    marginTop: 30,
+    columnGap: scale(16),
+    marginTop: verticalScale(30),
   },
   smallButton: {
     flex: 1,
-    minHeight: 70,
+    minHeight: verticalScale(70),
     borderColor: '#fff',
     borderWidth: 2,
     backgroundColor: 'transparent',
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingVertical: verticalScale(10),
+    borderRadius: scale(20),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  smallButtonText: { fontSize: 20, fontWeight: '600', color: '#fff' },
+  smallButtonText: {
+    fontSize: scale(20),
+    fontWeight: '600',
+    color: '#fff',
+  },
   flexItem: { flex: 1, justifyContent: 'center' },
 });
+
