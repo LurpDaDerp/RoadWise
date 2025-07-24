@@ -11,6 +11,7 @@ import {
 } from 'firebase/auth';
 import * as Google from 'expo-auth-session/providers/google';
 import { useNavigation } from '@react-navigation/native';
+import { ensureUserStreakFields } from '../utils/firestoreHelpers';
 
 
 export default function LoginScreen() {
@@ -29,7 +30,8 @@ export default function LoginScreen() {
       const { id_token } = response.params;
       const credential = GoogleAuthProvider.credential(id_token);
       signInWithCredential(auth, credential)
-        .then(() => {
+        .then(async (userCred) => {
+          await ensureUserStreakFields(userCred.user.uid);
           navigation.navigate('Dashboard');
         })
         .catch((error) => {
@@ -40,8 +42,9 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      navigation.navigate('Dashboard'); 
+      const userCred = await signInWithEmailAndPassword(auth, email, password);
+      await ensureUserStreakFields(userCred.user.uid);
+      navigation.navigate('Dashboard');
     } catch (error) {
       Alert.alert('Login Failed', error.message);
     }

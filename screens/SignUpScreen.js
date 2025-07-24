@@ -23,7 +23,6 @@ export default function SignUpScreen() {
     }
 
     try {
-      // Check if username is taken
       const q = query(collection(db, 'users'), where('username', '==', username.trim()));
       const querySnapshot = await getDocs(q);
 
@@ -32,14 +31,17 @@ export default function SignUpScreen() {
         return;
       }
 
-      // Create user
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
 
       await setDoc(doc(db, 'users', uid), {
         username: username.trim(),
         email,
+        points: 0,
+        streakCount: 0,
+        lastDriveDate: null,
       });
+
 
       await saveUserPoints(uid, 0);
       await AsyncStorage.setItem('totalPoints', '0');

@@ -1,13 +1,13 @@
 import React, { useRef } from 'react';
 import { useFocusEffect, useNavigationContainerRef } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createStackNavigator } from '@react-navigation/stack';
 import SettingsScreen from '../screens/SettingsScreen';
 import DriveScreenSettings from '../screens/DriveScreenSettings';
 import GeneralSettings from '../screens/GeneralSettings';
 import DashboardSettings from '../screens/DashboardSettings';
 import AccountSettings from '../screens/AccountSettings';
 
-const Stack = createNativeStackNavigator();
+const Stack = createStackNavigator();
 
 export default function SettingsStackNavigator() {
   const navigationRef = useNavigationContainerRef();
@@ -34,7 +34,7 @@ export default function SettingsStackNavigator() {
       <Stack.Screen
         name="SettingsMain"
         component={SettingsScreen}
-        options={{ headerShown: false, headerTitle: '' }}
+        options={{ headerShown: false, headerTitle: "Settings" }}
       />
       <Stack.Screen
         name="DriveScreenSettings"

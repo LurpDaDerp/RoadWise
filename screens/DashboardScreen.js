@@ -1,5 +1,5 @@
 // DashboardScreen.js
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useContext } from 'react';
 import {
   View,
   Text,
@@ -8,28 +8,32 @@ import {
   Animated,
   Pressable,
   ImageBackground,
+  Dimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
 import { Easing } from 'react-native';
+import { Snackbar } from 'react-native-paper';
 
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../utils/firebase';
 import { getUserPoints, saveUserPoints } from '../utils/firestore';
 
-import { Dimensions } from 'react-native';
+import { ThemeContext } from '../context/ThemeContext'; 
+
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const scale = (size) => (SCREEN_WIDTH / 375) * size;
 const verticalScale = (size) => (SCREEN_HEIGHT / 812) * size;
 
-
 const getStorageKey = (uid) => `totalPoints_${uid}`;
 
 export default function DashboardScreen({ route }) {
   const navigation = useNavigation();
+  const { resolvedTheme } = useContext(ThemeContext); 
+
   const [user, setUser] = useState(null);
   const [totalPoints, setTotalPoints] = useState(null);
   const updatedPointsHandled = useRef(false);
@@ -37,16 +41,18 @@ export default function DashboardScreen({ route }) {
   const animatedPoints = useRef(new Animated.Value(0)).current;
   const [displayedPoints, setDisplayedPoints] = useState(0);
   const contentOpacity = useRef(new Animated.Value(0)).current;
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
 
-  // Listen for animation value changes
+  const snackbarBackgroundColor = resolvedTheme === 'dark' ? '#222' : '#fff';
+  const snackbarTextColor = resolvedTheme === 'dark' ? '#fff' : '#555';
+
   useEffect(() => {
     const listener = animatedPoints.addListener(({ value }) => {
       setDisplayedPoints(Math.floor(value));
     });
     return () => animatedPoints.removeListener(listener);
-  }, []);
+  }, [animatedPoints]);
 
-  // Listen for auth changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       updatedPointsHandled.current = false;
@@ -57,9 +63,14 @@ export default function DashboardScreen({ route }) {
       if (firebaseUser) {
         setUser(firebaseUser);
         const uid = firebaseUser.uid;
-
         try {
           const firestorePoints = await getUserPoints(uid);
+          if (firestorePoints == null || isNaN(firestorePoints)) {
+            setTotalPoints(0);
+            animatedPoints.setValue(0);
+            await AsyncStorage.removeItem(getStorageKey(uid));
+            return;
+          }
           await AsyncStorage.setItem(getStorageKey(uid), firestorePoints.toString());
           setTotalPoints(firestorePoints);
           animatedPoints.setValue(firestorePoints);
@@ -78,17 +89,16 @@ export default function DashboardScreen({ route }) {
     });
 
     return unsubscribe;
-  }, []);
+  }, [animatedPoints]);
 
-  // Fade animation helpers
-  const fadeInContent = () => {
+  const fadeInContent = useCallback(() => {
     Animated.timing(contentOpacity, {
       toValue: 1,
       duration: 500,
       easing: Easing.out(Easing.poly(3)),
       useNativeDriver: true,
     }).start();
-  };
+  }, [contentOpacity]);
 
   const fadeOutContent = () =>
     new Promise((resolve) => {
@@ -100,73 +110,93 @@ export default function DashboardScreen({ route }) {
       }).start(() => resolve());
     });
 
-  // On screen focus, reload points from storage
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       let isActive = true;
       fadeInContent();
 
       (async () => {
-        if (user) {
-          try {
-            const key = getStorageKey(user.uid);
-            const [stored, drivePointsStr] = await Promise.all([
-              AsyncStorage.getItem(key),
-              AsyncStorage.getItem('@pointsThisDrive'),
-            ]);
-            const storedPoints = stored ? parseFloat(stored) : 0;
-            const drivePoints = drivePointsStr ? parseFloat(drivePointsStr) : 0;
-
-            const newTotal = storedPoints + drivePoints;
-            setTotalPoints(newTotal);
-            animatePoints(0, newTotal);
-
-            if (drivePoints > 0) {
-              await AsyncStorage.setItem(key, newTotal.toString());
-              await AsyncStorage.removeItem('@pointsThisDrive');
-              if (user) {
-                await saveUserPoints(user.uid, newTotal);
-              }
-            }
-
-            if (!isActive) return;
-
-
-          } catch (e) {
-            console.error('Error loading points on focus:', e);
-            if (!isActive) return;
+        if (!user) {
+          if (isActive) {
             setTotalPoints(0);
             animatedPoints.setValue(0);
           }
-        } else {
+          return;
+        }
+
+        try {
+          const key = getStorageKey(user.uid);
+          const [storedStr, drivePointsStr] = await Promise.all([
+            AsyncStorage.getItem(key),
+            AsyncStorage.getItem('@pointsThisDrive'),
+          ]);
+
+          const storedPoints = storedStr ? parseFloat(storedStr) : 0;
+          const drivePoints = drivePointsStr ? parseFloat(drivePointsStr) : 0;
+          const newTotal = storedPoints + drivePoints;
+
           if (!isActive) return;
-          setTotalPoints(0);
-          animatedPoints.setValue(0);
+
+          setTotalPoints(newTotal);
+          animatePoints(displayedPoints, newTotal);
+
+          if (drivePoints > 0) {
+            await AsyncStorage.setItem(key, newTotal.toString());
+            await AsyncStorage.removeItem('@pointsThisDrive');
+            await saveUserPoints(user.uid, newTotal);
+          }
+        } catch (e) {
+          console.error('Error loading points on focus:', e);
+          if (isActive) {
+            setTotalPoints(0);
+            animatedPoints.setValue(0);
+          }
         }
       })();
-
 
       return () => {
         isActive = false;
         updatedPointsHandled.current = false;
       };
-    }, [user])
+    }, [user, displayedPoints, fadeInContent, animatedPoints])
   );
 
-  // Animate 
-  const animatePoints = (from, to) => {
-    const diff = Math.abs(to - from);
-    const duration = Math.min(1000, Math.max(500, diff * 20)); 
-    animatedPoints.setValue(from);
-    Animated.timing(animatedPoints, {
-      toValue: to,
-      duration,
-      easing: Easing.out(Easing.poly(3)),
-      useNativeDriver: false,
-    }).start();
-  };
+  useFocusEffect(
+    React.useCallback(() => {
+      let isActive = true;
+      (async () => {
+        try {
+          const flag = await AsyncStorage.getItem('@driveCompleteSnackbar');
+          if (flag === 'true' && isActive) {
+            setSnackbarVisible(true);
+            await AsyncStorage.removeItem('@driveCompleteSnackbar');
+          }
+        } catch (e) {
+          console.warn('Error checking drive complete flag', e);
+        }
+      })();
 
-  // Animate after receiving updated points from DriveScreen
+      return () => {
+        isActive = false;
+      };
+    }, [])
+  );
+
+  const animatePoints = useCallback(
+    (from, to) => {
+      const diff = Math.abs(to - from);
+      const duration = Math.min(1000, Math.max(500, diff * 20));
+      animatedPoints.setValue(from);
+      Animated.timing(animatedPoints, {
+        toValue: to,
+        duration,
+        easing: Easing.out(Easing.poly(3)),
+        useNativeDriver: false,
+      }).start();
+    },
+    [animatedPoints]
+  );
+
   useEffect(() => {
     const updated = route.params?.updatedPoints;
     if (updated != null && !updatedPointsHandled.current) {
@@ -186,23 +216,25 @@ export default function DashboardScreen({ route }) {
       updatedPointsHandled.current = true;
       navigation.setParams({ updatedPoints: null });
     }
-  }, [route.params?.updatedPoints, user]);
+  }, [route.params?.updatedPoints, user, animatePoints, displayedPoints, navigation]);
 
-  const navigateWithFadeOut = async (screenName, params) => {
-    await fadeOutContent();
-    navigation.navigate(screenName, params);
-  };
+  useEffect(() => {
+    if (route.params?.showDriveCompleteSnackbar) {
+      setSnackbarVisible(true);
+      navigation.setParams({ showDriveCompleteSnackbar: false });
+    }
+  }, [route.params, navigation]);
 
   const AnimatedButton = ({ onPress, children, containerStyle, style }) => {
-    const scale = useRef(new Animated.Value(1)).current;
+    const scaleAnim = useRef(new Animated.Value(1)).current;
     return (
       <Pressable
         onPress={onPress}
-        onPressIn={() => Animated.spring(scale, { toValue: 0.9, useNativeDriver: true }).start()}
-        onPressOut={() => Animated.spring(scale, { toValue: 1, friction: 3, useNativeDriver: true }).start()}
+        onPressIn={() => Animated.spring(scaleAnim, { toValue: 0.9, useNativeDriver: true }).start()}
+        onPressOut={() => Animated.spring(scaleAnim, { toValue: 1, friction: 3, useNativeDriver: true }).start()}
         style={containerStyle}
       >
-        <Animated.View style={[style, { transform: [{ scale }] }]}>{children}</Animated.View>
+        <Animated.View style={[style, { transform: [{ scale: scaleAnim }] }]}>{children}</Animated.View>
       </Pressable>
     );
   };
@@ -233,7 +265,9 @@ export default function DashboardScreen({ route }) {
           {!user && (
             <TouchableOpacity
               style={styles.loginButton}
-              onPress={() => navigateWithFadeOut('Login')}
+              onPress={() => {
+                fadeOutContent().then(() => navigation.navigate('Login'));
+              }}
               activeOpacity={0.7}
             >
               <Text style={styles.loginButtonText}>Log In</Text>
@@ -255,11 +289,13 @@ export default function DashboardScreen({ route }) {
 
           <AnimatedButton
             style={styles.driveButton}
-            onPress={() =>
-              navigateWithFadeOut('Drive', {
-                totalPoints,
-              })
-            }
+            onPress={() => {
+              fadeOutContent().then(() =>
+                navigation.navigate('Drive', {
+                  totalPoints,
+                })
+              );
+            }}
           >
             <Text style={styles.driveButtonText}>Start Driving!</Text>
           </AnimatedButton>
@@ -268,7 +304,9 @@ export default function DashboardScreen({ route }) {
             <AnimatedButton
               containerStyle={styles.flexItem}
               style={styles.smallButton}
-              onPress={() => navigateWithFadeOut('Rewards', { totalPoints })}
+              onPress={() => {
+                fadeOutContent().then(() => navigation.navigate('Rewards', { totalPoints }));
+              }}
             >
               <Text style={styles.smallButtonText}>Rewards</Text>
             </AnimatedButton>
@@ -276,11 +314,29 @@ export default function DashboardScreen({ route }) {
             <AnimatedButton
               containerStyle={styles.flexItem}
               style={styles.smallButton}
-              onPress={() => navigateWithFadeOut('Leaderboard')}
+              onPress={() => {
+                fadeOutContent().then(() => navigation.navigate('Leaderboard'));
+              }}
             >
               <Text style={styles.smallButtonText}>Leaderboard</Text>
             </AnimatedButton>
           </View>
+
+          <Snackbar
+            visible={snackbarVisible}
+            onDismiss={() => setSnackbarVisible(false)}
+            duration={3000}
+            style={{ backgroundColor: snackbarBackgroundColor }}
+            theme={{
+              colors: {
+                onSurface: snackbarTextColor, 
+              },
+            }}
+          >
+            <Text style={{ color: snackbarTextColor, textAlign: 'center', width: '100%', fontSize: 24 }}>
+              🎉 Drive Complete! 🎉
+            </Text>
+          </Snackbar>
         </View>
       </ImageBackground>
     </Animated.View>
@@ -399,4 +455,3 @@ const styles = StyleSheet.create({
   },
   flexItem: { flex: 1, justifyContent: 'center' },
 });
-

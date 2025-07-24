@@ -1,4 +1,4 @@
-// DriveScreen.js
+//DriveScreen
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -8,22 +8,22 @@ import {
   Alert,
   Animated,
   ImageBackground,
+  Dimensions,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../utils/firebase';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, doc, updateDoc, increment } from 'firebase/firestore';
 
-import { Dimensions } from 'react-native';
+import { useDrive } from '../context/DriveContext';
+
+const db = getFirestore();
+
 const { width, height } = Dimensions.get('window');
-
-const scale = (size) => (width / 375) * size; // 375 is iPhone 11 width baseline
-const verticalScale = (size) => (height / 812) * size; // 812 is iPhone 11 height baseline
-const moderateScale = (size, factor = 0.5) =>
-  size + (scale(size) - size) * factor;
-
+const scale = (size) => (width / 375) * size;
+const verticalScale = (size) => (height / 812) * size;
 
 const AnimatedImageBackground = Animated.createAnimatedComponent(ImageBackground);
 const HERE_API_KEY = 'G7cQbMXnjvzDsZwUEsc8yqVt001VXP3arshuxR4dHXQ';
@@ -47,24 +47,65 @@ export default function DriveScreen({ route }) {
   const [displayedPoints, setDisplayedPoints] = useState(0);
   const [startingPoints, setStartingPoints] = useState(route.params?.totalPoints ?? 0);
 
-
   const speedRef = useRef(0);
   const appState = useRef(AppState.currentState);
   const locationSubscription = useRef(null);
   const pointTimer = useRef(null);
   const isAppActive = useRef(true);
+  const isDistracted = useRef(false);
   const opacity = useRef(new Animated.Value(0)).current;
   const warningOpacity = useRef(new Animated.Value(0)).current;
   const backgroundTimeout = useRef(null);
-  const startingPointsRef = useRef(0);
+  const driveFinalizedRef = useRef(false);
 
   const DEFAULT_SPEED_LIMIT_MPH = 25;
   const DEFAULT_SPEED_LIMIT_KPH = DEFAULT_SPEED_LIMIT_MPH * 1.60934;
   const DEFAULT_DELAY = 100;
 
+  const { setDriveJustCompleted } = useDrive();
+
+  const finalizeDrive = async () => {
+    if (driveFinalizedRef.current) return;
+    driveFinalizedRef.current = true;
+
+    const user = getAuth().currentUser;
+    
+    if (!user) return;
+
+    const userRef = doc(db, 'users', user.uid);
+
+    
+
+    if (isDistracted.current) {
+      await updateDoc(userRef, { undistractedStreak: 0 });
+    } else if (speedRef.current > 5 && pointsThisDrive > 0) {
+      await updateDoc(userRef, { undistractedStreak: increment(1) });
+    }
+    
+    try {
+      await AsyncStorage.setItem('@driveCompleteSnackbar', 'true');
+      console.log('Drive complete snackbar flag set')
+    } catch (e) {
+      console.warn('Failed to set snackbar flag:', e);
+      
+    }
+
+    
+
+    setDriveJustCompleted(true);
+  };
+
   useEffect(() => {
-    onAuthStateChanged(auth, () => {}); 
-  }, []);
+    const unsubscribe = navigation.addListener('beforeRemove', async (e) => {
+      e.preventDefault();
+
+      await finalizeDrive();
+
+      navigation.dispatch(e.data.action);
+    });
+
+    return unsubscribe;
+  }, [navigation, pointsThisDrive, startingPoints]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -80,10 +121,7 @@ export default function DriveScreen({ route }) {
           if (storedWarnings !== null) setShowSpeedingWarning(storedWarnings === 'true');
           if (storedShowCurrentSpeed !== null) setShowCurrentSpeed(storedShowCurrentSpeed === 'true');
           if (storedShowSpeedLimit !== null) setShowSpeedLimit(storedShowSpeedLimit === 'true');
-          if (storedDisplayMode !== null) {
-            const val = storedDisplayMode === 'true';
-            setDisplayTotalPoints(val);
-          }
+          if (storedDisplayMode !== null) setDisplayTotalPoints(storedDisplayMode === 'true');
         } catch (err) {
           console.warn('⚠️ Failed to load settings:', err);
         }
@@ -99,19 +137,18 @@ export default function DriveScreen({ route }) {
     }
   }, [pointsThisDrive, displayTotalPoints, startingPoints]);
 
-
   useEffect(() => {
     setStartingPoints(route.params?.totalPoints ?? 0);
     setPointsThisDrive(0);
+    isDistracted.current = false;
   }, []);
-
 
   useEffect(() => {
     speedRef.current = speed;
   }, [speed]);
 
   useEffect(() => {
-    const handleAppStateChange = async (nextAppState) => {
+    const handleAppStateChange = (nextAppState) => {
       const wasActive = appState.current === 'active';
       const nowInactive = nextAppState !== 'active';
 
@@ -119,10 +156,14 @@ export default function DriveScreen({ route }) {
       isAppActive.current = !nowInactive;
 
       if (wasActive && nowInactive) {
-        backgroundTimeout.current = setTimeout(() => {
-          navigation.navigate('Dashboard', {
-            updatedPoints: startingPoints + pointsThisDrive,
-          });
+        if (speedRef.current > 5) {
+          isDistracted.current = true;
+        }
+
+        backgroundTimeout.current = setTimeout(async () => {
+          await finalizeDrive();
+
+          navigation.goBack(); 
         }, 2 * 60 * 1000);
       }
 
@@ -132,17 +173,12 @@ export default function DriveScreen({ route }) {
       }
     };
 
-    const sub = AppState.addEventListener('change', handleAppStateChange);
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => {
-      sub.remove();
+      subscription.remove();
       if (backgroundTimeout.current) clearTimeout(backgroundTimeout.current);
     };
-  }, [pointsThisDrive]);
-
-  useEffect(() => {
-    stopPointEarning();
-    startPointEarning();
-  }, [unit]);
+  }, [pointsThisDrive, startingPoints, navigation]);
 
   useEffect(() => {
     (async () => {
@@ -190,7 +226,6 @@ export default function DriveScreen({ route }) {
     };
   }, [unit]);
 
-  // CONTINUOUS ASYNC SAVE ON pointsThisDrive UPDATE
   useEffect(() => {
     const savePoints = async () => {
       try {
@@ -202,9 +237,39 @@ export default function DriveScreen({ route }) {
     savePoints();
   }, [pointsThisDrive]);
 
+  const scheduleNextPoint = () => {
+    const currentSpeed = speedRef.current;
+    const effectiveSpeedLimit = Number(speedLimit ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
+    const speedThreshold = unit === 'kph' ? 16.0934 : 10;
+
+    let delay = currentSpeed <= effectiveSpeedLimit
+      ? DEFAULT_DELAY
+      : DEFAULT_DELAY + Math.min((currentSpeed - effectiveSpeedLimit) / effectiveSpeedLimit, 2) * 2000;
+
+    if (currentSpeed > effectiveSpeedLimit * 1.5) delay = 100000;
+
+    pointTimer.current = setTimeout(() => {
+      if (currentSpeed > speedThreshold) {
+        setPointsThisDrive((prev) => prev + 1);
+      }
+      scheduleNextPoint();
+    }, delay);
+  };
+
+  const startPointEarning = () => {
+    if (!pointTimer.current) scheduleNextPoint();
+  };
+
+  const stopPointEarning = () => {
+    if (pointTimer.current) {
+      clearTimeout(pointTimer.current);
+      pointTimer.current = null;
+    }
+  };
+
   const fetchSpeedLimit = async (lat, lon, unit) => {
     try {
-      const delta = 0.0005; // slight offset for valid route
+      const delta = 0.0005;
       const destLat = lat + delta;
       const destLon = lon + delta;
 
@@ -229,34 +294,6 @@ export default function DriveScreen({ route }) {
     }
   };
 
-
-  const scheduleNextPoint = () => {
-    const currentSpeed = speedRef.current;
-    const effectiveSpeedLimit = Number(speedLimit ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
-    const speedThreshold = unit === 'kph' ? 16.0934 : 10;
-
-    let delay = currentSpeed <= effectiveSpeedLimit ? DEFAULT_DELAY : DEFAULT_DELAY + Math.min((currentSpeed - effectiveSpeedLimit) / effectiveSpeedLimit, 2) * 2000;
-    if (currentSpeed > effectiveSpeedLimit * 1.5) delay = 100000;
-
-    pointTimer.current = setTimeout(() => {
-      if (currentSpeed > speedThreshold) {
-        setPointsThisDrive((prev) => prev + 1);
-      }
-      scheduleNextPoint();
-    }, delay);
-  };
-
-  const startPointEarning = () => {
-    if (!pointTimer.current) scheduleNextPoint();
-  };
-
-  const stopPointEarning = () => {
-    if (pointTimer.current) {
-      clearTimeout(pointTimer.current);
-      pointTimer.current = null;
-    }
-  };
-
   const currentLimit = Number(speedLimit ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
   const isSpeeding = Math.round(speed) > currentLimit * 1.25;
 
@@ -265,10 +302,9 @@ export default function DriveScreen({ route }) {
     const maxFontSize = 120;
     const minFontSize = 60;
 
-    const scale = Math.min(digits, 8) / 8;
-    return maxFontSize - scale * (maxFontSize - minFontSize);
+    const scaleFactor = Math.min(digits, 8) / 8;
+    return maxFontSize - scaleFactor * (maxFontSize - minFontSize);
   };
-
 
   useEffect(() => {
     Animated.timing(warningOpacity, {
@@ -277,6 +313,11 @@ export default function DriveScreen({ route }) {
       useNativeDriver: true,
     }).start();
   }, [showSpeedingWarning, isSpeeding]);
+
+  useEffect(() => {
+    stopPointEarning();
+    startPointEarning();
+  }, [unit]);
 
   return (
     <AnimatedImageBackground
@@ -333,7 +374,6 @@ export default function DriveScreen({ route }) {
   );
 }
 
-
 const styles = StyleSheet.create({
   background: { flex: 1 },
   darkOverlay: {
@@ -377,7 +417,6 @@ const styles = StyleSheet.create({
   },
   points: {
     marginTop: verticalScale(100),
-    fontSize: scale(120),
     fontWeight: 'bold',
     color: '#fff',
     textShadowColor: '#fff',

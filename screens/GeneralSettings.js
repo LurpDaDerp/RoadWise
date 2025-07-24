@@ -22,7 +22,7 @@ export default function GeneralSettings() {
       try {
         const storedTheme = await AsyncStorage.getItem(STORAGE_KEYS.appTheme);
         if (storedTheme && themeSegments.map(s => s.toLowerCase()).includes(storedTheme)) {
-          setTheme(storedTheme);
+          updateTheme(storedTheme);
         }
 
         const storedToggle = await AsyncStorage.getItem(STORAGE_KEYS.exampleToggle);

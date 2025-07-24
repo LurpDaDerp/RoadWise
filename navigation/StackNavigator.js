@@ -1,6 +1,6 @@
 //StackNavigator.js
 import React from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createStackNavigator } from '@react-navigation/stack';
 import DashboardScreen from '../screens/DashboardScreen';
 import DriveScreen from '../screens/DriveScreen';
 import RewardsScreen from '../screens/RewardsScreen';
@@ -11,7 +11,7 @@ import SignUpScreen from '../screens/SignUpScreen';
 
 
 
-const Stack = createNativeStackNavigator();
+const Stack = createStackNavigator();
 
 export default function StackNavigator() {
   return (
@@ -26,8 +26,9 @@ export default function StackNavigator() {
         component={DriveScreen}
         options={{
           title: '',
+          headerBackTitle: 'Complete Drive',
+          headerShown: true,
           headerTransparent: true,
-          headerBackTitle: 'Dashboard',
         }}
       />
       <Stack.Screen name="Rewards" component={RewardsScreen} />

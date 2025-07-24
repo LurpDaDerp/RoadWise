@@ -17,6 +17,9 @@ import SettingsStackNavigator from './navigation/SettingsStackNavigator';
 import { ThemeProvider } from './context/ThemeContext';
 import { useContext } from 'react';
 import { ThemeContext } from './context/ThemeContext';
+import { DriveProvider } from './context/DriveContext'
+
+import { Provider as PaperProvider } from 'react-native-paper';
 
 
 const Drawer = createDrawerNavigator();
@@ -93,10 +96,15 @@ function AppNavigation() {
 }
 
 
+
 export default function App() {
   return (
-    <ThemeProvider>
-      <AppNavigation />
-    </ThemeProvider>
+    <DriveProvider>
+      <ThemeProvider>
+        <PaperProvider>
+          <AppNavigation />
+        </PaperProvider>
+      </ThemeProvider>
+    </DriveProvider>
   );
 }

@@ -68,7 +68,7 @@ export default function AccountSettings() {
       }
 
       await signOut(auth);
-      navigation.navigate('Dashboard', { screen: 'Login' });
+      navigation.navigate('Home', { screen: 'Login' });
     } catch (error) {
       Alert.alert('Sign Out Failed', error.message);
     }
@@ -77,7 +77,7 @@ export default function AccountSettings() {
   const handleSwitchAccount = async () => {
     try {
       await signOut(auth);
-      navigation.navigate('Dashboard', { screen: 'Login' });
+      navigation.navigate('Home', { screen: 'Login' });
     } catch (error) {
       Alert.alert('Switch Failed', error.message);
     }
