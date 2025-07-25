@@ -53,7 +53,7 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>RoadCash Login</Text>
-      <Text style={styles.subtitle}>Log in to save points and redeem rewards!</Text>
+      <Text style={styles.subtitle}>Log in to access all features and redeem rewards!</Text>
 
       <TextInput
         placeholder="Email"

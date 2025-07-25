@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback, useContext } from 'rea
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   TouchableOpacity,
   Animated,
@@ -17,11 +18,15 @@ import { BlurView } from 'expo-blur';
 import { Easing } from 'react-native';
 import { Snackbar } from 'react-native-paper';
 
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '../utils/firebase';
-import { getUserPoints, saveUserPoints } from '../utils/firestore';
+import { getUserPoints, saveUserPoints, saveUserStreak } from '../utils/firestore';
 
 import { ThemeContext } from '../context/ThemeContext'; 
+
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+
+const firestore = getFirestore();
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -29,6 +34,25 @@ const scale = (size) => (SCREEN_WIDTH / 375) * size;
 const verticalScale = (size) => (SCREEN_HEIGHT / 812) * size;
 
 const getStorageKey = (uid) => `totalPoints_${uid}`;
+
+const fireImages = {
+  gray: require('../assets/streaks/gray.png'),
+  orange: require('../assets/streaks/orange.png'),
+  green: require('../assets/streaks/green.png'),
+  purple: require('../assets/streaks/purple.png'),
+  pink: require('../assets/streaks/pink.png'),
+  blue: require('../assets/streaks/blue.png'),
+};
+
+function getFireImage(streak) {
+  if (streak === 0) return fireImages.gray;
+  else if (streak <= 10) return fireImages.orange;
+  else if (streak <= 25) return fireImages.green;
+  else if (streak <= 50) return fireImages.purple;
+  else if (streak <= 100) return fireImages.pink;
+  else return fireImages.blue;
+}
+
 
 export default function DashboardScreen({ route }) {
   const navigation = useNavigation();
@@ -45,6 +69,11 @@ export default function DashboardScreen({ route }) {
 
   const snackbarBackgroundColor = resolvedTheme === 'dark' ? '#222' : '#fff';
   const snackbarTextColor = resolvedTheme === 'dark' ? '#fff' : '#555';
+
+  const [driveStreak, setDriveStreak] = useState(0);
+
+  
+
 
   useEffect(() => {
     const listener = animatedPoints.addListener(({ value }) => {
@@ -63,26 +92,35 @@ export default function DashboardScreen({ route }) {
       if (firebaseUser) {
         setUser(firebaseUser);
         const uid = firebaseUser.uid;
+
         try {
           const firestorePoints = await getUserPoints(uid);
           if (firestorePoints == null || isNaN(firestorePoints)) {
             setTotalPoints(0);
             animatedPoints.setValue(0);
             await AsyncStorage.removeItem(getStorageKey(uid));
-            return;
+          } else {
+            await AsyncStorage.setItem(getStorageKey(uid), firestorePoints.toString());
+            setTotalPoints(firestorePoints);
+            animatePoints(0, firestorePoints);
           }
-          await AsyncStorage.setItem(getStorageKey(uid), firestorePoints.toString());
-          setTotalPoints(firestorePoints);
-          animatedPoints.setValue(firestorePoints);
+
+          const docSnap = await getDoc(doc(firestore, 'users', uid));
+          setStreak(docSnap.exists() ? docSnap.data().drivingStreak || 0 : 0);
+
         } catch (e) {
-          console.error('Error fetching points on auth change:', e);
+          console.error('Error fetching data on auth change:', e);
           setTotalPoints(0);
           animatedPoints.setValue(0);
+          setStreak(0); 
         }
       } else {
         setUser(null);
         setTotalPoints(0);
         animatedPoints.setValue(0);
+
+        const stored = await AsyncStorage.getItem('@drivingStreak');
+        setStreak(stored ? parseInt(stored, 10) : 0);
       }
 
       fadeInContent();
@@ -90,6 +128,8 @@ export default function DashboardScreen({ route }) {
 
     return unsubscribe;
   }, [animatedPoints]);
+
+
 
   const fadeInContent = useCallback(() => {
     Animated.timing(contentOpacity, {
@@ -161,18 +201,31 @@ export default function DashboardScreen({ route }) {
     }, [user, displayedPoints, fadeInContent, animatedPoints])
   );
 
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+
   useFocusEffect(
     React.useCallback(() => {
       let isActive = true;
+
       (async () => {
         try {
-          const flag = await AsyncStorage.getItem('@driveCompleteSnackbar');
-          if (flag === 'true' && isActive) {
+          const [driveCompleteFlag, wasDistractedFlag] = await Promise.all([
+            AsyncStorage.getItem('@driveCompleteSnackbar'),
+            AsyncStorage.getItem('@driveWasDistracted'),
+          ]);
+
+          if (driveCompleteFlag === 'true' && isActive) {
+            if (wasDistractedFlag === 'true') {
+              setSnackbarMessage('Streak reset: You were distracted!');
+            } else {
+              setSnackbarMessage('Drive complete! You were undistracted!');
+            }
             setSnackbarVisible(true);
-            await AsyncStorage.removeItem('@driveCompleteSnackbar');
           }
+
+          await AsyncStorage.multiRemove(['@driveCompleteSnackbar', '@driveWasDistracted']);
         } catch (e) {
-          console.warn('Error checking drive complete flag', e);
+          console.warn('Error checking drive complete or distraction flags', e);
         }
       })();
 
@@ -180,22 +233,19 @@ export default function DashboardScreen({ route }) {
         isActive = false;
       };
     }, [])
-  );
+);
 
-  const animatePoints = useCallback(
-    (from, to) => {
-      const diff = Math.abs(to - from);
-      const duration = Math.min(1000, Math.max(500, diff * 20));
-      animatedPoints.setValue(from);
-      Animated.timing(animatedPoints, {
-        toValue: to,
-        duration,
-        easing: Easing.out(Easing.poly(3)),
-        useNativeDriver: false,
-      }).start();
-    },
-    [animatedPoints]
-  );
+  const animatePoints = (from, to) => {
+    const pointDifference = Math.abs(to - from);
+    
+    const duration = 25;
+
+    Animated.timing(animatedPoints, {
+      toValue: to,
+      duration,
+      useNativeDriver: false,
+    }).start();
+  };
 
   useEffect(() => {
     const updated = route.params?.updatedPoints;
@@ -217,6 +267,72 @@ export default function DashboardScreen({ route }) {
       navigation.setParams({ updatedPoints: null });
     }
   }, [route.params?.updatedPoints, user, animatePoints, displayedPoints, navigation]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      const syncStreak = async () => {
+        try {
+          const flag = await AsyncStorage.getItem('@streakThisDrive');
+          if (flag === '1' && isActive) {
+            let currentStreak = 0;
+
+            if (user) {
+              const userId = user?.uid;
+              const stored = await AsyncStorage.getItem(`@drivingStreak_${userId}`);
+              currentStreak = stored ? parseInt(stored, 10) : 0;
+
+              await saveUserStreak(user.uid, currentStreak);
+              setDriveStreak(currentStreak);
+
+            } else {
+              const stored = await AsyncStorage.getItem('drivingStreak');
+              currentStreak = stored ? parseInt(stored, 10) : 0;
+
+              const updatedStreak = currentStreak + 1;
+
+              await AsyncStorage.setItem('drivingStreak', updatedStreak.toString());
+              setDriveStreak(updatedStreak);
+            }
+
+            await AsyncStorage.removeItem('@streakThisDrive');
+          }
+        } catch (e) {
+          console.warn('Error syncing drive streak:', e);
+        }
+      };
+
+      syncStreak();
+
+      return () => {
+        isActive = false;
+      };
+    }, [user])
+  );
+
+
+
+  const [streak, setStreak] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadStreak = async () => {
+        if (user) {
+          const docSnap = await getDoc(doc(firestore, 'users', user.uid));
+          setStreak(docSnap.exists() ? docSnap.data().drivingStreak || 0 : 0);
+        } else {
+          const stored = await AsyncStorage.getItem('@drivingStreak');
+          setStreak(stored ? parseInt(stored, 10) : 0);
+        }
+      };
+
+      loadStreak();
+    }, [user])
+  );
+
+
+
 
   useEffect(() => {
     if (route.params?.showDriveCompleteSnackbar) {
@@ -262,7 +378,19 @@ export default function DashboardScreen({ route }) {
             <Ionicons name="menu" size={32} color="#fff" />
           </TouchableOpacity>
 
-          {!user && (
+
+          
+          {user ? (
+            <View style={styles.streakContainer}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Image source={getFireImage(streak)} style={styles.streakImage} />
+                <Text style={styles.streakText}>
+                  {streak} 
+                </Text>
+              </View>
+
+            </View>
+          ) : (
             <TouchableOpacity
               style={styles.loginButton}
               onPress={() => {
@@ -281,9 +409,16 @@ export default function DashboardScreen({ route }) {
             style={styles.pointsBackground}
             resizeMode="cover"
           >
-            <Text style={styles.points} adjustsFontSizeToFit numberOfLines={1}>
-              {displayedPoints}
-            </Text>
+            {totalPoints !== null ? (
+              <Text style={styles.points} adjustsFontSizeToFit numberOfLines={1}>
+                {displayedPoints}
+              </Text>
+            ) : (
+              <Text style={styles.points} adjustsFontSizeToFit numberOfLines={1}>
+                ...
+              </Text>
+            )}
+
             <Text style={styles.pointsLabel}>Points</Text>
           </ImageBackground>
 
@@ -332,11 +467,18 @@ export default function DashboardScreen({ route }) {
                 onSurface: snackbarTextColor, 
               },
             }}
+
+            action={{
+              label: 'OK',
+              onPress: () => setSnackbarVisible(false),
+            }}
           >
-            <Text style={{ color: snackbarTextColor, textAlign: 'center', width: '100%', fontSize: 24 }}>
-              🎉 Drive Complete! 🎉
+            <Text style={{ color: snackbarTextColor, textAlign: 'center', width: '100%', fontSize: 18 }}>
+              {snackbarMessage}
             </Text>
           </Snackbar>
+
+          
         </View>
       </ImageBackground>
     </Animated.View>
@@ -366,12 +508,12 @@ const styles = StyleSheet.create({
   menuButton: {
     position: 'absolute',
     top: verticalScale(70),
-    left: scale(30),
+    left: scale(35),
   },
   loginButton: {
     position: 'absolute',
     top: verticalScale(70),
-    right: scale(30),
+    right: scale(35),
     backgroundColor: 'rgba(255,255,255,0.2)',
     paddingVertical: verticalScale(6),
     paddingHorizontal: scale(14),
@@ -382,9 +524,29 @@ const styles = StyleSheet.create({
     fontSize: scale(16),
     fontWeight: '600',
   },
+  streakContainer: {
+    position: 'absolute',
+    top: verticalScale(56),
+    right: scale(16),
+    backgroundColor: 'rgba(255,255,255,0.0)',
+    paddingVertical: verticalScale(6),
+    paddingHorizontal: scale(14),
+    borderRadius: scale(30),
+  },
+  streakText: {
+    color: '#fff',
+    fontSize: scale(42),
+    fontWeight: 'bold',
+  },
+  streakImage: {
+    width: scale(40),
+    height: verticalScale(48),
+    marginRight: scale(6),
+  },
   header: {
-    fontSize: scale(56),
+    fontSize: scale(60),
     fontWeight: '500',
+    marginTop: verticalScale(20),
     marginBottom: verticalScale(30),
     color: '#fff',
   },

@@ -14,7 +14,7 @@ import * as Location from 'expo-location';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAuth } from 'firebase/auth';
+import { getAuth, signOut } from 'firebase/auth';
 import { getFirestore, doc, updateDoc, increment } from 'firebase/firestore';
 
 import { useDrive } from '../context/DriveContext';
@@ -61,6 +61,7 @@ export default function DriveScreen({ route }) {
   const DEFAULT_SPEED_LIMIT_MPH = 25;
   const DEFAULT_SPEED_LIMIT_KPH = DEFAULT_SPEED_LIMIT_MPH * 1.60934;
   const DEFAULT_DELAY = 100;
+  const speedThreshold = unit === 'kph' ? 16.0934 : 10;
 
   const { setDriveJustCompleted } = useDrive();
 
@@ -71,26 +72,29 @@ export default function DriveScreen({ route }) {
     const user = getAuth().currentUser;
     
     if (!user) return;
-
-    const userRef = doc(db, 'users', user.uid);
-
     
-
-    if (isDistracted.current) {
-      await updateDoc(userRef, { undistractedStreak: 0 });
-    } else if (speedRef.current > 5 && pointsThisDrive > 0) {
-      await updateDoc(userRef, { undistractedStreak: increment(1) });
+    try {
+      const storedStreak = await AsyncStorage.getItem(`@drivingStreak_${user.uid}`);
+      const currentStreak = storedStreak ? parseInt(storedStreak) : 0;
+      if (isDistracted.current) {
+        await AsyncStorage.setItem(`@drivingStreak_${user.uid}`, '0');
+      } else if (pointsThisDrive >= 0) {
+        const newStreak = currentStreak + 1;
+        await AsyncStorage.setItem(`@drivingStreak_${user.uid}`, newStreak.toString());
+      } 
+      
+    } catch (e) {
+      console.warn('Failed to update drive streak:', e);
     }
+
     
     try {
       await AsyncStorage.setItem('@driveCompleteSnackbar', 'true');
-      console.log('Drive complete snackbar flag set')
     } catch (e) {
       console.warn('Failed to set snackbar flag:', e);
-      
     }
 
-    
+    await AsyncStorage.setItem('@driveWasDistracted', isDistracted.current ? 'true' : 'false');
 
     setDriveJustCompleted(true);
   };
@@ -100,6 +104,7 @@ export default function DriveScreen({ route }) {
       e.preventDefault();
 
       await finalizeDrive();
+      await AsyncStorage.setItem('@streakThisDrive', '1');
 
       navigation.dispatch(e.data.action);
     });
@@ -148,6 +153,8 @@ export default function DriveScreen({ route }) {
   }, [speed]);
 
   useEffect(() => {
+    let unfocusedAt = null;
+
     const handleAppStateChange = (nextAppState) => {
       const wasActive = appState.current === 'active';
       const nowInactive = nextAppState !== 'active';
@@ -156,20 +163,27 @@ export default function DriveScreen({ route }) {
       isAppActive.current = !nowInactive;
 
       if (wasActive && nowInactive) {
-        if (speedRef.current > 5) {
-          isDistracted.current = true;
-        }
+        unfocusedAt = Date.now();
 
         backgroundTimeout.current = setTimeout(async () => {
           await finalizeDrive();
-
+          await AsyncStorage.setItem('@streakThisDrive', '1');
           navigation.goBack(); 
         }, 2 * 60 * 1000);
       }
 
-      if (!nowInactive && backgroundTimeout.current) {
-        clearTimeout(backgroundTimeout.current);
-        backgroundTimeout.current = null;
+      if (!nowInactive && unfocusedAt) {
+        
+        const unfocusedDuration = (Date.now() - unfocusedAt);
+        if (unfocusedDuration > 5000/*  && speedRef.current > speedThreshold */) {
+          isDistracted.current = true;
+        }
+        unfocusedAt = null;
+
+        if (backgroundTimeout.current) {
+          clearTimeout(backgroundTimeout.current);
+          backgroundTimeout.current = null;
+        }
       }
     };
 
@@ -179,6 +193,7 @@ export default function DriveScreen({ route }) {
       if (backgroundTimeout.current) clearTimeout(backgroundTimeout.current);
     };
   }, [pointsThisDrive, startingPoints, navigation]);
+
 
   useEffect(() => {
     (async () => {
@@ -240,7 +255,6 @@ export default function DriveScreen({ route }) {
   const scheduleNextPoint = () => {
     const currentSpeed = speedRef.current;
     const effectiveSpeedLimit = Number(speedLimit ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
-    const speedThreshold = unit === 'kph' ? 16.0934 : 10;
 
     let delay = currentSpeed <= effectiveSpeedLimit
       ? DEFAULT_DELAY
