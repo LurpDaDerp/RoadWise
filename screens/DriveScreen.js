@@ -81,13 +81,15 @@ export default function DriveScreen({ route }) {
     try {
       const storedStreak = await AsyncStorage.getItem(`@drivingStreak_${user.uid}`);
       const currentStreak = storedStreak ? parseInt(storedStreak) : 0;
-      if (isDistracted.current) {
-        await AsyncStorage.setItem(`@drivingStreak_${user.uid}`, '0');
-      } else if (pointsThisDrive > 0) {
-        const newStreak = currentStreak + 1;
-        await AsyncStorage.setItem(`@drivingStreak_${user.uid}`, newStreak.toString());
-      } 
       
+      if (pointsThisDrive > 0) {
+        if (isDistracted.current) {
+          await AsyncStorage.setItem(`@drivingStreak_${user.uid}`, '0');
+        } else {
+          const newStreak = currentStreak + 1;
+          await AsyncStorage.setItem(`@drivingStreak_${user.uid}`, newStreak.toString());
+        }
+      }
     } catch (e) {
       console.warn('Failed to update drive streak:', e);
     }
@@ -194,22 +196,25 @@ export default function DriveScreen({ route }) {
         unfocusedAt.current = Date.now();
 
         backgroundTimeout.current = setTimeout(async () => {
-          isDistracted.current = true;
+          
+          if (pointsThisDrive > 0) {
+            isDistracted.current = true;
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: 'Drive ended',
+                body: 'Drive has ended after 2 minutes of inactivity. Your streak has been reset.',
+              },
+              trigger: null,
+            });
 
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title: 'Drive ended',
-              body: 'Drive has ended after 2 minutes of inactivity. Your streak has been reset.',
-            },
-            trigger: null,
-          });
-
+            await AsyncStorage.setItem('@streakThisDrive', '1');
+          }
+          
           await finalizeDrive();
-          await AsyncStorage.setItem('@streakThisDrive', '1');
           navigation.goBack();
         }, 2 * 60 * 1000);
 
-        if (distractedNotificationsEnabled) {
+        if (distractedNotificationsEnabled && pointsThisDrive > 0) {
           firstNotificationId.current = await scheduleFirstDistractedNotification();
         }
       }
@@ -222,7 +227,7 @@ export default function DriveScreen({ route }) {
           backgroundTimeout.current = null;
         }
 
-        if (pointsThisDrive >= 0) {
+        if (pointsThisDrive > 0) {
           if (unfocusedDuration > 5000) {
             isDistracted.current = true;
 
