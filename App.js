@@ -21,13 +21,31 @@ import { DriveProvider } from './context/DriveContext'
 
 import { Provider as PaperProvider } from 'react-native-paper';
 
+import * as Notifications from 'expo-notifications';
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true, 
+    shouldShowList: true,   
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 const Drawer = createDrawerNavigator();
 
 function AppNavigation() {
   const { resolvedTheme } = useContext(ThemeContext);
   const appState = useRef(AppState.currentState);
   const navigationRef = useNavigationContainerRef();
+
+  React.useEffect(() => {
+    (async () => {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Notification permissions not granted!');
+      }
+    })();
+  }, []);
 
   React.useEffect(() => {
     const subscription = AppState.addEventListener('change', async (nextAppState) => {

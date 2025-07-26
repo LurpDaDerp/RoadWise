@@ -16,6 +16,9 @@ import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth, signOut } from 'firebase/auth';
 import { getFirestore, doc, updateDoc, increment } from 'firebase/firestore';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { scheduleDistractedNotification, scheduleFirstDistractedNotification, requestNotificationPermissions, scheduleBackgroundNotification } from '../utils/notifications';
 
 import { useDrive } from '../context/DriveContext';
 
@@ -46,6 +49,7 @@ export default function DriveScreen({ route }) {
   const [displayTotalPoints, setDisplayTotalPoints] = useState(false);
   const [displayedPoints, setDisplayedPoints] = useState(0);
   const [startingPoints, setStartingPoints] = useState(route.params?.totalPoints ?? 0);
+  const [distractedNotificationsEnabled, setDistractedNotificationsEnabled] = useState(true);
 
   const speedRef = useRef(0);
   const appState = useRef(AppState.currentState);
@@ -65,6 +69,7 @@ export default function DriveScreen({ route }) {
 
   const { setDriveJustCompleted } = useDrive();
 
+  //finalize drive function
   const finalizeDrive = async () => {
     if (driveFinalizedRef.current) return;
     driveFinalizedRef.current = true;
@@ -78,7 +83,7 @@ export default function DriveScreen({ route }) {
       const currentStreak = storedStreak ? parseInt(storedStreak) : 0;
       if (isDistracted.current) {
         await AsyncStorage.setItem(`@drivingStreak_${user.uid}`, '0');
-      } else if (pointsThisDrive >= 0) {
+      } else if (pointsThisDrive > 0) {
         const newStreak = currentStreak + 1;
         await AsyncStorage.setItem(`@drivingStreak_${user.uid}`, newStreak.toString());
       } 
@@ -89,7 +94,9 @@ export default function DriveScreen({ route }) {
 
     
     try {
-      await AsyncStorage.setItem('@driveCompleteSnackbar', 'true');
+      if (pointsThisDrive > 0) {
+        await AsyncStorage.setItem('@driveCompleteSnackbar', 'true');
+      }
     } catch (e) {
       console.warn('Failed to set snackbar flag:', e);
     }
@@ -99,6 +106,7 @@ export default function DriveScreen({ route }) {
     setDriveJustCompleted(true);
   };
 
+  //streak handler after exiting thru back button
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', async (e) => {
       e.preventDefault();
@@ -112,6 +120,20 @@ export default function DriveScreen({ route }) {
     return unsubscribe;
   }, [navigation, pointsThisDrive, startingPoints]);
 
+  //request notification permissions
+  useEffect(() => {
+    const requestPermissions = async () => {
+      if (Device.isDevice) {
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status !== 'granted') {
+          console.warn('Notification permissions not granted');
+        }
+      }
+    };
+    requestPermissions();
+  }, []);
+
+  //load relevant settings on focus
   useFocusEffect(
     React.useCallback(() => {
       (async () => {
@@ -121,12 +143,14 @@ export default function DriveScreen({ route }) {
           const storedShowCurrentSpeed = await AsyncStorage.getItem('@showCurrentSpeed');
           const storedShowSpeedLimit = await AsyncStorage.getItem('@showSpeedLimit');
           const storedDisplayMode = await AsyncStorage.getItem('@displayTotalPoints');
+          const storedDistracted = await AsyncStorage.getItem('@distractedNotificationsEnabled');
 
           if (storedUnit === 'mph' || storedUnit === 'kph') setUnit(storedUnit);
           if (storedWarnings !== null) setShowSpeedingWarning(storedWarnings === 'true');
           if (storedShowCurrentSpeed !== null) setShowCurrentSpeed(storedShowCurrentSpeed === 'true');
           if (storedShowSpeedLimit !== null) setShowSpeedLimit(storedShowSpeedLimit === 'true');
           if (storedDisplayMode !== null) setDisplayTotalPoints(storedDisplayMode === 'true');
+          if (storedDistracted !== null) setDistractedNotificationsEnabled(storedDistracted === 'true');
         } catch (err) {
           console.warn('⚠️ Failed to load settings:', err);
         }
@@ -134,6 +158,7 @@ export default function DriveScreen({ route }) {
     }, [])
   );
 
+  //update displayed points based on settings
   useEffect(() => {
     if (displayTotalPoints) {
       setDisplayedPoints(startingPoints + pointsThisDrive);
@@ -142,20 +167,23 @@ export default function DriveScreen({ route }) {
     }
   }, [pointsThisDrive, displayTotalPoints, startingPoints]);
 
+  //reset points and isDistracted on mount
   useEffect(() => {
     setStartingPoints(route.params?.totalPoints ?? 0);
     setPointsThisDrive(0);
     isDistracted.current = false;
   }, []);
-
+  //update speed 
   useEffect(() => {
     speedRef.current = speed;
   }, [speed]);
 
-  useEffect(() => {
-    let unfocusedAt = null;
+  //handle app state changes for backgrounding
+  const firstNotificationId = useRef(null);
+  const unfocusedAt = useRef(null);
 
-    const handleAppStateChange = (nextAppState) => {
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState) => {
       const wasActive = appState.current === 'active';
       const nowInactive = nextAppState !== 'active';
 
@@ -163,38 +191,73 @@ export default function DriveScreen({ route }) {
       isAppActive.current = !nowInactive;
 
       if (wasActive && nowInactive) {
-        unfocusedAt = Date.now();
+        unfocusedAt.current = Date.now();
 
         backgroundTimeout.current = setTimeout(async () => {
+          isDistracted.current = true;
+
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'Drive ended',
+              body: 'Drive has ended after 2 minutes of inactivity. Your streak has been reset.',
+            },
+            trigger: null,
+          });
+
           await finalizeDrive();
           await AsyncStorage.setItem('@streakThisDrive', '1');
-          navigation.goBack(); 
+          navigation.goBack();
         }, 2 * 60 * 1000);
+
+        if (distractedNotificationsEnabled) {
+          firstNotificationId.current = await scheduleFirstDistractedNotification();
+        }
       }
 
-      if (!nowInactive && unfocusedAt) {
-        
-        const unfocusedDuration = (Date.now() - unfocusedAt);
-        if (unfocusedDuration > 5000/*  && speedRef.current > speedThreshold */) {
-          isDistracted.current = true;
-        }
-        unfocusedAt = null;
+      if (!nowInactive && unfocusedAt.current) {
+        const unfocusedDuration = Date.now() - unfocusedAt.current;
 
         if (backgroundTimeout.current) {
           clearTimeout(backgroundTimeout.current);
           backgroundTimeout.current = null;
         }
+
+        if (pointsThisDrive >= 0) {
+          if (unfocusedDuration > 5000) {
+            isDistracted.current = true;
+
+            if (firstNotificationId.current) {
+              await Notifications.cancelScheduledNotificationAsync(firstNotificationId.current);
+              firstNotificationId.current = null;
+            }
+
+            if (distractedNotificationsEnabled) {
+              await scheduleDistractedNotification();
+            }
+          } else {
+            if (firstNotificationId.current) {
+              await Notifications.cancelScheduledNotificationAsync(firstNotificationId.current);
+              firstNotificationId.current = null;
+            }
+          }
+        }
+
+        unfocusedAt.current = null;
       }
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
+
     return () => {
       subscription.remove();
-      if (backgroundTimeout.current) clearTimeout(backgroundTimeout.current);
+      if (backgroundTimeout.current) {
+        clearTimeout(backgroundTimeout.current);
+        backgroundTimeout.current = null;
+      }
     };
-  }, [pointsThisDrive, startingPoints, navigation]);
+  }, [pointsThisDrive, distractedNotificationsEnabled, navigation]);
 
-
+  //location and speed tracking + speed limit logic
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -241,17 +304,7 @@ export default function DriveScreen({ route }) {
     };
   }, [unit]);
 
-  useEffect(() => {
-    const savePoints = async () => {
-      try {
-        await AsyncStorage.setItem('@pointsThisDrive', pointsThisDrive.toString());
-      } catch (e) {
-        console.warn('Failed to save points continuously:', e);
-      }
-    };
-    savePoints();
-  }, [pointsThisDrive]);
-
+  //increment points based on speed
   const scheduleNextPoint = () => {
     const currentSpeed = speedRef.current;
     const effectiveSpeedLimit = Number(speedLimit ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
@@ -270,6 +323,7 @@ export default function DriveScreen({ route }) {
     }, delay);
   };
 
+  //start and stop point earning based on app state
   const startPointEarning = () => {
     if (!pointTimer.current) scheduleNextPoint();
   };
@@ -281,6 +335,7 @@ export default function DriveScreen({ route }) {
     }
   };
 
+  //fetch speed limit from HERE API
   const fetchSpeedLimit = async (lat, lon, unit) => {
     try {
       const delta = 0.0005;
@@ -308,9 +363,11 @@ export default function DriveScreen({ route }) {
     }
   };
 
+  //calculate current speed limit and speeding status
   const currentLimit = Number(speedLimit ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
   const isSpeeding = Math.round(speed) > currentLimit * 1.25;
 
+  //scale points font size to fit in screen comfortably
   const getFontSizeForPoints = (points) => {
     const digits = points.toString().length;
     const maxFontSize = 120;
@@ -320,6 +377,7 @@ export default function DriveScreen({ route }) {
     return maxFontSize - scaleFactor * (maxFontSize - minFontSize);
   };
 
+  //show speeding warning if enabled and speeding
   useEffect(() => {
     Animated.timing(warningOpacity, {
       toValue: showSpeedingWarning && isSpeeding ? 1 : 0,
@@ -328,11 +386,13 @@ export default function DriveScreen({ route }) {
     }).start();
   }, [showSpeedingWarning, isSpeeding]);
 
+  //start point earning when unit changes
   useEffect(() => {
     stopPointEarning();
     startPointEarning();
   }, [unit]);
 
+  //UI element rendering
   return (
     <AnimatedImageBackground
       source={require('../assets/driveback.jpg')}
@@ -388,6 +448,7 @@ export default function DriveScreen({ route }) {
   );
 }
 
+//styles
 const styles = StyleSheet.create({
   background: { flex: 1 },
   darkOverlay: {

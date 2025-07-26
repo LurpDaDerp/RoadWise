@@ -11,6 +11,7 @@ const STORAGE_KEYS = {
   showCurrentSpeed: '@showCurrentSpeed',
   showSpeedLimit: '@showSpeedLimit',
   displayTotalPoints: '@displayTotalPoints',
+  distractedNotificationsEnabled: '@distractedNotificationsEnabled',
 };
 
 export default function DriveScreenSettings() {
@@ -19,6 +20,7 @@ export default function DriveScreenSettings() {
   const [showCurrentSpeed, setShowCurrentSpeed] = useState(true);
   const [showSpeedLimit, setShowSpeedLimit] = useState(true);
   const [displayTotalPoints, setDisplayTotalPoints] = useState(false);
+  const [distractedNotificationsEnabled, setDistractedNotificationsEnabled] = useState(true);
   useEffect(() => {
     (async () => {
       try {
@@ -36,6 +38,9 @@ export default function DriveScreenSettings() {
 
         const storedDisplayMode = await AsyncStorage.getItem(STORAGE_KEYS.displayTotalPoints);
         if (storedDisplayMode !== null) setDisplayTotalPoints(storedDisplayMode === 'true');
+
+        const storedDistracted = await AsyncStorage.getItem(STORAGE_KEYS.distractedNotificationsEnabled);
+        if (storedDistracted !== null) setDistractedNotificationsEnabled(storedDistracted === 'true');
 
       } catch (e) {
         console.warn('⚠️ Failed to load settings:', e);
@@ -112,6 +117,19 @@ export default function DriveScreenSettings() {
                 trackColor={{ false: '#767577', true: '#86ff7d' }}
                 thumbColor={showCurrentSpeed ? '#ffffff' : '#f4f3f4'}
             />
+        </View>
+
+        <View style={styles.settingRowToggle}>
+          <Text style={styles.settingLabel}>Distracted Notifications</Text>
+          <Switch
+            value={distractedNotificationsEnabled}
+            onValueChange={async (value) => {
+              setDistractedNotificationsEnabled(value);
+              await AsyncStorage.setItem(STORAGE_KEYS.distractedNotificationsEnabled, value.toString());
+            }}
+            trackColor={{ false: '#767577', true: '#86ff7d' }}
+            thumbColor={distractedNotificationsEnabled ? '#ffffff' : '#f4f3f4'}
+          />
         </View>
         
         <View style={styles.settingRowToggle}>
