@@ -30,11 +30,34 @@ const verticalScale = (size) => (height / 812) * size;
 
 const AnimatedImageBackground = Animated.createAnimatedComponent(ImageBackground);
 const HERE_API_KEY = 'G7cQbMXnjvzDsZwUEsc8yqVt001VXP3arshuxR4dHXQ';
-const GRID_RESOLUTION = 0.001;
-
+const GRID_RESOLUTION = 0.002;
 const speedLimitCache = new Map();
+let lastSpeedLimitFetchTime = 0;
+
 function getGridKey(lat, lon) {
   return `${Math.round(lat / GRID_RESOLUTION)}_${Math.round(lon / GRID_RESOLUTION)}`;
+}
+
+async function loadSpeedLimitCache() {
+  try {
+    const cached = await AsyncStorage.getItem('@speedLimitCache');
+    if (cached) {
+      const entries = JSON.parse(cached);
+      for (const [key, val] of entries) {
+        speedLimitCache.set(key, val);
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️ Failed to load speed limit cache:', err);
+  }
+}
+
+async function saveSpeedLimitCache() {
+  try {
+    await AsyncStorage.setItem('@speedLimitCache', JSON.stringify(Array.from(speedLimitCache.entries())));
+  } catch (err) {
+    console.warn('⚠️ Failed to save speed limit cache:', err);
+  }
 }
 
 export default function DriveScreen({ route }) {
@@ -265,6 +288,8 @@ export default function DriveScreen({ route }) {
   //location and speed tracking + speed limit logic
   useEffect(() => {
     (async () => {
+      await loadSpeedLimitCache();
+
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission denied', 'Location permission is required.');
@@ -292,11 +317,13 @@ export default function DriveScreen({ route }) {
           const gridKey = getGridKey(lat, lon);
           if (speedLimitCache.has(gridKey)) {
             setSpeedLimit(speedLimitCache.get(gridKey));
-          } else {
+          } else if (safeSpeed > speedThreshold && Date.now() - lastSpeedLimitFetchTime > 10000) {
+            lastSpeedLimitFetchTime = Date.now();
             const sl = await fetchSpeedLimit(lat, lon, unit);
             if (sl !== null) {
               speedLimitCache.set(gridKey, sl);
               setSpeedLimit(sl);
+              await saveSpeedLimitCache();
             }
           }
         }
@@ -308,6 +335,7 @@ export default function DriveScreen({ route }) {
       stopPointEarning();
     };
   }, [unit]);
+
 
   //increment points based on speed
   const scheduleNextPoint = () => {
@@ -343,30 +371,45 @@ export default function DriveScreen({ route }) {
   //fetch speed limit from HERE API
   const fetchSpeedLimit = async (lat, lon, unit) => {
     try {
-      const delta = 0.0005;
-      const destLat = lat + delta;
-      const destLon = lon + delta;
-
-      const url = `https://router.hereapi.com/v8/routes?transportMode=car&origin=${lat},${lon}&destination=${destLat},${destLon}&return=summary,spans&apikey=${HERE_API_KEY}`;
+      const url = `https://revgeocode.search.hereapi.com/v1/revgeocode?at=${lat},${lon}&lang=en-US&showNavAttributes=speedLimits&apikey=${HERE_API_KEY}`;
       const res = await fetch(url);
       const data = await res.json();
 
-      const spans = data?.routes?.[0]?.sections?.[0]?.spans;
-      if (!spans?.length) return null;
+      const item = data?.items?.[0];
+      const street = item?.address?.street || item?.address?.label || '[Unknown Street]';
 
-      for (const span of spans) {
-        if (span.speedLimit?.speed) {
-          const limitKph = span.speedLimit.speed;
-          return unit === 'kph' ? limitKph : limitKph * 0.621371;
-        }
+      const speedObj = item?.navigationAttributes?.speedLimits?.[0];
+
+      if (!speedObj?.maxSpeed || !speedObj?.speedUnit) {
+        console.warn(`No speed limit info returned. Street: ${street}`);
+        return null;
       }
 
-      return null;
-    } catch (error) {
-      console.warn('Failed to fetch speed limit:', error);
+      const rawSpeed = speedObj.maxSpeed;
+      const sourceUnit = speedObj.speedUnit.toLowerCase();
+
+      let convertedSpeed;
+      if (sourceUnit === 'mph') {
+        convertedSpeed = unit === 'kph' ? rawSpeed * 1.60934 : rawSpeed;
+      } else if (sourceUnit === 'km/h' || sourceUnit === 'kph') {
+        convertedSpeed = unit === 'mph' ? rawSpeed * 0.621371 : rawSpeed;
+      } else {
+        console.warn(`Unknown speed unit: ${sourceUnit}`);
+        return null;
+      }
+
+      return convertedSpeed;
+    } catch (err) {
+      console.error('Failed to fetch speed limit via reverse geocode:', err);
       return null;
     }
   };
+
+
+
+
+
+
 
   //calculate current speed limit and speeding status
   const currentLimit = Number(speedLimit ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
