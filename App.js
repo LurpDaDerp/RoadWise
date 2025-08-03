@@ -13,6 +13,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import StackNavigator from './navigation/StackNavigator';
 import SettingsStackNavigator from './navigation/SettingsStackNavigator';
+import RewardsStackNavigator from './navigation/RewardsStackNavigator';
 
 import { ThemeProvider } from './context/ThemeContext';
 import { useContext } from 'react';
@@ -108,7 +109,11 @@ function AppNavigation() {
             ),
           }}
         />
+        
       </Drawer.Navigator>
+
+      
+
     </NavigationContainer>
   );
 }

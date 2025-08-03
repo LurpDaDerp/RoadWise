@@ -16,6 +16,7 @@ import {
 import { getAuth } from 'firebase/auth';
 import { db } from '../utils/firebase';
 import { ImageBackground } from 'expo-image';
+import { BlurView } from 'expo-blur';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const scale = screenWidth / 375;
@@ -98,6 +99,7 @@ export default function LeaderboardScreen() {
       style={styles.background}
       resizeMode="cover"
     >
+      <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
       <View style={styles.overlay}>
         <Text style={styles.title}>Leaderboard</Text>
         {loading ? (
@@ -152,7 +154,7 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     padding: 24 * scale,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   title: {
     paddingTop: 40 * scale,

@@ -370,7 +370,7 @@ export default function DashboardScreen({ route }) {
         style={styles.background}
         resizeMode="cover"
       >
-        <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
+        <BlurView intensity={5} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={styles.darkOverlay} />
 
         <View style={styles.overlay}>
@@ -440,7 +440,7 @@ export default function DashboardScreen({ route }) {
               containerStyle={styles.flexItem}
               style={styles.smallButton}
               onPress={() => {
-                fadeOutContent().then(() => navigation.navigate('Rewards', { totalPoints }));
+                fadeOutContent().then(() => navigation.navigate('Rewards', { screen: 'RewardsMain', params: { totalPoints } }));
               }}
             >
               <Text style={styles.smallButtonText}>Rewards</Text>
