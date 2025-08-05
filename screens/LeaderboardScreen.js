@@ -16,10 +16,42 @@ import {
 import { getAuth } from 'firebase/auth';
 import { db } from '../utils/firebase';
 import { ImageBackground } from 'expo-image';
+import { Image } from 'react-native';
+import Svg, { Text as SvgText, TextPath, Defs, Path } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const scale = screenWidth / 375;
+
+function CurvedRibbonTitle() {
+  return (
+    <Svg
+      width={screenWidth * 1.3}
+      height={100 * scale}
+      viewBox="0 0 300 100"
+      style={{ alignSelf: 'center' }} 
+    >
+      <Defs>
+        <Path
+          id="curve"
+          d="M10,80 Q150,50 290,80"  
+          fill="transparent"
+        />
+      </Defs>
+      <SvgText
+        fill="white"
+        fontSize={36 * scale}
+        fontWeight="bold"
+        textAnchor="middle"  
+        transform={`translate(0, 0)`}
+      >
+        <TextPath href="#curve" startOffset="50%">
+          Leaderboard
+        </TextPath>
+      </SvgText>
+    </Svg>
+  );
+}
 
 export default function LeaderboardScreen() {
   const [leaderboard, setLeaderboard] = useState([]);
@@ -93,6 +125,8 @@ export default function LeaderboardScreen() {
     fetchLeaderboard();
   }, []);
 
+  
+
   return (
     <ImageBackground
       source={require('../assets/leaderboardback.jpg')}
@@ -101,11 +135,21 @@ export default function LeaderboardScreen() {
     >
       <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
       <View style={styles.overlay}>
-        <Text style={styles.title}>Leaderboard</Text>
+        <View style={styles.ribbonContainer}>
+          <Image
+            source={require('../assets/ribbon.png')}
+            style={styles.ribbonImage}
+            resizeMode="contain"
+          />
+          <View style={styles.curvedTextOverlay}>
+            <CurvedRibbonTitle />
+          </View>
+        </View>
+
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <>
+          <View style={styles.leaderboardContainer}>
             {Array.from({ length: 10 }, (_, index) => {
               const user = leaderboard[index];
               const isCurrentUser = user?.id === currentUserId;
@@ -134,7 +178,7 @@ export default function LeaderboardScreen() {
                 <View style={{ height: 20 * scale }} />
                 <View style={[styles.row, styles.currentUserRow]}>
                   <Text style={[styles.name, styles.currentUserText]}>
-                    {currentUserPlacement.rank}. {currentUserPlacement.name}
+                    {currentUserPlacement.rank}. {currentUserPlacement.name + " (You)"}
                   </Text>
                   <Text style={[styles.points, styles.currentUserText]}>
                     {currentUserPlacement.points}
@@ -142,7 +186,7 @@ export default function LeaderboardScreen() {
                 </View>
               </>
             )}
-          </>
+          </View>
         )}
       </View>
     </ImageBackground>
@@ -155,14 +199,54 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 24 * scale,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    overflow: 'visible',
   },
-  title: {
-    paddingTop: 40 * scale,
-    fontSize: 36 * scale,
+  ribbonContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -80 * scale, 
+    marginBottom: -90 * scale,
+    position: 'relative',
+    zIndex: 20, 
+    pointerEvents: 'none', 
+  },
+  ribbonImage: {
+    marginTop: 75 * scale,
+    width: screenWidth * 1.3,
+    height: 200 * scale,
+  },
+  ribbonTitle: {
+    position: 'absolute',
+    top: '25%',
+    fontSize: 32 * scale,
     fontWeight: 'bold',
-    marginBottom: 20 * scale,
-    textAlign: 'center',
     color: 'white',
+    textAlign: 'center',
+    zIndex: 1,
+  },
+  curvedTextOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    pointerEvents: 'none',
+    zIndex: 10,
+  },
+  leaderboardContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',  
+    borderColor: '#ffffffff',  
+    borderWidth: 2,
+    borderRadius: 15 * scale,
+    paddingVertical: 10 * scale,
+    paddingHorizontal: 15 * scale,
+    paddingBottom: 100*scale,
+    paddingTop: 25*scale,
+    marginTop: -20 * scale,
+    overflow: 'hidden', 
+    zIndex: 5,
   },
   row: {
     flexDirection: 'row',

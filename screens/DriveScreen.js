@@ -568,6 +568,7 @@ const styles = StyleSheet.create({
     textShadowColor: '#000',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: scale(4),
+    marginBottom: scale(5),
   },
   warningOverlay: {
     position: 'absolute',

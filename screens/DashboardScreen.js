@@ -440,7 +440,7 @@ export default function DashboardScreen({ route }) {
               containerStyle={styles.flexItem}
               style={styles.smallButton}
               onPress={() => {
-                fadeOutContent().then(() => navigation.navigate('Rewards', { screen: 'RewardsMain', params: { totalPoints } }));
+                fadeOutContent().then(() => navigation.navigate('RewardsMain', { totalPoints }));
               }}
             >
               <Text style={styles.smallButtonText}>Rewards</Text>

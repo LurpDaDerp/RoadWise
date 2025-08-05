@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import DashboardScreen from '../screens/DashboardScreen';
 import DriveScreen from '../screens/DriveScreen';
 import RewardsStackNavigator from './RewardsStackNavigator';
+import RewardsScreen  from '../screens/RewardsScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
 import SettingsStackNavigator from './SettingsStackNavigator';
 import LoginScreen from '../screens/LoginScreen';
@@ -32,7 +33,20 @@ export default function StackNavigator() {
           headerTransparent: true,
         }}
       />
-      <Stack.Screen name="Rewards" component={RewardsStackNavigator} options = {{ headerTransparent: true, headerTitle: '', }} />
+      <Stack.Screen
+        name="RewardsMain"
+        component={RewardsScreen}
+        options={{
+          headerTransparent: true,
+          headerTitle: '',
+          headerBackTitle: 'Dashboard',
+        }}
+      />
+      <Stack.Screen
+        name="RewardsSubpages"
+        component={RewardsStackNavigator}
+        options = {{ headerTransparent: true, headerTitle: '', headerBackTitle: 'Back'}}
+      />
       <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options = {{ headerTransparent: true, headerTitle: '', }}/>
       <Stack.Screen
         name="SettingsStack"

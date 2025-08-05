@@ -26,8 +26,10 @@
     "expo-blur": "~14.1.5",
     "expo-checkbox": "~4.1.4",
     "expo-constants": "~17.1.7",
+    "expo-device": "~7.1.4",
     "expo-image": "~2.3.2",
     "expo-location": "~18.1.6",
+    "expo-notifications": "~0.31.4",
     "expo-status-bar": "~2.2.3",
     "expo-updates": "~0.28.17",
     "firebase": "^11.10.0",
@@ -40,8 +42,7 @@
     "react-native-root-toast": "^4.0.1",
     "react-native-safe-area-context": "^5.5.0",
     "react-native-screens": "~4.11.1",
-    "expo-notifications": "~0.31.4",
-    "expo-device": "~7.1.4"
+    "react-native-svg": "^15.12.1"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
