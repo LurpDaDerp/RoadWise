@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    padding: scale(32),
+    padding: scale(40),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
     marginRight: scale(6),
   },
   header: {
-    fontSize: scale(60),
+    fontSize: scale(50),
     fontWeight: '500',
     marginTop: verticalScale(20),
     marginBottom: verticalScale(30),
@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
     fontSize: scale(64),
     fontWeight: 'bold',
     marginTop: verticalScale(90),
-    marginBottom: verticalScale(4),
+    marginBottom: verticalScale(0),
     maxWidth: '60%',
     textAlign: 'center',
     color: '#fff',
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
   },
   pointsLabel: {
     fontSize: scale(20),
-    marginBottom: verticalScale(40),
+    marginBottom: verticalScale(45),
     color: '#fff',
   },
   driveButton: {

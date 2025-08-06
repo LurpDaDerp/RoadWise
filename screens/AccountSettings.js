@@ -7,6 +7,7 @@ import {
   Alert,
   ActivityIndicator,
   TextInput,
+  Dimensions,
 } from 'react-native';
 import { auth, db } from '../utils/firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
@@ -16,6 +17,8 @@ import { getUserPoints, saveUserPoints } from '../utils/firestore';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { query, where, getDocs, collection } from 'firebase/firestore';
+
+const { width, height } = Dimensions.get('window');
 
 export default function AccountSettings() {
   const navigation = useNavigation();
@@ -221,14 +224,15 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 24,
     backgroundColor: '#111',
-    justifyContent: 'center',
+    justifyContent: 'top',
   },
   title: {
-    fontSize: 28,
+    fontSize: width > 400 ? 36 : 32,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 32,
-    textAlign: 'center',
+    marginTop: height > 700 ? 100 : 45,
+    marginBottom: height > 700 ? 48 : 32,
+    alignSelf: 'center',
   },
   infoBox: {
     marginBottom: 20,

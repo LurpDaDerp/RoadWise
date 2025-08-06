@@ -9,6 +9,7 @@ import LeaderboardScreen from '../screens/LeaderboardScreen';
 import SettingsStackNavigator from './SettingsStackNavigator';
 import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
+import MyDrivesScreen from '../screens/MyDrivesScreen';
 
 
 
@@ -27,10 +28,7 @@ export default function StackNavigator() {
         name="Drive"
         component={DriveScreen}
         options={{
-          title: '',
-          headerBackTitle: 'Complete Drive',
-          headerShown: true,
-          headerTransparent: true,
+          headerShown: false,
         }}
       />
       <Stack.Screen
@@ -53,6 +51,7 @@ export default function StackNavigator() {
         component={SettingsStackNavigator}
         options={{ headerShown: false }}  
       />
+      <Stack.Screen name = "MyDrives" component={MyDrivesScreen} />
       <Stack.Screen name="Login" component={LoginScreen} options = {{ headerTransparent: true, headerTitle: '', }} />
       <Stack.Screen name="SignUp" component={SignUpScreen} options = {{ headerTransparent: true, headerTitle: '', }} />
     </Stack.Navigator>

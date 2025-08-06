@@ -1,32 +1,53 @@
-// context/ThemeContext.js
 import React, { createContext, useState, useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import { Appearance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const STORAGE_KEY = '@appTheme'; 
 
 export const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
-  const systemScheme = useColorScheme();
-  const [theme, setTheme] = useState('system');
+  const [theme, setTheme] = useState('system'); // 'light', 'dark', 'system'
+  const [colorScheme, setColorScheme] = useState(Appearance.getColorScheme());
 
   useEffect(() => {
-    (async () => {
-      const saved = await AsyncStorage.getItem(STORAGE_KEY);
-      if (saved) setTheme(saved);
-    })();
+    const loadTheme = async () => {
+      const savedTheme = await AsyncStorage.getItem('@appTheme');
+      if (savedTheme) setTheme(savedTheme);
+    };
+
+    loadTheme();
   }, []);
+
+  useEffect(() => {
+    const resolveScheme = () => {
+      if (theme === 'light' || theme === 'dark') {
+        setColorScheme(theme);
+      } else {
+        setColorScheme(Appearance.getColorScheme());
+      }
+    };
+
+    resolveScheme(); 
+
+    const subscription = Appearance.addChangeListener(() => {
+      if (theme === 'system') {
+        resolveScheme(); 
+      }
+    });
+
+    return () => subscription.remove();
+  }, [theme]);
+
+  useEffect(() => {
+  }, [colorScheme]);
+
 
   const updateTheme = async (newTheme) => {
     setTheme(newTheme);
-    await AsyncStorage.setItem(STORAGE_KEY, newTheme);
+    await AsyncStorage.setItem('@appTheme', newTheme);
   };
 
-  const resolvedTheme = theme === 'system' ? systemScheme : theme;
-
   return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, updateTheme }}>
+    <ThemeContext.Provider value={{ theme, resolvedTheme: colorScheme, updateTheme }}>
       {children}
     </ThemeContext.Provider>
   );

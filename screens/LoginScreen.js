@@ -1,7 +1,7 @@
 //LoginScreen.js
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Dimensions,
 } from 'react-native';
 import { auth } from '../utils/firebase';
 import {
@@ -12,6 +12,8 @@ import {
 import * as Google from 'expo-auth-session/providers/google';
 import { useNavigation } from '@react-navigation/native';
 import { ensureUserStreakFields } from '../utils/firestoreHelpers';
+
+const { width, height } = Dimensions.get('window');
 
 
 export default function LoginScreen() {
@@ -105,12 +107,12 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   title: {
-    paddingTop: 75,
-    fontSize: 32,
+    fontSize: width > 400 ? 32 : 32,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 24,
-    textAlign: 'center',
+    marginTop: height > 700 ? 100 : 45,
+    marginBottom: height > 700 ? 48 : 32,
+    alignSelf: 'center',
   },
   subtitle: {
     fontSize: 16,

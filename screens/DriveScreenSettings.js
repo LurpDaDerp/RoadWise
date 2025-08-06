@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ImageBackground, TouchableOpacity, Switch,
+  View, Text, StyleSheet, Dimensions, ImageBackground, TouchableOpacity, Switch,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
+
+const { width, height } = Dimensions.get('window');
 
 const STORAGE_KEYS = {
   speedUnit: '@speedUnit',
@@ -155,39 +157,37 @@ const styles = StyleSheet.create({
   background: { 
     flex: 1 
   },
-  overlay: { 
-    flex: 1, 
-    padding: 24, 
-    backgroundColor: 'rgba(0, 0, 0, 0.4)' 
-  },
+  overlay: { flex: 1, padding: width > 400 ? 32 : 24, backgroundColor: 'rgba(0, 0, 0, 0.4)' },
   menuButton: { 
     position: 'absolute', 
     top: 70, 
     left: 20 
   },
-  title: { 
-    fontSize: 36, 
-    fontWeight: 'bold', 
-    color: '#fff', 
-    marginTop: 50, 
-    marginBottom: 48, 
-    alignSelf: 'center' 
+  title: {
+    fontSize: width > 400 ? 36 : 32,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: height > 700 ? 80 : 45,
+    marginBottom: height > 700 ? 48 : 32,
+    alignSelf: 'center',
   },
-  settingRow: { 
-    marginBottom: 20 
+  settingRow: {
+    marginBottom: width > 400 ? 24 : 16,
   },
   settingRowToggle: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: width > 400 ? 24 : 16,
   },
-  settingLabel: { 
-    fontSize: 18, 
-    marginBottom: 12, 
-    color: '#fff' 
+  settingLabel: {
+    fontSize: width > 400 ? 20 : 16,
+    marginBottom: 12,
+    color: '#fff',
   },
   segmentedControl: { 
     height: 40 
   },
 });
+
+

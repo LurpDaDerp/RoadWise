@@ -1,7 +1,7 @@
 // SettingsScreen.js
 import React from 'react';
 import {
-  View, Text, StyleSheet, ImageBackground, TouchableOpacity, FlatList,
+  View, Text, StyleSheet, ImageBackground, TouchableOpacity, FlatList, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -12,6 +12,8 @@ const CATEGORIES = [
   { title: 'Drive Screen', route: 'DriveScreenSettings' },
   { title: 'Account', route: 'AccountSettings' },
 ];
+
+const { width, height } = Dimensions.get('window');
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
@@ -46,9 +48,20 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   background: { flex: 1 },
-  overlay: { flex: 1, padding: 24, backgroundColor: 'rgba(0, 0, 0, 0.4)' },
-  menuButton: { position: 'absolute', top: 70, left: 20 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#fff', marginTop: 45, marginBottom: 48, alignSelf: 'center' },
+  overlay: { flex: 1, padding: 0.07*width, backgroundColor: 'rgba(0, 0, 0, 0.4)' },
+  menuButton: { 
+    position: 'absolute', 
+    top: height > 700 ? 115 : 75, 
+    left: 20 
+  },
+  title: {
+    fontSize: width > 400 ? 36 : 32,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: height > 700 ? 80 : 45,
+    marginBottom: height > 700 ? 48 : 32,
+    alignSelf: 'center',
+  },
   optionRow: {
     paddingVertical: 18,
     paddingHorizontal: 16,

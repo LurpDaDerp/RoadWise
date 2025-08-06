@@ -14,6 +14,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import StackNavigator from './navigation/StackNavigator';
 import SettingsStackNavigator from './navigation/SettingsStackNavigator';
 import RewardsStackNavigator from './navigation/RewardsStackNavigator';
+import MyDrivesScreen from './screens/MyDrivesScreen';
 
 import { ThemeProvider } from './context/ThemeContext';
 import { useContext } from 'react';
@@ -106,6 +107,16 @@ function AppNavigation() {
             headerShown: false,
             drawerIcon: ({ color, size }) => (
               <MaterialIcons name="settings" size={size} color={color} />
+            ),
+          }}
+        />
+        <Drawer.Screen
+          name="My Drives"
+          component={MyDrivesScreen}
+          options={{
+            headerShown: false,
+            drawerIcon: ({ color, size }) => (
+              <MaterialIcons name="directions-car" size={size} color={color} />
             ),
           }}
         />

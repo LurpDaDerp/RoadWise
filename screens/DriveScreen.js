@@ -9,6 +9,8 @@ import {
   Animated,
   ImageBackground,
   Dimensions,
+  TouchableOpacity,
+  useColorScheme,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -18,9 +20,14 @@ import { getAuth, signOut } from 'firebase/auth';
 import { getFirestore, doc, updateDoc, increment } from 'firebase/firestore';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import { useContext } from 'react';
+import { ThemeContext } from '../context/ThemeContext';
+import { useAudioPlayer } from 'expo-audio';
 import { scheduleDistractedNotification, scheduleFirstDistractedNotification, requestNotificationPermissions, scheduleBackgroundNotification } from '../utils/notifications';
+import { format } from 'date-fns';
 
 import { useDrive } from '../context/DriveContext';
+
 
 const db = getFirestore();
 
@@ -33,6 +40,8 @@ const HERE_API_KEY = 'G7cQbMXnjvzDsZwUEsc8yqVt001VXP3arshuxR4dHXQ';
 const GRID_RESOLUTION = 0.002;
 const speedLimitCache = new Map();
 let lastSpeedLimitFetchTime = 0;
+
+const audioSource = require('../assets/sounds/alert.mp3');
 
 function getGridKey(lat, lon) {
   return `${Math.round(lat / GRID_RESOLUTION)}_${Math.round(lon / GRID_RESOLUTION)}`;
@@ -61,20 +70,27 @@ async function saveSpeedLimitCache() {
 }
 
 export default function DriveScreen({ route }) {
+  const player = useAudioPlayer(audioSource);
   const navigation = useNavigation();
   const [pointsThisDrive, setPointsThisDrive] = useState(0);
   const [speed, setSpeed] = useState(0);
   const [unit, setUnit] = useState('mph');
   const [speedLimit, setSpeedLimit] = useState(null);
   const [showSpeedingWarning, setShowSpeedingWarning] = useState(true);
+  const [shouldShowWarning, setShouldShowWarning] = useState(false);
+  const [showSpeedModal, setShowSpeedModal] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
   const [showCurrentSpeed, setShowCurrentSpeed] = useState(true);
   const [showSpeedLimit, setShowSpeedLimit] = useState(true);
   const [displayTotalPoints, setDisplayTotalPoints] = useState(false);
   const [displayedPoints, setDisplayedPoints] = useState(0);
   const [startingPoints, setStartingPoints] = useState(route.params?.totalPoints ?? 0);
   const [distractedNotificationsEnabled, setDistractedNotificationsEnabled] = useState(true);
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+
 
   const speedRef = useRef(0);
+  const speedingTimeoutRef = useRef(null);
   const appState = useRef(AppState.currentState);
   const locationSubscription = useRef(null);
   const pointTimer = useRef(null);
@@ -92,6 +108,20 @@ export default function DriveScreen({ route }) {
 
   const { setDriveJustCompleted } = useDrive();
 
+  const { resolvedTheme, theme, updateTheme } = useContext(ThemeContext);
+
+  const isDarkMode = resolvedTheme === 'dark';
+
+  const modalBackgroundColor = isDarkMode ? '#222' : '#fff'; 
+  const titleTextColor = isDarkMode ? '#fff' : '#000'; 
+  const contentTextColor = isDarkMode ? '#eee' : '#000';     
+  const buttonBackgroundColor = isDarkMode ? '#444' : '#000'; 
+  const buttonTextColor = isDarkMode ? '#fff' : '#fff';   
+
+  const soundRef = useRef(null);
+
+  const driveStartTime = useRef(Date.now());
+
   //finalize drive function
   const finalizeDrive = async () => {
     if (driveFinalizedRef.current) return;
@@ -100,12 +130,38 @@ export default function DriveScreen({ route }) {
     const user = getAuth().currentUser;
     
     if (!user) return;
-    
+
+    const driveDurationMs = Date.now() - driveStartTime.current;
+    const droveLongEnough = driveDurationMs >= 60 * 1000;
+
+    const wasDistracted = isDistracted.current;
+    const timestamp = new Date().toISOString();
+
+    const driveData = {
+      timestamp, 
+      distracted: wasDistracted,
+      points: pointsThisDrive,
+      duration: Math.round(driveDurationMs / 1000),
+    };
+
+    if (pointsThisDrive > 0 && droveLongEnough) {
+      try {
+        const stored = await AsyncStorage.getItem('@driveHistory');
+        const parsed = stored ? JSON.parse(stored) : [];
+
+        parsed.unshift(driveData); 
+        await AsyncStorage.setItem('@driveHistory', JSON.stringify(parsed));
+      } catch (e) {
+        console.warn('Failed to save drive history:', e);
+      }
+    }
+      
+
     try {
       const storedStreak = await AsyncStorage.getItem(`@drivingStreak_${user.uid}`);
       const currentStreak = storedStreak ? parseInt(storedStreak) : 0;
       
-      if (pointsThisDrive > 0) {
+      if (pointsThisDrive > 0 && droveLongEnough) {
         if (isDistracted.current) {
           await AsyncStorage.setItem(`@drivingStreak_${user.uid}`, '0');
         } else {
@@ -119,31 +175,21 @@ export default function DriveScreen({ route }) {
 
     
     try {
-      if (pointsThisDrive > 0) {
+      if (pointsThisDrive > 0 && droveLongEnough) {
         await AsyncStorage.setItem('@driveCompleteSnackbar', 'true');
       }
     } catch (e) {
       console.warn('Failed to set snackbar flag:', e);
     }
 
+    await AsyncStorage.setItem('@pointsThisDrive', pointsThisDrive.toString());
+
     await AsyncStorage.setItem('@driveWasDistracted', isDistracted.current ? 'true' : 'false');
+
+    await AsyncStorage.setItem('@streakThisDrive', '1');
 
     setDriveJustCompleted(true);
   };
-
-  //streak handler after exiting thru back button
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', async (e) => {
-      e.preventDefault();
-
-      await finalizeDrive();
-      await AsyncStorage.setItem('@streakThisDrive', '1');
-
-      navigation.dispatch(e.data.action);
-    });
-
-    return unsubscribe;
-  }, [navigation, pointsThisDrive, startingPoints]);
 
   //request notification permissions
   useEffect(() => {
@@ -197,7 +243,9 @@ export default function DriveScreen({ route }) {
     setStartingPoints(route.params?.totalPoints ?? 0);
     setPointsThisDrive(0);
     isDistracted.current = false;
+    driveStartTime.current = Date.now();
   }, []);
+  
   //update speed 
   useEffect(() => {
     speedRef.current = speed;
@@ -230,7 +278,6 @@ export default function DriveScreen({ route }) {
               trigger: null,
             });
 
-            await AsyncStorage.setItem('@streakThisDrive', '1');
           }
           
           await finalizeDrive();
@@ -298,7 +345,7 @@ export default function DriveScreen({ route }) {
 
       locationSubscription.current = await Location.watchPositionAsync(
         {
-          accuracy: Location.Accuracy.Highest,
+          accuracy: Location.Accuracy.High,
           timeInterval: 1000,
           distanceInterval: 1,
         },
@@ -341,20 +388,34 @@ export default function DriveScreen({ route }) {
   const scheduleNextPoint = () => {
     const currentSpeed = speedRef.current;
     const effectiveSpeedLimit = Number(speedLimit ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
+    
+
+    if (currentSpeed > effectiveSpeedLimit * 1.5) {
+      pointTimer.current = null;
+      return;
+    }
 
     let delay = currentSpeed <= effectiveSpeedLimit
       ? DEFAULT_DELAY
       : DEFAULT_DELAY + Math.min((currentSpeed - effectiveSpeedLimit) / effectiveSpeedLimit, 2) * 2000;
 
-    if (currentSpeed > effectiveSpeedLimit * 1.5) delay = 100000;
-
     pointTimer.current = setTimeout(() => {
-      if (currentSpeed > speedThreshold) {
+      const latestSpeed = speedRef.current; 
+      const latestEffectiveLimit = Number(speedLimit ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
+
+      if (latestSpeed > latestEffectiveLimit * 1.5) {
+        pointTimer.current = null;
+        return;
+      }
+
+      if (latestSpeed > speedThreshold) {
         setPointsThisDrive((prev) => prev + 1);
       }
-      scheduleNextPoint();
+
+      scheduleNextPoint(); 
     }, delay);
   };
+
 
   //start and stop point earning based on app state
   const startPointEarning = () => {
@@ -405,15 +466,71 @@ export default function DriveScreen({ route }) {
     }
   };
 
-
-
-
-
-
-
   //calculate current speed limit and speeding status
   const currentLimit = Number(speedLimit ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
   const isSpeeding = Math.round(speed) > currentLimit * 1.25;
+  const soundLoopIntervalRef = useRef(null);
+
+  useEffect(() => {
+    if (showSpeedingWarning && isSpeeding) {
+      if (!speedingTimeoutRef.current) {
+        speedingTimeoutRef.current = setTimeout(() => {
+          setShouldShowWarning(true);
+
+          player.seekTo(0);
+          player.play();
+
+          soundLoopIntervalRef.current = setInterval(() => {
+            player.seekTo(0);
+            player.play();
+          }, 700); 
+        }, 5000);
+      }
+    } else {
+      clearTimeout(speedingTimeoutRef.current);
+      speedingTimeoutRef.current = null;
+
+      clearInterval(soundLoopIntervalRef.current);
+      soundLoopIntervalRef.current = null;
+
+      setShouldShowWarning(false);
+    }
+  }, [isSpeeding, showSpeedingWarning]);
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(speedingTimeoutRef.current);
+      clearInterval(soundLoopIntervalRef.current);
+    };
+  }, []);
+
+  //show speeding warning if enabled and speeding
+  useEffect(() => {
+    if (shouldShowWarning) {
+      setShowSpeedModal(true);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }).start(() => {
+        setShowSpeedModal(false);
+      });
+    }
+  }, [shouldShowWarning]);
+
+
+
+  //start point earning when unit changes
+  useEffect(() => {
+    stopPointEarning();
+    startPointEarning();
+  }, [unit]);
 
   //scale points font size to fit in screen comfortably
   const getFontSizeForPoints = (points) => {
@@ -425,74 +542,126 @@ export default function DriveScreen({ route }) {
     return maxFontSize - scaleFactor * (maxFontSize - minFontSize);
   };
 
-  //show speeding warning if enabled and speeding
-  useEffect(() => {
-    Animated.timing(warningOpacity, {
-      toValue: showSpeedingWarning && isSpeeding ? 1 : 0,
-      duration: 400,
-      useNativeDriver: true,
-    }).start();
-  }, [showSpeedingWarning, isSpeeding]);
-
-  //start point earning when unit changes
-  useEffect(() => {
-    stopPointEarning();
-    startPointEarning();
-  }, [unit]);
-
   //UI element rendering
   return (
-    <AnimatedImageBackground
-      source={require('../assets/driveback.jpg')}
-      style={[styles.background, { opacity }]}
-      resizeMode="cover"
-      onLoad={() =>
-        Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }).start()
-      }
-    >
-      <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
-      <View style={styles.darkOverlay} />
+    <>
+      {showSpeedModal && (
+        <Animated.View style={[styles.modalOverlay, { opacity: fadeAnim }]} pointerEvents="box-none">
+          <View style={[styles.modalContent, { backgroundColor: modalBackgroundColor }]} pointerEvents="auto">
+            <Text style={[styles.modalTitle, { color: titleTextColor }]}>⚠️ You are Speeding!</Text>
+            <Text style={[styles.modalText, { color: contentTextColor }]}>
+              Slow down to earn points.
+            </Text>
 
-      {showSpeedLimit && (
-        <View style={styles.speedLimitContainer}>
-          <ImageBackground
-            source={require('../assets/speedlimit.png')}
-            style={styles.speedLimitSign}
-            resizeMode="contain"
-          >
-            <Text style={styles.speedLimitText}>{Math.round(currentLimit)}</Text>
-          </ImageBackground>
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: buttonBackgroundColor }]}
+              onPress={() => {
+                Animated.timing(fadeAnim, {
+                  toValue: 0,
+                  duration: 400,
+                  useNativeDriver: true,
+                }).start(() => {
+                  setShowSpeedModal(false);
+                });
+              }}
+            >
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
+
+      {showEmergencyModal && (
+        <View style={styles.modalOverlay} pointerEvents="box-none">
+          <View style={[styles.modalContent, { backgroundColor: modalBackgroundColor }]} pointerEvents="auto">
+            <Text style={[styles.modalTitle, { color: titleTextColor }]}>Emergency Options</Text>
+
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                setShowEmergencyModal(false);
+                Alert.alert('🚨 Emergency Called', 'Calling emergency services...');
+              }}
+            >
+              <Text style={styles.modalOptionText}>Call Emergency Services</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalOption, { backgroundColor: '#ccc' }]}
+              onPress={() => setShowEmergencyModal(false)}
+            >
+              <Text style={[styles.modalOptionText, { color: '#333' }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
-      <View style={styles.container}>
-        <View style={styles.pointsContainer}>
-          <View style={styles.pointsWrapper}>
-            <Text style={[styles.points, { fontSize: getFontSizeForPoints(displayedPoints) }]}>
-              {displayedPoints}
-            </Text>
+      <AnimatedImageBackground
+        source={require('../assets/driveback.jpg')}
+        style={[styles.background, { opacity }]}
+        resizeMode="cover"
+        onLoad={() =>
+          Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }).start()
+        }
+      >
+        <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={styles.darkOverlay} />
+
+        <TouchableOpacity
+          style={styles.emergencyButton}
+          onPress={() => setShowEmergencyModal(true)}
+        >
+          <Text style={styles.emergencyButtonText}>Emergency</Text>
+        </TouchableOpacity>
+
+        {showSpeedLimit && (
+          <View style={styles.speedLimitContainer}>
+            <ImageBackground
+              source={require('../assets/speedlimit.png')}
+              style={styles.speedLimitSign}
+              resizeMode="contain"
+            >
+              <Text style={styles.speedLimitText}>{Math.round(currentLimit)}</Text>
+            </ImageBackground>
           </View>
-          <Text style={styles.pointsLabel}>Points</Text>
-        </View>
-
-        {showCurrentSpeed && (
-          <ImageBackground
-            source={require('../assets/dashboard.png')}
-            style={styles.speedBackground}
-            resizeMode="cover"
-            imageStyle={{ borderRadius: 20 }}
-          >
-            <Text style={styles.speedText}>
-              {Math.round(speed)} {unit.toUpperCase()}
-            </Text>
-          </ImageBackground>
         )}
-      </View>
 
-      <Animated.View style={[styles.warningOverlay, { opacity: warningOpacity }]}>
-        <Text style={styles.warningOverlayText}>⚠️ You are speeding!</Text>
-      </Animated.View>
-    </AnimatedImageBackground>
+        <View style={styles.container}>
+          <View style={styles.pointsContainer}>
+            <View style={styles.pointsWrapper}>
+              <Text style={[styles.points, { fontSize: getFontSizeForPoints(displayedPoints) }]}>
+                {displayedPoints}
+              </Text>
+            </View>
+            <Text style={styles.pointsLabel}>Points</Text>
+          </View>
+
+          <View style={styles.completeDriveButtonWrapper}>
+            <TouchableOpacity
+              onPress={async () => {
+                await finalizeDrive();
+                navigation.goBack();
+              }}
+              style={styles.button}
+            >
+              <Text style={styles.completeDriveButton}>Complete Drive</Text>
+            </TouchableOpacity>
+          </View>
+
+          {showCurrentSpeed && (
+            <ImageBackground
+              source={require('../assets/dashboard.png')}
+              style={styles.speedBackground}
+              resizeMode="cover"
+              imageStyle={{ borderRadius: 20 }}
+            >
+              <Text style={styles.speedText}>
+                {Math.round(speed)} {unit.toUpperCase()}
+              </Text>
+            </ImageBackground>
+          )}
+        </View>
+      </AnimatedImageBackground>
+    </>
   );
 }
 
@@ -503,6 +672,76 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0)',
   },
+  emergencyButton: {
+    position: 'absolute',
+    top: verticalScale(60),
+    left: scale(20),
+    backgroundColor: '#ff3b30', 
+    paddingVertical: verticalScale(15),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(12),
+    zIndex: 1000,
+    elevation: 10,
+  },
+
+  emergencyButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: scale(16),
+    textAlign: 'center',
+  },
+
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+
+  modalContent: {
+    width: '80%',
+    backgroundColor: '#fff',
+    borderRadius: scale(20),
+    padding: scale(20),
+    alignItems: 'center',
+    elevation: 10,
+  },
+
+  modalTitle: {
+    fontSize: scale(20),
+    fontWeight: 'bold',
+    marginBottom: verticalScale(20),
+    textAlign: 'center',
+  },
+
+  modalOption: {
+    backgroundColor: '#ff3b30',
+    borderRadius: scale(12),
+    paddingVertical: verticalScale(12),
+    paddingHorizontal: scale(20),
+    marginTop: verticalScale(10),
+    width: '100%',
+  },
+
+  modalText: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 0,
+  },
+
+  modalOptionText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: scale(16),
+    textAlign: 'center',
+  },
+
   speedLimitContainer: {
     position: 'absolute',
     top: verticalScale(60),
@@ -551,6 +790,31 @@ const styles = StyleSheet.create({
     fontSize: scale(24),
     color: '#fff',
     marginTop: verticalScale(8),
+  },
+  completeDriveButtonContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  completeDriveButtonWrapper: {
+    marginTop: verticalScale(-75),
+    marginBottom: verticalScale(50),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  completeDriveButton: {
+    backgroundColor: '#04b6b6ff',
+    paddingVertical: verticalScale(15),
+    paddingHorizontal: scale(65),
+    borderRadius: scale(40),
+    fontWeight: 'bold',
+    fontSize: scale(24),
+    color: '#ffffff',
+    overflow: 'hidden',
+    textAlign: 'center',
   },
   speedBackground: {
     width: '100%',

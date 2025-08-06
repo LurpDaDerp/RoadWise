@@ -8,9 +8,10 @@ import {
   Dimensions,
 } from 'react-native';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const BUTTON_WIDTH = (width - 65) / 2;
 const BUTTON_HEIGHT = BUTTON_WIDTH;
+
 
 export default function RewardsScreen({ route, navigation }) {
   const totalPoints = route.params?.totalPoints ?? 0;
@@ -100,12 +101,12 @@ const styles = StyleSheet.create({
     textShadowRadius: 10,
   },
   title: {
-    paddingTop: 5,
-    fontSize: 48,
+    fontSize: width > 400 ? 48 : 44,
     fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 8,
-    textAlign: 'center',
+    color: '#fff',
+    marginTop: height > 700 ? 60 : 0,
+    paddingBottom: 8,
+    alignSelf: 'center',
   },
   subtitle: {
     fontSize: 24,
