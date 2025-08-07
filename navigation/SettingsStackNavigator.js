@@ -4,7 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import SettingsScreen from '../screens/SettingsScreen';
 import DriveScreenSettings from '../screens/DriveScreenSettings';
 import GeneralSettings from '../screens/GeneralSettings';
-import DashboardSettings from '../screens/DashboardSettings';
+import SafetySettings from '../screens/SafetySettings'
 import AccountSettings from '../screens/AccountSettings';
 
 const Stack = createStackNavigator();
@@ -47,8 +47,8 @@ export default function SettingsStackNavigator() {
         options={{ headerTransparent: true, headerTitle: '' }}
       />
       <Stack.Screen
-        name="DashboardSettings"
-        component={DashboardSettings}
+        name="SafetySettings"
+        component={SafetySettings}
         options={{ headerTransparent: true, headerTitle: '' }}
       />
       <Stack.Screen

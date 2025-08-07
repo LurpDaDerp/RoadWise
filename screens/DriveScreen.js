@@ -10,7 +10,7 @@ import {
   ImageBackground,
   Dimensions,
   TouchableOpacity,
-  useColorScheme,
+  Linking,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -18,6 +18,7 @@ import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth, signOut } from 'firebase/auth';
 import { getFirestore, doc, updateDoc, increment } from 'firebase/firestore';
+import { saveTrustedContacts, getTrustedContacts } from '../utils/firestore';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { useContext } from 'react';
@@ -86,7 +87,7 @@ export default function DriveScreen({ route }) {
   const [displayedPoints, setDisplayedPoints] = useState(0);
   const [startingPoints, setStartingPoints] = useState(route.params?.totalPoints ?? 0);
   const [distractedNotificationsEnabled, setDistractedNotificationsEnabled] = useState(true);
-  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);const [trustedContacts, setTrustedContacts] = useState([]);
 
 
   const speedRef = useRef(0);
@@ -190,6 +191,39 @@ export default function DriveScreen({ route }) {
 
     setDriveJustCompleted(true);
   };
+
+  //make calls within app 
+  const callNumber = (phone) => {
+    if (!phone) {
+      Alert.alert('Error', 'No phone number provided.');
+      return;
+    }
+
+    const phoneNumber = `tel:${phone}`;
+    Linking.canOpenURL(phoneNumber)
+      .then((supported) => {
+        if (!supported) {
+          Alert.alert('Error', 'Phone call is not supported on this device.');
+        } else {
+          return Linking.openURL(phoneNumber);
+        }
+      })
+      .catch((err) => console.error('Failed to call number:', err));
+  };
+
+  //load contacts
+  useFocusEffect(
+    React.useCallback(() => {
+      const uid = getAuth().currentUser?.uid;
+
+      const loadContacts = async () => {
+        const contacts = await getTrustedContacts(uid);
+        setTrustedContacts(contacts);
+      };
+
+      loadContacts();
+    }, [])
+  );
 
   //request notification permissions
   useEffect(() => {
@@ -576,7 +610,7 @@ export default function DriveScreen({ route }) {
             <Text style={[styles.modalTitle, { color: titleTextColor }]}>Emergency Options</Text>
 
             <TouchableOpacity
-              style={styles.modalOption}
+              style={[styles.modalOption, {backgroundColor: '#ff3b30', color: '#fff'}]}
               onPress={() => {
                 setShowEmergencyModal(false);
                 Alert.alert('🚨 Emergency Called', 'Calling emergency services...');
@@ -584,6 +618,17 @@ export default function DriveScreen({ route }) {
             >
               <Text style={styles.modalOptionText}>Call Emergency Services</Text>
             </TouchableOpacity>
+            {trustedContacts.map((contact, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[styles.modalOption, { backgroundColor: '#00b9d1', color: '#fff' }]}
+                onPress={() => callNumber(contact.phone)}
+              >
+                <Text style={styles.modalOptionText}>
+                  Call {contact.name || 'Unnamed'}
+                </Text>
+              </TouchableOpacity>
+            ))}
 
             <TouchableOpacity
               style={[styles.modalOption, { backgroundColor: '#ccc' }]}
@@ -720,7 +765,6 @@ const styles = StyleSheet.create({
   },
 
   modalOption: {
-    backgroundColor: '#ff3b30',
     borderRadius: scale(12),
     paddingVertical: verticalScale(12),
     paddingHorizontal: scale(20),

@@ -1,0 +1,307 @@
+import React, { useState, useEffect, useContext } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  ImageBackground,
+  Switch,
+  FlatList,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import { getAuth } from 'firebase/auth';
+
+import { ThemeContext } from '../context/ThemeContext';
+import { saveTrustedContacts, getTrustedContacts } from '../utils/firestore';
+
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+
+const firestore = getFirestore(); 
+
+const { width, height } = Dimensions.get('window');
+
+const STORAGE_KEYS = {
+  appTheme: '@appTheme',
+  exampleToggle: '@exampleToggle',
+};
+
+export default function GeneralSettings() {
+  const { resolvedTheme } = useContext(ThemeContext);
+  const [exampleToggle, setExampleToggle] = useState(false);
+  const [contacts, setContacts] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [newContact, setNewContact] = useState({ name: '', phone: '' });
+  
+  const isDark = resolvedTheme === 'dark';
+  const itemBackground = isDark ? '#222' : '#fff';
+  const dateColor = isDark ? '#fff' : '#000';
+  const inputBackgroundColor = isDark ? '#4b4b4bff' : '#ddddddff';
+  const inputTextColor = isDark ? '#fff' : '#000';
+  const closeButtonColor = isDark? '#5e5e5eff' : '#c7c7c7ff';
+
+  const uid = getAuth().currentUser?.uid;
+
+  const formatPhoneNumber = (value) => {
+  if (!value) return value;
+
+    const cleaned = value.replace(/\D/g, '');
+
+    const match = cleaned.match(/^(\d{0,3})(\d{0,3})(\d{0,4})$/);
+    if (!match) return value;
+
+    let formatted = '';
+    if (match[1]) {
+      formatted = '(' + match[1];
+    }
+    if (match[1]?.length === 3) {
+      formatted += ')-';
+    }
+    if (match[2]) {
+      formatted += match[2];
+    }
+    if (match[2]?.length === 3) {
+      formatted += '-';
+    }
+    if (match[3]) {
+      formatted += match[3];
+    }
+
+    return formatted;
+  };
+
+  useEffect(() => {
+    if (!uid) return;
+    (async () => {
+      const contacts = await getTrustedContacts(uid);
+      setContacts(contacts);
+    })();
+  }, [uid]);
+
+  useEffect(() => {
+    if (showModal) {
+      setNewContact({ name: '', phone: '' });
+    }
+  }, [showModal]);
+
+  const handleAddContact = async () => {
+    if (!newContact.name || !newContact.phone) {
+      alert('Please fill in both name and phone number.');
+      return;
+    } 
+
+    const digitsOnlyPhone = newContact.phone.replace(/\D/g, '');
+
+    if (digitsOnlyPhone.length !== 10) {
+      alert('Please enter a valid 10-digit phone number.');
+      return;
+    }
+
+    const existingContact = contacts.find(
+      contact => contact.phone.replace(/\D/g, '') === digitsOnlyPhone
+    );
+
+    if (existingContact) {
+      alert(`This number is already saved as "${existingContact.name || 'Unnamed'}".`);
+      return;
+    }
+
+    const updated = [...contacts, newContact];
+    setContacts(updated);
+    await saveTrustedContacts(uid, updated);
+    setNewContact({ name: '', phone: '' });
+    setShowModal(false);
+  };
+
+  const removeContact = async (indexToRemove) => {
+    const updated = contacts.filter((_, index) => index !== indexToRemove);
+    setContacts(updated);
+    await saveTrustedContacts(uid, updated);
+  };
+
+
+  const toggleExample = async (value) => {
+    setExampleToggle(value);
+    await AsyncStorage.setItem(STORAGE_KEYS.exampleToggle, value.toString());
+  };
+
+  return (
+    <ImageBackground source={require('../assets/settingsback.jpg')} style={styles.background} resizeMode="cover">
+      <View style={styles.overlay}>
+        <Text style={styles.title}>Safety Settings</Text>
+
+        <View style={styles.settingRow}>
+          <Text style={styles.settingLabel}>Trusted Contacts</Text>
+          <FlatList
+            data={contacts}
+            keyExtractor={(_, index) => index.toString()}
+            renderItem={({ item, index }) => (
+              <View style={styles.contactItem}>
+                <Text style={styles.contactText}>{item.name || 'Unnamed'}: {formatPhoneNumber(item.phone)}</Text>
+                <TouchableOpacity onPress={() => removeContact(index)}>
+                  <Ionicons name="trash" size={20} color="red" />
+                </TouchableOpacity>
+              </View>
+            )}
+          />
+
+          <TouchableOpacity onPress={() => setShowModal(true)} style={styles.addButton}>
+            <Text style={styles.addButtonText}>Add Trusted Contact</Text>
+          </TouchableOpacity>
+
+          <Modal
+            animationType="fade"
+            transparent={true}
+            visible={showModal}
+            onRequestClose={() => setShowModal(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, { backgroundColor: itemBackground }]}>
+                <Text style={[styles.modalTitle, { color: dateColor }]}>Add Trusted Contact</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: inputBackgroundColor, color: inputTextColor }]}
+                  placeholder="Name"
+                  placeholderTextColor={isDark ? '#ccc' : '#999'}
+                  value={newContact.name}
+                  onChangeText={(text) => setNewContact({ ...newContact, name: text })}
+                />
+                <TextInput
+                  style={[styles.input, { backgroundColor: inputBackgroundColor, color: inputTextColor }]}
+                  placeholder="Phone Number"
+                  placeholderTextColor={isDark ? '#ccc' : '#999'}
+                  keyboardType="phone-pad"
+                  value={newContact.phone}
+                  onChangeText={(text) => setNewContact({ ...newContact, phone: text })}
+                />
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity onPress={handleAddContact} style={styles.modalButton}>
+                    <Text style={styles.modalButtonText}>Save</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setShowModal(false)} style={[styles.modalButton, { backgroundColor: closeButtonColor }]}>
+                    <Text style={styles.modalButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        </View>
+
+        <View style={styles.settingRowToggle}>
+          <Text style={styles.settingLabel}>Notify Contacts</Text>
+          <Switch
+            value={exampleToggle}
+            onValueChange={toggleExample}
+            trackColor={{ false: '#767577', true: '#86ff7d' }}
+            thumbColor={exampleToggle ? '#ffffff' : '#f4f3f4'}
+          />
+        </View>
+      </View>
+    </ImageBackground>
+  );
+}
+
+const styles = StyleSheet.create({
+  background: { flex: 1 },
+  overlay: { flex: 1, padding: width > 400 ? 32 : 24, backgroundColor: 'rgba(0, 0, 0, 0.4)' },
+  title: {
+    fontSize: width > 400 ? 36 : 32,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: height > 700 ? 80 : 45,
+    marginBottom: height > 700 ? 48 : 32,
+    alignSelf: 'center',
+  },
+  settingRow: {
+    marginBottom: width > 400 ? 24 : 16,
+  },
+  settingRowToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: width > 400 ? 24 : 16,
+  },
+  settingLabel: {
+    fontSize: width > 400 ? 20 : 16,
+    marginBottom: 12,
+    color: '#fff',
+  },
+  contactItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#ffffff20',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  contactText: {
+    color: '#fff',
+  },
+  addButton: {
+    backgroundColor: '#00cc99',
+    padding: 12,
+    borderRadius: 10,
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  addButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+
+  modalContent: {
+    width: '85%',
+    borderRadius: 14,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+
+  input: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 14,
+  },
+
+  modalButton: {
+    backgroundColor: '#00cc99',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+
+  modalButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+});

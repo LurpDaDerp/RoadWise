@@ -19,6 +19,9 @@ import { ImageBackground } from 'expo-image';
 import { Image } from 'react-native';
 import Svg, { Text as SvgText, TextPath, Defs, Path } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
+import { useNavigation } from '@react-navigation/native';
+import { TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const scale = screenWidth / 375;
@@ -126,8 +129,10 @@ export default function LeaderboardScreen() {
   }, []);
 
   
+  const navigation = useNavigation();
 
   return (
+    
     <ImageBackground
       source={require('../assets/leaderboardback.jpg')}
       style={styles.background}
@@ -135,6 +140,13 @@ export default function LeaderboardScreen() {
     >
       <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
       <View style={styles.overlay}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="chevron-back" size={28 * scale} color="#fff" />
+        </TouchableOpacity>
+
         <View style={styles.ribbonContainer}>
           <Image
             source={require('../assets/ribbon.png')}
@@ -201,10 +213,19 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     overflow: 'visible',
   },
+  backButton: {
+    position: 'absolute',
+    top: 70 * scale,
+    left: 25 * scale,
+    zIndex: 50,
+    padding: 5 * scale,
+    backgroundColor: 'rgba(0,0,0)',
+    borderRadius: 100,
+  },
   ribbonContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -80 * scale, 
+    marginTop: -90 * scale, 
     marginBottom: -90 * scale,
     position: 'relative',
     zIndex: 20, 
@@ -241,8 +262,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderRadius: 15 * scale,
     paddingVertical: 10 * scale,
-    paddingHorizontal: 15 * scale,
-    paddingBottom: 100*scale,
+    paddingHorizontal: 10 * scale,
+    paddingBottom: 200*scale,
     paddingTop: 25*scale,
     marginTop: -20 * scale,
     overflow: 'hidden', 

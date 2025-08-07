@@ -8,7 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 
 const CATEGORIES = [
   { title: 'General', route: 'GeneralSettings' },
-  { title: 'Dashboard', route: 'DashboardSettings' },
+  { title: 'Safety', route: 'SafetySettings' },
   { title: 'Drive Screen', route: 'DriveScreenSettings' },
   { title: 'Account', route: 'AccountSettings' },
 ];

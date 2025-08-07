@@ -1,8 +1,6 @@
 import { getFirestore, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from './firebase';
 
-const firestore = getFirestore();
-
 export async function getUserPoints(uid) {
   const docRef = doc(db, "users", uid);
   const docSnap = await getDoc(docRef);
@@ -21,10 +19,36 @@ export async function saveUserPoints(uid, points) {
 
 export async function saveUserStreak(uid, streak) {
   if (!uid) return;
-  const userRef = doc(firestore, 'users', uid);
+  const userRef = doc(db, 'users', uid);
   try {
     await updateDoc(userRef, { drivingStreak: streak });
   } catch (error) {
     console.error('Failed to save user streak:', error);
+  }
+}
+
+export async function saveTrustedContacts(uid, contacts) {
+  if (!uid) return;
+  const userRef = doc(db, "users", uid);
+  try {
+    await setDoc(userRef, { trustedContacts: contacts }, { merge: true });
+  } catch (error) {
+    console.error("Error saving trusted contacts:", error);
+  }
+}
+
+export async function getTrustedContacts(uid) {
+  if (!uid) return [];
+  const userRef = doc(db, "users", uid);
+  try {
+    const docSnap = await getDoc(userRef);
+    if (docSnap.exists()) {
+      return docSnap.data().trustedContacts || [];
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("Error loading trusted contacts:", error);
+    return [];
   }
 }

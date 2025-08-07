@@ -45,7 +45,7 @@ export default function StackNavigator() {
         component={RewardsStackNavigator}
         options = {{ headerTransparent: true, headerTitle: '', headerBackTitle: 'Back'}}
       />
-      <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options = {{ headerTransparent: true, headerTitle: '', }}/>
+      <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options = {{ headerShown: false}}/>
       <Stack.Screen
         name="SettingsStack"
         component={SettingsStackNavigator}
