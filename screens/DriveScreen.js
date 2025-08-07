@@ -366,6 +366,8 @@ export default function DriveScreen({ route }) {
     };
   }, [pointsThisDrive, distractedNotificationsEnabled, navigation]);
 
+
+
   //location and speed tracking + speed limit logic
   useEffect(() => {
     (async () => {
@@ -416,7 +418,6 @@ export default function DriveScreen({ route }) {
       stopPointEarning();
     };
   }, [unit]);
-
 
   //increment points based on speed
   const scheduleNextPoint = () => {
@@ -479,7 +480,6 @@ export default function DriveScreen({ route }) {
         console.warn(`No speed limit info returned. Street: ${street}`);
         return null;
       }
-
       const rawSpeed = speedObj.maxSpeed;
       const sourceUnit = speedObj.speedUnit.toLowerCase();
 
@@ -504,6 +504,7 @@ export default function DriveScreen({ route }) {
   const currentLimit = Number(speedLimit ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
   const isSpeeding = Math.round(speed) > currentLimit * 1.25;
   const soundLoopIntervalRef = useRef(null);
+
 
   useEffect(() => {
     if (showSpeedingWarning && isSpeeding) {

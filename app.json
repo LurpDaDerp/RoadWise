@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "RoadCash",
-    "slug": "RoadCash",
+    "name": "SafeDriveApp",
+    "slug": "SafeDriveApp",
     "scheme": "roadcash",
     "version": "1.0.0",
     "orientation": "portrait",
