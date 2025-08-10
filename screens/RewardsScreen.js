@@ -9,8 +9,7 @@ import {
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
-const BUTTON_WIDTH = (width - 65) / 2;
-const BUTTON_HEIGHT = BUTTON_WIDTH;
+const BUTTON_WIDTH = width * 2/5;
 
 
 export default function RewardsScreen({ route, navigation }) {
@@ -86,51 +85,47 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    paddingTop: 80,
-    paddingHorizontal: 24,
+    paddingTop: height / (667 / 80),
+    paddingHorizontal: width / (375 / 24),
     backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center',
   },
   points: {
-    fontSize: 24,
+    fontSize: width / (375 / 24),
     fontWeight: '600',
     color: 'white',
-    marginBottom: 36,
+    marginBottom: height / (667 / 36),
     textShadowColor: '#ffffff',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+    textShadowRadius: width / (375 / 10),
   },
   title: {
-    fontSize: width > 400 ? 48 : 44,
+    fontSize: width / (375 / 44),
     fontWeight: 'bold',
     color: '#fff',
-    marginTop: height > 700 ? 60 : 0,
-    paddingBottom: 8,
+    marginTop: 0,
+    paddingBottom: height / (667 / 8),
     alignSelf: 'center',
   },
   subtitle: {
-    fontSize: 24,
+    fontSize: width / (375 / 24),
     color: 'white',
-    marginBottom: 30,
+    marginBottom: height / (667 / 30),
     textAlign: 'center',
   },
   grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
     width: '100%',
-    gap: 17,
+    alignItems: 'center', 
   },
   button: {
-    width: BUTTON_WIDTH,
-    height: BUTTON_HEIGHT,
-    borderRadius: 25,
+    width: width * 0.9, 
+    height: height / (667 / 75), 
+    borderRadius: width / (375 / 15),
     borderWidth: 1,
     borderColor: 'white',
     overflow: 'hidden',
-    marginBottom: 0,
+    marginBottom: height / (667 / 10), 
   },
-
   buttonBackground: {
     flex: 1,
     justifyContent: 'center',
@@ -138,27 +133,25 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-
   buttonImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
-    borderRadius: 25,
+    borderRadius: width / (375 / 25),
   },
-
   buttonText: {
-    fontSize: 18,
+    fontSize: width / (375 / 18),
     color: 'white',
     fontWeight: '600',
     textAlign: 'center',
     textShadowColor: 'rgba(0, 0, 0, 0.7)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-    paddingHorizontal: 8,
+    textShadowRadius: width / (375 / 2),
+    paddingHorizontal: width / (375 / 8),
   },
   imageOverlay: {
-  ...StyleSheet.absoluteFillObject,
-  backgroundColor: 'rgba(0, 0, 0, 0.4)', 
-  borderRadius: 16,
-},
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderRadius: width / (375 / 16),
+  },
 });

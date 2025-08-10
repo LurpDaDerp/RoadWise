@@ -134,8 +134,8 @@ export default function AccountSettings() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#fff" />
+      <View style={styles.loading}>
+        <ActivityIndicator size="medium" color="#fff" />
       </View>
     );
   }
@@ -222,28 +222,34 @@ export default function AccountSettings() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 24,
+    padding: width / (375 / 24),
     backgroundColor: '#111',
     justifyContent: 'top',
   },
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#111',
+  },
   title: {
-    fontSize: width > 400 ? 36 : 32,
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#fff',
-    marginTop: height > 700 ? 100 : 45,
-    marginBottom: height > 700 ? 48 : 32,
+    marginTop: height / (667 / 60),
+    marginBottom: height / (667 / 32),
     alignSelf: 'center',
   },
   infoBox: {
-    marginBottom: 20,
+    marginBottom: height / (667 / 20),
     backgroundColor: '#222',
-    padding: 16,
-    borderRadius: 8,
+    padding: width / (375 / 16),
+    borderRadius: width / (375 / 8),
   },
   infoLabel: {
     color: '#bbb',
     fontSize: 14,
-    marginBottom: 4,
+    marginBottom: height / (667 / 4),
   },
   infoValue: {
     color: '#fff',
@@ -258,21 +264,21 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: '#333',
     color: '#fff',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    borderRadius: width / (375 / 6),
+    paddingHorizontal: width / (375 / 8),
+    paddingVertical: height / (667 / 6),
     fontSize: 18,
   },
   editButtonsRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 8,
-    columnGap: 12,
+    marginTop: height / (667 / 8),
+    columnGap: width / (375 / 12),
   },
   editButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
+    paddingVertical: height / (667 / 8),
+    paddingHorizontal: width / (375 / 16),
+    borderRadius: width / (375 / 6),
   },
   cancelButton: {
     backgroundColor: '#555',
@@ -288,9 +294,9 @@ const styles = StyleSheet.create({
   switchButton: {
     backgroundColor: '#3498db',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: width / (375 / 8),
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: height / (667 / 16),
   },
   switchButtonText: {
     color: '#fff',
@@ -300,7 +306,7 @@ const styles = StyleSheet.create({
   signOutButton: {
     backgroundColor: '#e74c3c',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: width / (375 / 8),
     alignItems: 'center',
   },
   signOutButtonText: {
@@ -311,7 +317,7 @@ const styles = StyleSheet.create({
   loginButton: {
     backgroundColor: '#00b894',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: width / (375 / 8),
     alignItems: 'center',
   },
   loginButtonText: {

@@ -1,4 +1,4 @@
-import { getFirestore, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, orderBy, query, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from './firebase';
 
 export async function getUserPoints(uid) {
@@ -50,5 +50,49 @@ export async function getTrustedContacts(uid) {
   } catch (error) {
     console.error("Error loading trusted contacts:", error);
     return [];
+  }
+}
+
+export async function saveUserDrive(uid, driveData) {
+  if (!uid) return;
+  try {
+    const drivesRef = collection(db, "users", uid, "drives");
+    await addDoc(drivesRef, {
+      ...driveData,
+      timestamp: serverTimestamp()
+    });
+  } catch (err) {
+    console.error("Failed to save user drive:", err);
+  }
+}
+
+export async function getUserDrives(uid) {
+  if (!uid) return [];
+  try {
+    const drivesRef = collection(db, "users", uid, "drives");
+    const q = query(drivesRef, orderBy("timestamp", "desc"));
+    const snapshot = await getDocs(q);
+    const drives =  snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      timestamp: doc.data().timestamp?.toDate?.() || new Date()
+    }));
+    return drives;
+  } catch (error) {
+    console.error("Error loading user drives:", error);
+    return [];
+  }
+}
+
+export async function clearUserDrives(uid) {
+  if (!uid) return;
+  try {
+    const drivesRef = collection(db, "users", uid, "drives");
+    const snapshot = await getDocs(drivesRef);
+    for (const docSnap of snapshot.docs) {
+      await deleteDoc(doc(db, "users", uid, "drives", docSnap.id));
+    }
+  } catch (error) {
+    console.error("Error clearing user drives:", error);
   }
 }

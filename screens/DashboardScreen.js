@@ -28,10 +28,7 @@ import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
 const firestore = getFirestore();
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-const scale = (size) => (SCREEN_WIDTH / 375) * size;
-const verticalScale = (size) => (SCREEN_HEIGHT / 812) * size;
+const { width, height } = Dimensions.get('window');
 
 const getStorageKey = (uid) => `totalPoints_${uid}`;
 
@@ -102,7 +99,7 @@ export default function DashboardScreen({ route }) {
           } else {
             await AsyncStorage.setItem(getStorageKey(uid), firestorePoints.toString());
             setTotalPoints(firestorePoints);
-            animatePoints(0, firestorePoints);
+            animatePoints(0, firestorePoints); 
           }
 
           const docSnap = await getDoc(doc(firestore, 'users', uid));
@@ -493,7 +490,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingText: { color: '#fff', fontSize: scale(24) },
+  loadingText: { color: '#fff', fontSize: 24 },
   background: { flex: 1 },
   darkOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -501,118 +498,119 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    padding: scale(40),
+    padding: width/9,
     alignItems: 'center',
     justifyContent: 'center',
   },
   menuButton: {
     position: 'absolute',
-    top: verticalScale(70),
-    left: scale(35),
+    top: height/11,
+    left: width/10,
   },
   loginButton: {
     position: 'absolute',
-    top: verticalScale(70),
-    right: scale(35),
+    top: height/11,
+    right: width/10,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingVertical: verticalScale(6),
-    paddingHorizontal: scale(14),
-    borderRadius: scale(16),
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 16,
   },
   loginButtonText: {
     color: '#fff',
-    fontSize: scale(16),
+    fontSize: 16,
     fontWeight: '600',
   },
   streakContainer: {
     position: 'absolute',
-    top: verticalScale(56),
-    right: scale(16),
+    top: height/13,
+    right: width/11,
     backgroundColor: 'rgba(255,255,255,0.0)',
-    paddingVertical: verticalScale(6),
-    paddingHorizontal: scale(14),
-    borderRadius: scale(30),
   },
   streakText: {
     color: '#fff',
-    fontSize: scale(42),
+    fontSize: 40,
     fontWeight: 'bold',
+    fontFamily: 'futura',
   },
   streakImage: {
-    width: scale(40),
-    height: verticalScale(48),
-    marginRight: scale(6),
+    width: 40,
+    height: 40,
+    marginRight: 6,
   },
   header: {
-    fontSize: scale(50),
+    fontSize: width/8,
     fontWeight: '500',
-    marginTop: verticalScale(20),
-    marginBottom: verticalScale(30),
+    fontFamily: 'Arial Rounded MT Bold',
+    marginTop: height/30,
+    marginBottom: height/25,
     color: '#fff',
   },
   pointsBackground: {
     width: '100%',
-    height: verticalScale(250),
+    height: height/3.5,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: verticalScale(40),
-    borderRadius: scale(20),
+    marginBottom: height/20,
+    borderRadius: width/30,
     overflow: 'hidden',
   },
   points: {
-    fontSize: scale(64),
+    fontSize: width/6,
     fontWeight: 'bold',
-    marginTop: verticalScale(90),
-    marginBottom: verticalScale(0),
+    marginTop: height/11,
+    marginBottom: 0,
     maxWidth: '60%',
     textAlign: 'center',
     color: '#fff',
     textShadowColor: '#fff',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
+    fontFamily: 'futura',
   },
   pointsLabel: {
-    fontSize: scale(20),
-    marginBottom: verticalScale(45),
+    fontSize: width/18,
+    marginBottom: height/20,
     color: '#fff',
   },
   driveButton: {
     backgroundColor: 'transparent',
     borderColor: '#fff',
     borderWidth: 2,
-    paddingVertical: verticalScale(20),
-    paddingHorizontal: scale(40),
-    borderRadius: scale(20),
+    paddingVertical: height/40,
+    paddingHorizontal: width/8,
+    borderRadius: width/18,
     width: '100%',
-    marginBottom: verticalScale(32),
+    marginBottom: height/16,
     alignItems: 'center',
   },
   driveButtonText: {
     color: '#fff',
-    fontSize: scale(30),
+    fontSize: width/14,
     fontWeight: 'bold',
+    fontFamily: 'Arial Rounded MT Bold',
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
-    columnGap: scale(16),
-    marginTop: verticalScale(30),
+    columnGap: width/18,
   },
   smallButton: {
     flex: 1,
-    minHeight: verticalScale(70),
+    minHeight: height/11,
     borderColor: '#fff',
     borderWidth: 2,
     backgroundColor: 'transparent',
-    paddingVertical: verticalScale(10),
-    borderRadius: scale(20),
+    paddingVertical: width/60,
+    borderRadius: width/20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   smallButtonText: {
-    fontSize: scale(20),
+    fontSize: width/21,
     fontWeight: '600',
+    fontFamily: 'Arial Rounded MT Bold',
     color: '#fff',
   },
   flexItem: { flex: 1, justifyContent: 'center' },

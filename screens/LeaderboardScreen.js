@@ -5,6 +5,9 @@ import {
   StyleSheet,
   ActivityIndicator,
   Dimensions,
+  TouchableOpacity, 
+  ScrollView, 
+  Image
 } from 'react-native';
 import {
   collection,
@@ -16,21 +19,23 @@ import {
 import { getAuth } from 'firebase/auth';
 import { db } from '../utils/firebase';
 import { ImageBackground } from 'expo-image';
-import { Image } from 'react-native';
 import Svg, { Text as SvgText, TextPath, Defs, Path } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
-import { TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const scale = screenWidth / 375;
+const usersShown = 50;
+
+const { width, height } = Dimensions.get('window');
+
 
 function CurvedRibbonTitle() {
   return (
     <Svg
-      width={screenWidth * 1.3}
-      height={100 * scale}
+      width={width * 1.3}
+      height={height/7}
       viewBox="0 0 300 100"
       style={{ alignSelf: 'center' }} 
     >
@@ -43,12 +48,13 @@ function CurvedRibbonTitle() {
       </Defs>
       <SvgText
         fill="white"
-        fontSize={36 * scale}
+        fontSize= {width/15}
         fontWeight="bold"
+        fontFamily= "futura"
         textAnchor="middle"  
-        transform={`translate(0, 0)`}
+        transform={`translate(0, 5)`}
       >
-        <TextPath href="#curve" startOffset="50%">
+        <TextPath href="#curve" startOffset="50%" style={styles.ribbonTitle}>
           Leaderboard
         </TextPath>
       </SvgText>
@@ -74,7 +80,7 @@ export default function LeaderboardScreen() {
         const leaderboardQuery = query(
           leaderboardRef,
           orderBy('points', 'desc'),
-          limit(10)
+          limit(usersShown)
         );
         const querySnapshot = await getDocs(leaderboardQuery);
 
@@ -136,7 +142,7 @@ export default function LeaderboardScreen() {
     <ImageBackground
       source={require('../assets/leaderboardback.jpg')}
       style={styles.background}
-      resizeMode="cover"
+      contentFit="cover"
     >
       <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
       <View style={styles.overlay}>
@@ -154,33 +160,57 @@ export default function LeaderboardScreen() {
             resizeMode="contain"
           />
           <View style={styles.curvedTextOverlay}>
-            <CurvedRibbonTitle />
+            <CurvedRibbonTitle/>
           </View>
         </View>
 
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <View style={styles.leaderboardContainer}>
-            {Array.from({ length: 10 }, (_, index) => {
+          <ScrollView style={styles.leaderboardContainer}>
+            {Array.from({ length: usersShown }, (_, index) => {
               const user = leaderboard[index];
               const isCurrentUser = user?.id === currentUserId;
+
+              const crownImages = [
+                require('../assets/crown1.png'),
+                require('../assets/crown2.png'),
+                require('../assets/crown3.png')
+              ];
+              const crownImage = index < 3 ? crownImages[index] : null;
 
               return (
                 <View
                   key={index}
                   style={[styles.row, isCurrentUser && styles.currentUserRow]}
                 >
-                  <Text
-                    style={[styles.name, isCurrentUser && styles.currentUserText]}
-                  >
-                    {index + 1}. {user ? user.name : 'N/A'}
-                  </Text>
-                  <Text
-                    style={[styles.points, isCurrentUser && styles.currentUserText]}
-                  >
-                    {user ? user.points : ''}
-                  </Text>
+                  <View style={{ width: width/50, alignItems: 'center' }}>
+                    {crownImage && (
+                      <Image
+                        source={crownImage}
+                        style={{ width: width/15, height: width/15 }}
+                        resizeMode="contain"
+                      />
+                    )}
+                  </View>
+
+                  <View style={{ width: width/10, alignItems: 'flex-end', paddingRight: 5 }}>
+                    <Text style={[styles.name, isCurrentUser && styles.currentUserText]}>
+                      {index + 1}.
+                    </Text>
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.name, isCurrentUser && styles.currentUserText]}>
+                      {user ? user.name : 'N/A'}
+                    </Text>
+                  </View>
+
+                  <View style={{ minWidth: width/8, alignItems: 'flex-end' }}>
+                    <Text style={[styles.points, isCurrentUser && styles.currentUserText]}>
+                      {user ? user.points : ''}
+                    </Text>
+                  </View>
                 </View>
               );
             })}
@@ -198,7 +228,12 @@ export default function LeaderboardScreen() {
                 </View>
               </>
             )}
-          </View>
+
+            <Text>
+              
+            </Text>
+
+          </ScrollView>
         )}
       </View>
     </ImageBackground>
@@ -209,41 +244,32 @@ const styles = StyleSheet.create({
   background: { flex: 1 },
   overlay: {
     flex: 1,
-    padding: 24 * scale,
+    padding: width/25,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     overflow: 'visible',
   },
   backButton: {
     position: 'absolute',
-    top: 70 * scale,
-    left: 25 * scale,
+    top: height/10,
+    left: width/16,
     zIndex: 50,
-    padding: 5 * scale,
+    padding: width/60,
     backgroundColor: 'rgba(0,0,0)',
     borderRadius: 100,
   },
   ribbonContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -90 * scale, 
-    marginBottom: -90 * scale,
+    marginTop: height/-7.5, 
+    marginBottom: height/-7.5,
     position: 'relative',
     zIndex: 20, 
     pointerEvents: 'none', 
   },
   ribbonImage: {
-    marginTop: 75 * scale,
-    width: screenWidth * 1.3,
-    height: 200 * scale,
-  },
-  ribbonTitle: {
-    position: 'absolute',
-    top: '25%',
-    fontSize: 32 * scale,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-    zIndex: 1,
+    marginTop: height/9,
+    width: width*2.5/2,
+    height: height/3.3,
   },
   curvedTextOverlay: {
     position: 'absolute',
@@ -257,43 +283,42 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   leaderboardContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',  
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',  
     borderColor: '#ffffffff',  
     borderWidth: 2,
-    borderRadius: 15 * scale,
-    paddingVertical: 10 * scale,
-    paddingHorizontal: 10 * scale,
-    paddingBottom: 200*scale,
-    paddingTop: 25*scale,
-    marginTop: -20 * scale,
+    borderRadius: width/20,
+    paddingTop: height/12,
+    marginTop: height/-35,
     overflow: 'hidden', 
     zIndex: 5,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 10 * scale,
-    paddingHorizontal: 25 * scale,
+    paddingVertical: height / 50,
+    paddingRight: width/15,
+    paddingLeft: width/20,
     borderBottomWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    width: '100%', 
   },
   name: {
-    fontSize: 18 * scale,
+    fontSize: width/20,
     color: 'white',
   },
   points: {
-    fontSize: 18 * scale,
-    fontWeight: 'bold',
+    fontSize: width/20,
     color: 'white',
+    fontFamily: 'Arial Rounded MT Bold',
   },
   currentUserRow: {
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    borderColor: '#4CAF50',
+    borderColor: '#daa700ff',
     borderWidth: 2,
-    borderRadius: 15 * scale,
+    borderRadius: 20,
+    paddingHorizontal: width/15,
   },
   currentUserText: {
-    color: '#4CAF50',
-    fontWeight: 'bold',
+    color: '#ffe883ff',
   },
 });

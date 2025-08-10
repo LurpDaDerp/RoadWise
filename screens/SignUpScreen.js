@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Dimensions
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../utils/firebase';
@@ -10,15 +10,32 @@ import { doc, setDoc } from 'firebase/firestore';
 import { saveUserPoints } from '../utils/firestore';
 import { query, where, getDocs, collection } from 'firebase/firestore';
 
+const { width, height } = Dimensions.get('window');
+
 export default function SignUpScreen() {
   const navigation = useNavigation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState(''); 
 
+  const isValidEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email.toLowerCase());
+  };
+
   const handleSignUp = async () => {
     if (!username.trim()) {
       Alert.alert('Validation Error', 'Username cannot be empty.');
+      return;
+    }
+
+    if (username.trim().length > 16) {
+      Alert.alert('Username Too Long!', 'Username cannot be longer than 16 characters.');
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      Alert.alert('Validation Error', 'Please enter a valid email address.');
       return;
     }
 
@@ -98,22 +115,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#111',
     justifyContent: 'top',
-    padding: 24,
+    padding: width / (375 / 24),
   },
   title: {
-    paddingTop: 75,
-    fontSize: 32,
+    paddingTop: height / (667 / 75),
+    fontSize: width / (375 / 32),
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 24,
+    marginBottom: height / (667 / 24),
     textAlign: 'center',
   },
   input: {
     backgroundColor: '#222',
-    padding: 12,
-    borderRadius: 8,
+    padding: height / (667 / 12),
+    borderRadius: width / (375 / 8),
     color: '#fff',
-    marginBottom: 16,
+    marginBottom: height / (667 / 16),
   },
   button: {
     backgroundColor: '#00b894',

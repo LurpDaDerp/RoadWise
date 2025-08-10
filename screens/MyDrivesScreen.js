@@ -9,11 +9,18 @@ import {
   Alert,
   ImageBackground,
   Animated,
+  ActivityIndicator
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeContext } from '../context/ThemeContext';
+
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { saveUserDrive, getUserDrives, clearUserDrives } from '../utils/firestore';
+import { getAuth } from 'firebase/auth';
+
+const firestore = getFirestore();
 
 const { width, height } = Dimensions.get('window');
 
@@ -48,16 +55,16 @@ export default function MyDrivesScreen() {
 
   const [modalVisible, setModalVisible] = useState(false);
   const customFadeAnim = useRef(new Animated.Value(0)).current;
+  
+  const [loading, setLoading] = useState(true);
 
   const loadDrives = async () => {
-    try {
-      const stored = await AsyncStorage.getItem('@driveHistory');
-      const parsed = stored ? JSON.parse(stored) : [];
-      setDrives(parsed);
-      setVisibleCount(LOAD_BATCH);
-    } catch (e) {
-      console.warn('Failed to load drive history:', e);
-    }
+    const user = getAuth().currentUser;
+    const uid = user.uid;
+    if (!user) return setDrives([]);
+    const fetched = await getUserDrives(uid);
+    setDrives(fetched);
+    setVisibleCount(LOAD_BATCH);
   };
 
   const distractedCount = drives.filter(d => d.distracted).length;
@@ -73,6 +80,7 @@ export default function MyDrivesScreen() {
   useFocusEffect(
     useCallback(() => {
       loadDrives();
+      setLoading(false);
     }, [])
   );
 
@@ -87,7 +95,12 @@ export default function MyDrivesScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await AsyncStorage.removeItem('@driveHistory');
+              const user = getAuth().currentUser;
+              if (!user) {
+                console.warn('No user logged in, cannot clear drives.');
+                return;
+              }
+              await clearUserDrives(user.uid);
               setDrives([]);
             } catch (e) {
               console.warn('Failed to clear drive history:', e);
@@ -98,6 +111,7 @@ export default function MyDrivesScreen() {
       { cancelable: true }
     );
   };
+
 
   const openModal = () => {
     setModalVisible(true);
@@ -121,7 +135,14 @@ export default function MyDrivesScreen() {
   const renderItem = ({ item }) => (
     <View style={[styles.item, { backgroundColor: itemBackground }]}>
       <Text style={[styles.date, { color: dateColor }]}>
-        {new Date(item.timestamp).toLocaleString()}
+        {new Date(item.timestamp).toLocaleString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true, 
+        })}
       </Text>
       <Text style={[styles.detail, { color: detailColor }]}>Points: {item.points}</Text>
       <Text style={[styles.detail, { color: detailColor }]}>
@@ -137,6 +158,14 @@ export default function MyDrivesScreen() {
       </Text>
     </View>
   );
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="medium" color="#fff" />
+      </View>
+    );
+  }
 
   return (
     <>
@@ -180,7 +209,7 @@ export default function MyDrivesScreen() {
 
           <Text style={styles.title}>My Drives</Text>
 
-          <FlatList
+          <FlatList style={styles.list}
             data={drives.slice(0, visibleCount)}
             keyExtractor={(_, index) => index.toString()}
             renderItem={renderItem}
@@ -197,8 +226,8 @@ export default function MyDrivesScreen() {
             }
           />
 
-          <TouchableOpacity onPress={clearDriveHistory} style={styles.clearButton}>
-            <Text style={styles.clearButtonText}>Clear Drive History</Text>
+          <TouchableOpacity onPress={clearDriveHistory} style={styles.trashButton}>
+            <Ionicons name="trash-outline" size={32} color="#fff" />
           </TouchableOpacity>
         </View>
       </ImageBackground>
@@ -214,18 +243,30 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    padding: width > 400 ? 24 : 20,
+    padding: width/18,
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
+  },
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#111',  
   },
   menuButton: {
     position: 'absolute',
-    top: height > 700 ? 110 : 65,
-    left: 20,
+    top: height/10,
+    left: width/15,
   },
   statsButton: {
     position: 'absolute',
-    top: height > 700 ? 110 : 65,
-    right: 20,
+    top: height/10,
+    right: width/15,
+  },
+  list: {
+    marginBottom: height/13,
+    padding: width/40,
+    backgroundColor: 'rgba(107, 107, 107, 0.5)',
+    borderRadius: 10,
   },
   modalOverlay: {
     position: 'absolute',
@@ -240,63 +281,68 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '80%',
-    padding: 25,
+    padding: width/12,
     borderRadius: 10,
     alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 30,
+    fontSize: width/12,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: width/20,
   },
   modalText: {
-    fontSize: 18,
+    fontSize: width/20,
     textAlign: 'center',
-    marginBottom: 7,
+    marginBottom: width/55,
   },
   modalCloseText: {
-    fontSize: 16,
+    fontSize: width/24,
     textAlign: 'center',
   },
   modalButton: {
-    marginTop: 20,
-    paddingHorizontal: 90,
-    paddingVertical: 10,
+    marginTop: height/40,
+    paddingHorizontal: width/5,
+    paddingVertical: width/40,
     borderRadius: 10,
   },
   title: {
-    fontSize: width > 400 ? 36 : 32,
+    fontSize: width/11,
     fontWeight: 'bold',
     color: '#fff',
-    marginTop: height > 700 ? 52 : 40,
-    marginBottom: height > 700 ? 48 : 32,
+    marginTop: height/17,
+    marginBottom: height/24,
     alignSelf: 'center',
   },
   item: {
-    marginBottom: 10,
-    padding: 15,
-    borderRadius: 10,
+    marginBottom: height / 66.7,    
+    padding: width / 25,        
+    borderRadius: width / 37.5,    
   },
-  date: { fontSize: 16, marginBottom: 5 },
-  detail: { fontSize: 14 },
+  date: { 
+    fontSize: 16,        
+    marginBottom: height / 133.4,     
+  },
+  detail: { 
+    fontSize: 14,    
+  },
   empty: {
     color: '#aaa',
-    fontSize: 16,
+    fontSize: width / 23.4,            
     textAlign: 'center',
-    marginTop: 50,
+    marginTop: height / 13.3, 
   },
-  clearButton: {
-    backgroundColor: '#cc3333',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignSelf: 'center',
-    marginTop: height > 700 ? 24 : 20,
-    marginBottom: height > 700 ? 20 : 16,
-  },
-  clearButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: width > 400 ? 18 : 16,
+  trashButton: {
+    position: 'absolute',
+    bottom: height / 33.35, 
+    left: width / 18.75,     
+    padding: width / 37.5,         
+    borderRadius: width / 12.5,   
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
   },
 });

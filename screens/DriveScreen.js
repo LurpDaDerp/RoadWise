@@ -18,7 +18,7 @@ import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth, signOut } from 'firebase/auth';
 import { getFirestore, doc, updateDoc, increment } from 'firebase/firestore';
-import { saveTrustedContacts, getTrustedContacts } from '../utils/firestore';
+import { saveTrustedContacts, getTrustedContacts, saveUserDrive } from '../utils/firestore';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { useContext } from 'react';
@@ -151,7 +151,7 @@ export default function DriveScreen({ route }) {
         const parsed = stored ? JSON.parse(stored) : [];
 
         parsed.unshift(driveData); 
-        await AsyncStorage.setItem('@driveHistory', JSON.stringify(parsed));
+        await saveUserDrive(user.uid, driveData);
       } catch (e) {
         console.warn('Failed to save drive history:', e);
       }
@@ -720,12 +720,12 @@ const styles = StyleSheet.create({
   },
   emergencyButton: {
     position: 'absolute',
-    top: verticalScale(60),
-    left: scale(20),
-    backgroundColor: '#ff3b30', 
-    paddingVertical: verticalScale(15),
-    paddingHorizontal: scale(20),
-    borderRadius: scale(12),
+    top: (height / 667) * 45,
+    left: (width / 375) * 20,
+    backgroundColor: '#ff3b30',
+    paddingVertical: (height / 667) * 15,
+    paddingHorizontal: (width / 375) * 20,
+    borderRadius: (width / 375) * 12,
     zIndex: 1000,
     elevation: 10,
   },
@@ -733,7 +733,7 @@ const styles = StyleSheet.create({
   emergencyButtonText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: scale(16),
+    fontSize: (width / 375) * 16,
     textAlign: 'center',
   },
 
@@ -752,24 +752,24 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '80%',
     backgroundColor: '#fff',
-    borderRadius: scale(20),
-    padding: scale(20),
+    borderRadius: (width / 375) * 20,
+    padding: (width / 375) * 20,
     alignItems: 'center',
     elevation: 10,
   },
 
   modalTitle: {
-    fontSize: scale(20),
+    fontSize: (width / 375) * 20,
     fontWeight: 'bold',
-    marginBottom: verticalScale(20),
+    marginBottom: (height / 667) * 20,
     textAlign: 'center',
   },
 
   modalOption: {
-    borderRadius: scale(12),
-    paddingVertical: verticalScale(12),
-    paddingHorizontal: scale(20),
-    marginTop: verticalScale(10),
+    borderRadius: (width / 375) * 12,
+    paddingVertical: (height / 667) * 12,
+    paddingHorizontal: (width / 375) * 20,
+    marginTop: (height / 667) * 10,
     width: '100%',
   },
 
@@ -783,16 +783,16 @@ const styles = StyleSheet.create({
   modalOptionText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: scale(16),
+    fontSize: (width / 375) * 16,
     textAlign: 'center',
   },
 
   speedLimitContainer: {
     position: 'absolute',
-    top: verticalScale(60),
-    right: scale(10),
-    width: scale(100),
-    height: scale(100),
+    top: (height / 667) * 45,
+    right: (width / 375) * 10,
+    width: (width / 375) * 100,
+    height: (width / 375) * 100,
   },
   speedLimitSign: {
     flex: 1,
@@ -800,8 +800,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   speedLimitText: {
-    paddingTop: verticalScale(50),
-    fontSize: scale(36),
+    paddingTop: (height / 667) * 40,
+    fontSize: (width / 375) * 36,
     fontWeight: 'bold',
     color: '#000',
     textAlign: 'center',
@@ -810,7 +810,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: verticalScale(25),
+    paddingVertical: (height / 667) * 25,
   },
   pointsContainer: {
     flex: 1,
@@ -823,18 +823,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   points: {
-    marginTop: verticalScale(100),
+    marginTop: (height / 667) * 100,
     fontWeight: 'bold',
+    fontFamily: 'Avenir',
     color: '#fff',
     textShadowColor: '#fff',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: scale(12),
+    textShadowRadius: (width / 375) * 12,
     textAlign: 'center',
   },
   pointsLabel: {
-    fontSize: scale(24),
+    fontSize: (width / 375) * 24,
     color: '#fff',
-    marginTop: verticalScale(8),
+    marginTop: (height / 667) * -20,
   },
   completeDriveButtonContainer: {
     position: 'absolute',
@@ -844,40 +845,44 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   completeDriveButtonWrapper: {
-    marginTop: verticalScale(-75),
-    marginBottom: verticalScale(50),
+    marginTop: (height / 667) * 0,
+    marginBottom: (height / 667) * 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   completeDriveButton: {
     backgroundColor: '#04b6b6ff',
-    paddingVertical: verticalScale(15),
-    paddingHorizontal: scale(65),
-    borderRadius: scale(40),
+    paddingVertical: (height / 667) * 15,
+    paddingHorizontal: (width / 375) * 60,
+    marginTop: (height / 667) * 0,
+    marginBottom: (height / 667) * 10,
+    borderRadius: (width / 375) * 40,
     fontWeight: 'bold',
-    fontSize: scale(24),
+    fontSize: (width / 375) * 24,
+    fontFamily: 'Arial Rounded MT Bold',
     color: '#ffffff',
     overflow: 'hidden',
     textAlign: 'center',
   },
   speedBackground: {
     width: '100%',
-    paddingVertical: verticalScale(120),
+    paddingVertical: (height / 667) * 120,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: verticalScale(-100),
-    borderRadius: scale(20),
+    marginBottom: (height / 667) * -110,
+    borderRadius: (width / 375) * 20,
     overflow: 'hidden',
   },
   speedText: {
-    fontSize: scale(48),
+    fontSize: (width / 375) * 48,
     fontWeight: 'bold',
+    fontFamily: 'Arial Rounded MT Bold',
     color: '#fff',
     textShadowColor: '#000',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: scale(4),
-    marginBottom: scale(5),
+    textShadowRadius: (width / 375) * 4,
+    marginBottom: (width / 375) * 5,
   },
   warningOverlay: {
     position: 'absolute',
@@ -891,13 +896,13 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   warningOverlayText: {
-    fontSize: scale(32),
+    fontSize: (width / 375) * 32,
     fontWeight: 'bold',
     color: '#ff4444',
     textAlign: 'center',
-    paddingHorizontal: scale(20),
+    paddingHorizontal: (width / 375) * 20,
     textShadowColor: '#000',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: scale(6),
+    textShadowRadius: (width / 375) * 6,
   },
 });

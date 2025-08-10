@@ -154,40 +154,42 @@ export default function DriveScreenSettings() {
 }
 
 const styles = StyleSheet.create({
-  background: { 
-    flex: 1 
+  background: {
+    flex: 1,
   },
-  overlay: { flex: 1, padding: width > 400 ? 32 : 24, backgroundColor: 'rgba(0, 0, 0, 0.4)' },
-  menuButton: { 
-    position: 'absolute', 
-    top: 70, 
-    left: 20 
+  overlay: {
+    flex: 1,
+    padding: width / (375 / 24),
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  menuButton: {
+    position: 'absolute',
+    top: height / (667 / 70),
+    left: width / (375 / 20),
   },
   title: {
-    fontSize: width > 400 ? 36 : 32,
+    fontSize: width / (375 / 32),
     fontWeight: 'bold',
     color: '#fff',
-    marginTop: height > 700 ? 80 : 45,
-    marginBottom: height > 700 ? 48 : 32,
+    marginTop: height / (667 / 60),
+    marginBottom: height / (667 / 32),
     alignSelf: 'center',
   },
   settingRow: {
-    marginBottom: width > 400 ? 24 : 16,
+    marginBottom: width / (375 / 16),
   },
   settingRowToggle: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: width > 400 ? 24 : 16,
+    marginBottom: width / (375 / 16),
   },
   settingLabel: {
-    fontSize: width > 400 ? 20 : 16,
+    fontSize: width / (375 / 16),
     marginBottom: 12,
     color: '#fff',
   },
-  segmentedControl: { 
-    height: 40 
+  segmentedControl: {
+    height: 40,
   },
 });
-
-

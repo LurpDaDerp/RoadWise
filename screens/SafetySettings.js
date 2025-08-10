@@ -205,26 +205,30 @@ export default function GeneralSettings() {
 
 const styles = StyleSheet.create({
   background: { flex: 1 },
-  overlay: { flex: 1, padding: width > 400 ? 32 : 24, backgroundColor: 'rgba(0, 0, 0, 0.4)' },
+  overlay: { 
+    flex: 1, 
+    padding: width / (375 / 24), 
+    backgroundColor: 'rgba(0, 0, 0, 0.4)' 
+  },
   title: {
-    fontSize: width > 400 ? 36 : 32,
+    fontSize: width / (375 / 32),
     fontWeight: 'bold',
     color: '#fff',
-    marginTop: height > 700 ? 80 : 45,
-    marginBottom: height > 700 ? 48 : 32,
+    marginTop: height / (667 / 60),
+    marginBottom: height / (667 / 32),
     alignSelf: 'center',
   },
   settingRow: {
-    marginBottom: width > 400 ? 24 : 16,
+    marginBottom: width / (375 / 16),
   },
   settingRowToggle: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: width > 400 ? 24 : 16,
+    marginBottom: width / (375 / 16),
   },
   settingLabel: {
-    fontSize: width > 400 ? 20 : 16,
+    fontSize: width / (375 / 16),
     marginBottom: 12,
     color: '#fff',
   },
@@ -257,51 +261,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-
   modalContent: {
     width: '85%',
-    borderRadius: 14,
-    padding: 20,
+    borderRadius: width / (375 / 14),
+    padding: width / (375 / 20),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
     elevation: 8,
   },
-
   modalTitle: {
-    fontSize: 20,
+    fontSize: width / (375 / 20),
     fontWeight: '600',
-    marginBottom: 16,
+    marginBottom: height / (667 / 16),
     textAlign: 'center',
   },
-
   input: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    marginBottom: 12,
+    paddingVertical: height / (667 / 10),
+    paddingHorizontal: width / (375 / 12),
+    borderRadius: width / (375 / 10),
+    marginBottom: height / (667 / 12),
   },
-
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 14,
+    marginTop: height / (667 / 14),
   },
-
   modalButton: {
     backgroundColor: '#00cc99',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+    paddingVertical: height / (667 / 10),
+    paddingHorizontal: width / (375 / 20),
+    borderRadius: width / (375 / 10),
     flex: 1,
     alignItems: 'center',
-    marginHorizontal: 5,
+    marginHorizontal: width / (375 / 5), 
   },
-
   modalButtonText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: width / (375 / 16),
   },
 });

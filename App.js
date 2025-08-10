@@ -1,6 +1,6 @@
 // App.js
 import React, { useRef } from 'react';
-import { AppState, useColorScheme } from 'react-native';
+import { AppState, useColorScheme, Dimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   NavigationContainer,
@@ -13,8 +13,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import StackNavigator from './navigation/StackNavigator';
 import SettingsStackNavigator from './navigation/SettingsStackNavigator';
-import RewardsStackNavigator from './navigation/RewardsStackNavigator';
 import MyDrivesScreen from './screens/MyDrivesScreen';
+import AboutScreen from './screens/AboutScreen';
 
 import { ThemeProvider } from './context/ThemeContext';
 import { useContext } from 'react';
@@ -34,6 +34,8 @@ Notifications.setNotificationHandler({
   }),
 });
 const Drawer = createDrawerNavigator();
+
+const { width, height } = Dimensions.get('window');
 
 function AppNavigation() {
   const { resolvedTheme } = useContext(ThemeContext);
@@ -89,7 +91,15 @@ function AppNavigation() {
       theme={resolvedTheme === 'dark' ? DarkTheme : DefaultTheme}
     >
 
-      <Drawer.Navigator initialRouteName="Home">
+      <Drawer.Navigator 
+        initialRouteName="Home"
+        screenOptions={{
+          drawerStyle: {
+            width: width*0.6,
+          },
+          swipeEnabled: false
+        }}
+      >
         <Drawer.Screen
           name="Home"
           component={StackNavigator}
@@ -100,16 +110,7 @@ function AppNavigation() {
             ),
           }}
         />
-        <Drawer.Screen
-          name="Settings"
-          component={SettingsStackNavigator}
-          options={{
-            headerShown: false,
-            drawerIcon: ({ color, size }) => (
-              <MaterialIcons name="settings" size={size} color={color} />
-            ),
-          }}
-        />
+
         <Drawer.Screen
           name="My Drives"
           component={MyDrivesScreen}
@@ -120,11 +121,30 @@ function AppNavigation() {
             ),
           }}
         />
+
+        <Drawer.Screen
+          name="Settings"
+          component={SettingsStackNavigator}
+          options={{
+            headerShown: false,
+            drawerIcon: ({ color, size }) => (
+              <MaterialIcons name="settings" size={size} color={color} />
+            ),
+          }}
+        />
         
+        
+        <Drawer.Screen
+          name="About"
+          component={AboutScreen}
+          options={{
+            headerShown: false,
+            drawerIcon: ({ color, size }) => (
+              <MaterialIcons name="info-outline" size={size} color={color} />
+            ),
+          }}
+        />
       </Drawer.Navigator>
-
-      
-
     </NavigationContainer>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { useFocusEffect, useNavigationContainerRef } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import SettingsScreen from '../screens/SettingsScreen';
 import DriveScreenSettings from '../screens/DriveScreenSettings';
@@ -10,27 +10,8 @@ import AccountSettings from '../screens/AccountSettings';
 const Stack = createStackNavigator();
 
 export default function SettingsStackNavigator() {
-  const navigationRef = useNavigationContainerRef();
-  const hasReset = useRef(false); 
-
-  useFocusEffect(
-    React.useCallback(() => {
-      if (!hasReset.current && navigationRef.isReady()) {
-        navigationRef.reset({
-          index: 0,
-          routes: [{ name: 'SettingsMain' }],
-        });
-        hasReset.current = true;
-      }
-
-      return () => {
-        hasReset.current = false;
-      };
-    }, [navigationRef])
-  );
-
   return (
-    <Stack.Navigator>
+    <Stack.Navigator initialRouteName="SettingsMain">
       <Stack.Screen
         name="SettingsMain"
         component={SettingsScreen}
