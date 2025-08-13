@@ -96,3 +96,9 @@ export async function clearUserDrives(uid) {
     console.error("Error clearing user drives:", error);
   }
 }
+
+export async function getHereKey(key) {
+  const docRef = doc(db, "apikeys", key); 
+  const docSnap = await getDoc(docRef);
+  return docSnap.exists() ? docSnap.data().value : null;
+}

@@ -17,6 +17,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
 import { Easing } from 'react-native';
 import { Snackbar } from 'react-native-paper';
+import ConfettiCannon from "react-native-confetti-cannon";
 
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '../utils/firebase';
@@ -63,14 +64,15 @@ export default function DashboardScreen({ route }) {
   const [displayedPoints, setDisplayedPoints] = useState(0);
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const[snackbarColor, setSnackBarColor] = useState();
 
   const snackbarBackgroundColor = resolvedTheme === 'dark' ? '#222' : '#fff';
   const snackbarTextColor = resolvedTheme === 'dark' ? '#fff' : '#555';
 
   const [driveStreak, setDriveStreak] = useState(0);
 
-  
-
+  const confettiRef = useRef(null);
+  const [confettiVisible, setConfettiVisible] = useState(false);
 
   useEffect(() => {
     const listener = animatedPoints.addListener(({ value }) => {
@@ -205,6 +207,7 @@ export default function DashboardScreen({ route }) {
       let isActive = true;
 
       (async () => {
+
         try {
           const [driveCompleteFlag, wasDistractedFlag] = await Promise.all([
             AsyncStorage.getItem('@driveCompleteSnackbar'),
@@ -213,11 +216,18 @@ export default function DashboardScreen({ route }) {
 
           if (driveCompleteFlag === 'true' && isActive) {
             if (wasDistractedFlag === 'true') {
-              setSnackbarMessage('Streak reset: You were distracted!');
+              setSnackbarMessage('Streak reset. You were distracted!');
+              setSnackBarColor('#ff0000ff');
             } else {
-              setSnackbarMessage('Drive complete! You were undistracted!');
+              setSnackbarMessage('Drive complete. You were undistracted!');
+              setSnackBarColor('#00ff15ff');
             }
             setSnackbarVisible(true);
+            setConfettiVisible(false);
+            setTimeout(() => {
+              if (!isActive) return;
+              setConfettiVisible(true);
+            }, 50);
           }
 
           await AsyncStorage.multiRemove(['@driveCompleteSnackbar', '@driveWasDistracted']);
@@ -230,7 +240,13 @@ export default function DashboardScreen({ route }) {
         isActive = false;
       };
     }, [])
-);
+  );
+
+  useEffect(() => {
+    if (confettiVisible && confettiRef.current) {
+      confettiRef.current.start();
+    }
+  }, [confettiVisible]);
 
   const animatePoints = (from, to) => {
     const pointDifference = Math.abs(to - from);
@@ -323,13 +339,10 @@ export default function DashboardScreen({ route }) {
           setStreak(stored ? parseInt(stored, 10) : 0);
         }
       };
-
+      
       loadStreak();
     }, [user])
   );
-
-
-
 
   useEffect(() => {
     if (route.params?.showDriveCompleteSnackbar) {
@@ -374,9 +387,7 @@ export default function DashboardScreen({ route }) {
           <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
             <Ionicons name="menu" size={32} color="#fff" />
           </TouchableOpacity>
-
-
-          
+                      
           {user ? (
             <View style={styles.streakContainer}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -458,7 +469,7 @@ export default function DashboardScreen({ route }) {
             visible={snackbarVisible}
             onDismiss={() => setSnackbarVisible(false)}
             duration={3000}
-            style={{ backgroundColor: snackbarBackgroundColor }}
+            style={{ backgroundColor: snackbarBackgroundColor, paddingHorizontal: 0, marginBottom: height/4, borderRadius: 20, outlineColor: snackbarColor, outlineWidth: 2 }}
             theme={{
               colors: {
                 onSurface: snackbarTextColor, 
@@ -468,14 +479,27 @@ export default function DashboardScreen({ route }) {
             action={{
               label: 'OK',
               onPress: () => setSnackbarVisible(false),
+
             }}
           >
-            <Text style={{ color: snackbarTextColor, textAlign: 'center', width: '100%', fontSize: 18 }}>
+            <Text style={{ color: snackbarTextColor, textAlign: 'center', width: '100%', fontSize: 20 }}> 
               {snackbarMessage}
             </Text>
           </Snackbar>
-
+ 
           
+          {confettiVisible && (
+            <ConfettiCannon
+              count={75}
+              origin={{ x: width/2, y: -20 }}
+              explosionSpeed={500}
+              fallSpeed={1700}
+              fadeOut
+              autoStart={false}
+              ref={confettiRef}
+            />
+          )}
+
         </View>
       </ImageBackground>
     </Animated.View>
@@ -576,6 +600,7 @@ const styles = StyleSheet.create({
   driveButton: {
     backgroundColor: 'transparent',
     borderColor: '#fff',
+    backgroundColor: '#0000007c',
     borderWidth: 2,
     paddingVertical: height/40,
     paddingHorizontal: width/8,
@@ -600,8 +625,8 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: height/11,
     borderColor: '#fff',
+    backgroundColor: '#0000007c',
     borderWidth: 2,
-    backgroundColor: 'transparent',
     paddingVertical: width/60,
     borderRadius: width/20,
     alignItems: 'center',

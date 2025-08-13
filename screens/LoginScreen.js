@@ -48,7 +48,7 @@ export default function LoginScreen() {
       await ensureUserStreakFields(userCred.user.uid);
       navigation.navigate('Dashboard');
     } catch (error) {
-      Alert.alert('Login Failed', error.message);
+      Alert.alert('Incorrect email or password');
     }
   };
 

@@ -18,7 +18,7 @@ import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth, signOut } from 'firebase/auth';
 import { getFirestore, doc, updateDoc, increment } from 'firebase/firestore';
-import { saveTrustedContacts, getTrustedContacts, saveUserDrive } from '../utils/firestore';
+import { saveTrustedContacts, getTrustedContacts, saveUserDrive, getHereKey } from '../utils/firestore';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { useContext } from 'react';
@@ -33,11 +33,9 @@ import { useDrive } from '../context/DriveContext';
 const db = getFirestore();
 
 const { width, height } = Dimensions.get('window');
-const scale = (size) => (width / 375) * size;
-const verticalScale = (size) => (height / 812) * size;
 
 const AnimatedImageBackground = Animated.createAnimatedComponent(ImageBackground);
-const HERE_API_KEY = 'G7cQbMXnjvzDsZwUEsc8yqVt001VXP3arshuxR4dHXQ';
+/* const HERE_API_KEY = 'uninitialized'; */
 const GRID_RESOLUTION = 0.002;
 const speedLimitCache = new Map();
 let lastSpeedLimitFetchTime = 0;
@@ -54,14 +52,17 @@ async function loadSpeedLimitCache() {
     if (cached) {
       const entries = JSON.parse(cached);
       for (const [key, val] of entries) {
-        speedLimitCache.set(key, val);
+        if (typeof val === 'number') {
+          speedLimitCache.set(key, { value: val, unit: 'mph' });
+        } else if (val && typeof val === 'object' && 'value' in val && 'unit' in val) {
+          speedLimitCache.set(key, val);
+        }
       }
     }
   } catch (err) {
     console.warn('⚠️ Failed to load speed limit cache:', err);
   }
 }
-
 async function saveSpeedLimitCache() {
   try {
     await AsyncStorage.setItem('@speedLimitCache', JSON.stringify(Array.from(speedLimitCache.entries())));
@@ -83,11 +84,14 @@ export default function DriveScreen({ route }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [showCurrentSpeed, setShowCurrentSpeed] = useState(true);
   const [showSpeedLimit, setShowSpeedLimit] = useState(true);
+  const speedLimitRef = useRef(speedLimit);
   const [displayTotalPoints, setDisplayTotalPoints] = useState(false);
   const [displayedPoints, setDisplayedPoints] = useState(0);
   const [startingPoints, setStartingPoints] = useState(route.params?.totalPoints ?? 0);
   const [distractedNotificationsEnabled, setDistractedNotificationsEnabled] = useState(true);
-  const [showEmergencyModal, setShowEmergencyModal] = useState(false);const [trustedContacts, setTrustedContacts] = useState([]);
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+  const [trustedContacts, setTrustedContacts] = useState([]);
+  const [HERE_API_KEY, setHereKey] = useState();
 
 
   const speedRef = useRef(0);
@@ -122,6 +126,23 @@ export default function DriveScreen({ route }) {
   const soundRef = useRef(null);
 
   const driveStartTime = useRef(Date.now());
+
+  const totalSpeedSum = useRef(0);
+  const speedSampleCount = useRef(0);
+
+  const speedingMarginSum = useRef(0);
+  const speedingSampleCount = useRef(0);
+
+  const suddenStops = useRef(0);
+  const suddenAccelerations = useRef(0);
+
+  const phoneUsageTime = useRef(0);
+  const phoneUsageStart = useRef(null);
+
+  const lastSpeedValue = useRef(0);
+  const ACCEL_THRESHOLD = 3.0; 
+  const BRAKE_THRESHOLD = -3.0; 
+  let lastUpdateTime = Date.now();
 
   //finalize drive function
   const finalizeDrive = async () => {
@@ -184,11 +205,9 @@ export default function DriveScreen({ route }) {
     }
 
     await AsyncStorage.setItem('@pointsThisDrive', pointsThisDrive.toString());
-
     await AsyncStorage.setItem('@driveWasDistracted', isDistracted.current ? 'true' : 'false');
-
     await AsyncStorage.setItem('@streakThisDrive', '1');
-
+    
     setDriveJustCompleted(true);
   };
 
@@ -221,7 +240,14 @@ export default function DriveScreen({ route }) {
         setTrustedContacts(contacts);
       };
 
+      const loadAPIKey = async () => {
+        const key = await getHereKey("HERE_API_KEY");
+        setHereKey(key);
+      };
+      
+      loadAPIKey();
       loadContacts();
+      
     }, [])
   );
 
@@ -366,7 +392,9 @@ export default function DriveScreen({ route }) {
     };
   }, [pointsThisDrive, distractedNotificationsEnabled, navigation]);
 
-
+  useEffect(() => {
+    speedLimitRef.current = speedLimit;
+  }, [speedLimit]);
 
   //location and speed tracking + speed limit logic
   useEffect(() => {
@@ -388,27 +416,64 @@ export default function DriveScreen({ route }) {
         async (loc) => {
           if (!isAppActive.current) return;
 
+          const coordinates = [loc.coords.latitude, loc.coords.longitude];
+          const testcoordinates = [47.61317748986133, -122.03552267676186];
           const rawSpeed = loc.coords.speed ?? 0;
-          const lat = loc.coords.latitude;
-          const lon = loc.coords.longitude;
+          const lat = coordinates[0];
+          const lon = coordinates[1];
+
+          const gridKey = getGridKey(lat, lon);
+          if (speedLimitCache.has(gridKey)) {
+            const cached = speedLimitCache.get(gridKey);
+            let adjustedValue = cached.value;
+
+            if (cached.unit !== unit) {
+              if (cached.unit === 'mph' && unit === 'kph') {
+                adjustedValue = cached.value * 1.60934;
+              } else if (cached.unit === 'kph' && unit === 'mph') {
+                adjustedValue = cached.value * 0.621371;
+              }
+            }
+
+            setSpeedLimit(adjustedValue);
+          } else if (Date.now() - lastSpeedLimitFetchTime > 10000 && showSpeedLimit) {
+            lastSpeedLimitFetchTime = Date.now();
+            const sl = await fetchSpeedLimit(lat, lon, unit);
+            if (sl !== null) {
+              speedLimitCache.set(gridKey, { value: sl, unit: unit }); 
+              setSpeedLimit(sl);
+              await saveSpeedLimitCache();
+            }
+          }
+
           const calcSpeed = unit === 'kph' ? rawSpeed * 3.6 : rawSpeed * 2.23694;
 
           const safeSpeed = Math.max(0, calcSpeed);
           setSpeed(safeSpeed);
           speedRef.current = safeSpeed;
 
-          const gridKey = getGridKey(lat, lon);
-          if (speedLimitCache.has(gridKey)) {
-            setSpeedLimit(speedLimitCache.get(gridKey));
-          } else if (safeSpeed > speedThreshold && Date.now() - lastSpeedLimitFetchTime > 10000) {
-            lastSpeedLimitFetchTime = Date.now();
-            const sl = await fetchSpeedLimit(lat, lon, unit);
-            if (sl !== null) {
-              speedLimitCache.set(gridKey, sl);
-              setSpeedLimit(sl);
-              await saveSpeedLimitCache();
-            }
+          totalSpeedSum.current += safeSpeed;
+          speedSampleCount.current++;
+
+          const limit = Number(speedLimitRef.current ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
+          if (safeSpeed > limit) {
+            speedingMarginSum.current += safeSpeed - limit;
+            speedingSampleCount.current++;
           }
+
+          
+
+          const now = Date.now();
+          const timeDiff = (now - lastUpdateTime) / 1000; 
+          const acceleration = ((rawSpeed) - (lastSpeedValue.current / (unit === 'kph' ? 3.6 : 2.23694))) / timeDiff;
+
+          if (acceleration > ACCEL_THRESHOLD) suddenAccelerations.current++;
+          if (acceleration < BRAKE_THRESHOLD) suddenStops.current++;
+
+          lastSpeedValue.current = safeSpeed;
+          lastUpdateTime = now;
+
+          
         }
       );
     })();
@@ -422,8 +487,7 @@ export default function DriveScreen({ route }) {
   //increment points based on speed
   const scheduleNextPoint = () => {
     const currentSpeed = speedRef.current;
-    const effectiveSpeedLimit = Number(speedLimit ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
-    
+    const effectiveSpeedLimit = Number(speedLimitRef.current ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));    
 
     if (currentSpeed > effectiveSpeedLimit * 1.5) {
       pointTimer.current = null;
@@ -436,7 +500,7 @@ export default function DriveScreen({ route }) {
 
     pointTimer.current = setTimeout(() => {
       const latestSpeed = speedRef.current; 
-      const latestEffectiveLimit = Number(speedLimit ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
+      const latestEffectiveLimit = Number(speedLimitRef.current ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
 
       if (latestSpeed > latestEffectiveLimit * 1.5) {
         pointTimer.current = null;
@@ -852,12 +916,14 @@ const styles = StyleSheet.create({
   },
 
   completeDriveButton: {
-    backgroundColor: '#04b6b6ff',
+    backgroundColor: '#0000007c',
+    outlineColor: '#ffffff',
+    outlineWidth: 2,
     paddingVertical: (height / 667) * 15,
     paddingHorizontal: (width / 375) * 60,
     marginTop: (height / 667) * 0,
     marginBottom: (height / 667) * 10,
-    borderRadius: (width / 375) * 40,
+    borderRadius: (width / 375) * 20,
     fontWeight: 'bold',
     fontSize: (width / 375) * 24,
     fontFamily: 'Arial Rounded MT Bold',
