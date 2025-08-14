@@ -146,11 +146,8 @@ export default function LeaderboardScreen() {
     >
       <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
       <View style={styles.overlay}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="chevron-back" size={28 * scale} color="#fff" />
+        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
+          <Ionicons name="menu" size={32} color="#fff" />
         </TouchableOpacity>
 
         <View style={styles.ribbonContainer}>
@@ -248,14 +245,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     overflow: 'visible',
   },
-  backButton: {
-    position: 'absolute',
-    top: height/10,
-    left: width/16,
-    zIndex: 50,
-    padding: width/60,
-    backgroundColor: 'rgba(0,0,0)',
-    borderRadius: 100,
+  menuButton: { 
+    position: 'absolute', 
+    top: height / (667 / 70), 
+    left:  width / (375 / 30),
+    zIndex: 50 
   },
   ribbonContainer: {
     alignItems: 'center',

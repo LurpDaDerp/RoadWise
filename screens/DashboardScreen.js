@@ -430,40 +430,50 @@ export default function DashboardScreen({ route }) {
             <Text style={styles.pointsLabel}>Points</Text>
           </ImageBackground>
 
-          <AnimatedButton
+          <TouchableOpacity
             style={styles.driveButton}
             onPress={() => {
               fadeOutContent().then(() =>
-                navigation.navigate('Drive', {
-                  totalPoints,
-                })
+                navigation.navigate('Drive', { totalPoints })
               );
             }}
           >
-            <Text style={styles.driveButtonText}>Start Driving!</Text>
-          </AnimatedButton>
-
-          <View style={styles.row}>
-            <AnimatedButton
-              containerStyle={styles.flexItem}
-              style={styles.smallButton}
-              onPress={() => {
-                fadeOutContent().then(() => navigation.navigate('RewardsMain', { totalPoints }));
-              }}
+            <ImageBackground
+              source={require('../assets/drivebutton.jpeg')}
+              style={styles.buttonImage} 
+              imageStyle={{ borderRadius: width / 18}}
+              resizeMode="cover"
             >
-              <Text style={styles.smallButtonText}>Rewards</Text>
-            </AnimatedButton>
-
-            <AnimatedButton
-              containerStyle={styles.flexItem}
-              style={styles.smallButton}
-              onPress={() => {
-                fadeOutContent().then(() => navigation.navigate('Leaderboard'));
-              }}
+              <BlurView intensity={5} tint="dark" style={StyleSheet.absoluteFill} />
+              <View style={styles.buttonDarkOverlay} />
+              <View style={styles.buttonTextContainer}>
+                <Text style={styles.driveButtonText}>Start Driving!</Text>
+              </View>
+            </ImageBackground>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.driveButton}
+            onPress={() => {
+              fadeOutContent().then(() =>
+                navigation.navigate('AIScreen')
+              );
+            }}
+          >
+            <ImageBackground
+              source={require('../assets/AIbutton.jpg')}
+              style={styles.buttonImage}
+              imageStyle={{ borderRadius: width / 18 }} 
+              resizeMode="cover"
             >
-              <Text style={styles.smallButtonText}>Leaderboard</Text>
-            </AnimatedButton>
-          </View>
+              <BlurView intensity={5} tint="dark" style={StyleSheet.absoluteFill} />
+              <View style={styles.buttonDarkOverlay} />
+              <View style={styles.buttonTextContainer}>
+                <Text style={styles.driveButtonText}>AI Coach</Text>
+              </View>
+            </ImageBackground>
+          </TouchableOpacity>
+
 
           <Snackbar
             visible={snackbarVisible}
@@ -520,6 +530,10 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.15)',
   },
+  buttonDarkOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
   overlay: {
     flex: 1,
     padding: width/9,
@@ -566,7 +580,7 @@ const styles = StyleSheet.create({
     fontSize: width/8,
     fontWeight: '500',
     fontFamily: 'Arial Rounded MT Bold',
-    marginTop: height/30,
+    marginTop: height/10,
     marginBottom: height/25,
     color: '#fff',
   },
@@ -598,22 +612,30 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   driveButton: {
-    backgroundColor: 'transparent',
-    borderColor: '#fff',
-    backgroundColor: '#0000007c',
-    borderWidth: 2,
-    paddingVertical: height/40,
-    paddingHorizontal: width/8,
-    borderRadius: width/18,
     width: '100%',
-    marginBottom: height/16,
-    alignItems: 'center',
+    height: 75,
+    borderRadius: width / 18,
+    borderWidth: 2,
+    borderColor: '#fff',
+    overflow: 'hidden',
+    marginBottom: height / 48,
   },
+  
   driveButtonText: {
     color: '#fff',
     fontSize: width/14,
     fontWeight: 'bold',
     fontFamily: 'Arial Rounded MT Bold',
+  },
+  buttonImage: {
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+  },
+  buttonTextContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 1,
   },
   row: {
     flexDirection: 'row',

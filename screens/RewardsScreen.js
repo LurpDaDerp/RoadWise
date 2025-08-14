@@ -8,6 +8,8 @@ import {
   Dimensions,
 } from 'react-native';
 
+import { Ionicons } from '@expo/vector-icons';
+
 const { width, height } = Dimensions.get('window');
 const BUTTON_WIDTH = width * 2/5;
 
@@ -26,10 +28,14 @@ export default function RewardsScreen({ route, navigation }) {
         <Text style={styles.title}>Rewards</Text>
         <Text style={styles.subtitle}>Redeem points for prizes!</Text>
 
+        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
+          <Ionicons name="menu" size={32} color="#fff" />
+        </TouchableOpacity>
+
         <Text style={styles.points}>{totalPoints.toFixed(0)} Points</Text>
 
         <View style={styles.grid}>
-          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('RewardsSubpages', { screen: 'FoodRewards' })}>
+          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('FoodRewards')}>
             <ImageBackground
               source={require('../assets/foodback.jpg')}
               style={styles.buttonBackground}
@@ -40,7 +46,7 @@ export default function RewardsScreen({ route, navigation }) {
             </ImageBackground>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('RewardsSubpages', { screen: 'ShoppingRewards' })}>
+          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('ShoppingRewards')}>
             <ImageBackground
               source={require('../assets/shopback.jpg')}
               style={styles.buttonBackground}
@@ -51,7 +57,7 @@ export default function RewardsScreen({ route, navigation }) {
             </ImageBackground>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('RewardsSubpages', { screen: 'GamesRewards' })}>
+          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('GamesRewards')}>
             <ImageBackground
               source={require('../assets/gameback.jpg')}
               style={styles.buttonBackground}
@@ -62,7 +68,7 @@ export default function RewardsScreen({ route, navigation }) {
             </ImageBackground>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('RewardsSubpages', { screen: 'SubscriptionsRewards' })}>
+          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('SubscriptionsRewards' )}>
             <ImageBackground
               source={require('../assets/subback.jpg')}
               style={styles.buttonBackground}
@@ -90,6 +96,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center',
   },
+  menuButton: { 
+    position: 'absolute', 
+    top: height / (667 / 90), 
+    left:  width / (375 / 20) 
+  },
   points: {
     fontSize: width / (375 / 24),
     fontWeight: '600',
@@ -100,17 +111,17 @@ const styles = StyleSheet.create({
     textShadowRadius: width / (375 / 10),
   },
   title: {
-    fontSize: width / (375 / 44),
+    fontSize: 40,
     fontWeight: 'bold',
     color: '#fff',
     marginTop: 0,
-    paddingBottom: height / (667 / 8),
+    paddingBottom: height / (667 / 40),
     alignSelf: 'center',
   },
   subtitle: {
     fontSize: width / (375 / 24),
     color: 'white',
-    marginBottom: height / (667 / 30),
+    marginBottom: height / (667 / 12),
     textAlign: 'center',
   },
   grid: {

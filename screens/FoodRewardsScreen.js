@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
     alignItems: 'center' 
   },
   text: { 
-    fontSize: 40, 
+    fontSize: 30, 
     color: '#fff', 
     fontWeight: 'bold',
     fontFamily: "Arial Rounded MT Bold"

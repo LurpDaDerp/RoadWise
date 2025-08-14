@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
   menuButton: { 
     position: 'absolute', 
     top: height / (667 / 75), 
-    left: 20 
+    left:  width / (375 / 20) 
   },
   title: {
     fontSize: width / (375 / 32),

@@ -34,7 +34,7 @@ export default function ShoppingRewardsScreen() {
       alignItems: 'center' 
     },
     text: { 
-      fontSize: 40, 
+      fontSize: 30, 
       color: '#fff', 
       fontWeight: 'bold',
       fontFamily: "Arial Rounded MT Bold"

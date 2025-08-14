@@ -14,6 +14,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import StackNavigator from './navigation/StackNavigator';
 import SettingsStackNavigator from './navigation/SettingsStackNavigator';
 import MyDrivesScreen from './screens/MyDrivesScreen';
+import RewardsStackNavigator from './navigation/RewardsStackNavigator';
+import LeaderboardScreen from './screens/LeaderboardScreen';
 import AboutScreen from './screens/AboutScreen';
 
 import { ThemeProvider } from './context/ThemeContext';
@@ -24,6 +26,8 @@ import { DriveProvider } from './context/DriveContext'
 import { Provider as PaperProvider } from 'react-native-paper';
 
 import * as Notifications from 'expo-notifications';
+import RewardsScreen from './screens/RewardsScreen';
+
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -123,6 +127,28 @@ function AppNavigation() {
         />
 
         <Drawer.Screen
+          name="Rewards"
+          component={RewardsStackNavigator}
+          options={{
+            headerShown: false,
+            drawerIcon: ({ color, size }) => (
+              <MaterialIcons name="card-giftcard" size={size} color={color} />
+            ),
+          }}
+        />
+
+        <Drawer.Screen
+          name="Leaderboard"
+          component={LeaderboardScreen}
+          options={{
+            headerShown: false,
+            drawerIcon: ({ color, size }) => (
+              <MaterialIcons name="leaderboard" size={size} color={color} />
+            ),
+          }}
+        />
+
+        <Drawer.Screen
           name="Settings"
           component={SettingsStackNavigator}
           options={{
@@ -144,6 +170,9 @@ function AppNavigation() {
             ),
           }}
         />
+
+        
+        
       </Drawer.Navigator>
     </NavigationContainer>
   );
