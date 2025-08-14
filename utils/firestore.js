@@ -84,6 +84,14 @@ export async function getUserDrives(uid) {
   }
 }
 
+export async function saveDriveMetrics(uid, metrics) {
+  try {
+    await addDoc(collection(db, 'users', uid, 'drivemetrics'), metrics);
+  } catch (err) {
+    console.error('Failed to save drive metrics:', err);
+  }
+}
+
 export async function clearUserDrives(uid) {
   if (!uid) return;
   try {

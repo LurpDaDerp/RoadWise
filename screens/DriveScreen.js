@@ -18,7 +18,7 @@ import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth, signOut } from 'firebase/auth';
 import { getFirestore, doc, updateDoc, increment } from 'firebase/firestore';
-import { saveTrustedContacts, getTrustedContacts, saveUserDrive, getHereKey } from '../utils/firestore';
+import { saveTrustedContacts, getTrustedContacts, saveUserDrive, saveDriveMetrics, getHereKey } from '../utils/firestore';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { useContext } from 'react';
@@ -71,6 +71,20 @@ async function saveSpeedLimitCache() {
   }
 }
 
+function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371000; 
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) *
+    Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; 
+}
+
+
 export default function DriveScreen({ route }) {
   const player = useAudioPlayer(audioSource);
   const navigation = useNavigation();
@@ -105,6 +119,9 @@ export default function DriveScreen({ route }) {
   const warningOpacity = useRef(new Animated.Value(0)).current;
   const backgroundTimeout = useRef(null);
   const driveFinalizedRef = useRef(false);
+
+  const lastLocation = useRef(null);
+  const totalDistance = useRef(0); 
 
   const DEFAULT_SPEED_LIMIT_MPH = 25;
   const DEFAULT_SPEED_LIMIT_KPH = DEFAULT_SPEED_LIMIT_MPH * 1.60934;
@@ -166,13 +183,26 @@ export default function DriveScreen({ route }) {
       duration: Math.round(driveDurationMs / 1000),
     };
 
-    if (pointsThisDrive > 0 && droveLongEnough) {
-      try {
-        const stored = await AsyncStorage.getItem('@driveHistory');
-        const parsed = stored ? JSON.parse(stored) : [];
+    const driveMetrics = {
+      timestamp,
+      distracted: isDistracted.current,
+      points: pointsThisDrive,
+      avgSpeed: speedSampleCount.current
+        ? totalSpeedSum.current / speedSampleCount.current
+        : 0,
+      avgSpeedingMargin: speedingSampleCount.current
+        ? speedingMarginSum.current / speedingSampleCount.current
+        : 0,
+      suddenStops: suddenStops.current,
+      suddenAccelerations: suddenAccelerations.current,
+      phoneUsageTime: phoneUsageTime.current,
+      totalDistance: totalDistance.current ?? 0,
+    };
 
-        parsed.unshift(driveData); 
+    if (pointsThisDrive > 0 /* && droveLongEnough */) {
+      try {
         await saveUserDrive(user.uid, driveData);
+        await saveDriveMetrics(user.uid, driveMetrics);
       } catch (e) {
         console.warn('Failed to save drive history:', e);
       }
@@ -183,7 +213,7 @@ export default function DriveScreen({ route }) {
       const storedStreak = await AsyncStorage.getItem(`@drivingStreak_${user.uid}`);
       const currentStreak = storedStreak ? parseInt(storedStreak) : 0;
       
-      if (pointsThisDrive > 0 && droveLongEnough) {
+      if (pointsThisDrive > 0/*  && droveLongEnough */) {
         if (isDistracted.current) {
           await AsyncStorage.setItem(`@drivingStreak_${user.uid}`, '0');
         } else {
@@ -197,7 +227,7 @@ export default function DriveScreen({ route }) {
 
     
     try {
-      if (pointsThisDrive > 0 && droveLongEnough) {
+      if (pointsThisDrive > 0/*  && droveLongEnough */) {
         await AsyncStorage.setItem('@driveCompleteSnackbar', 'true');
       }
     } catch (e) {
@@ -398,6 +428,9 @@ export default function DriveScreen({ route }) {
 
   //location and speed tracking + speed limit logic
   useEffect(() => {
+
+    if (!HERE_API_KEY) return;
+
     (async () => {
       await loadSpeedLimitCache();
 
@@ -411,16 +444,27 @@ export default function DriveScreen({ route }) {
         {
           accuracy: Location.Accuracy.High,
           timeInterval: 1000,
-          distanceInterval: 1,
+          distanceInterval: 3,
         },
         async (loc) => {
           if (!isAppActive.current) return;
 
           const coordinates = [loc.coords.latitude, loc.coords.longitude];
-          const testcoordinates = [47.61317748986133, -122.03552267676186];
+          const testcoordinates = [40.142111699440335, -88.29369230357632];
           const rawSpeed = loc.coords.speed ?? 0;
           const lat = coordinates[0];
           const lon = coordinates[1];
+
+          if (lastLocation.current) {
+            const dist = getDistanceFromLatLonInMeters(
+              lastLocation.current.latitude,
+              lastLocation.current.longitude,
+              lat,
+              lon
+            );
+            totalDistance.current += dist;
+          }
+          lastLocation.current = { latitude: lat, longitude: lon };
 
           const gridKey = getGridKey(lat, lon);
           if (speedLimitCache.has(gridKey)) {
@@ -482,7 +526,7 @@ export default function DriveScreen({ route }) {
       locationSubscription.current?.remove();
       stopPointEarning();
     };
-  }, [unit]);
+  }, [unit, HERE_API_KEY]);
 
   //increment points based on speed
   const scheduleNextPoint = () => {
@@ -678,7 +722,8 @@ export default function DriveScreen({ route }) {
               style={[styles.modalOption, {backgroundColor: '#ff3b30', color: '#fff'}]}
               onPress={() => {
                 setShowEmergencyModal(false);
-                Alert.alert('🚨 Emergency Called', 'Calling emergency services...');
+                callNumber(911);
+                Alert.alert('🚨 Calling emergency services...');
               }}
             >
               <Text style={styles.modalOptionText}>Call Emergency Services</Text>

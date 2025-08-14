@@ -217,10 +217,10 @@ export default function MyDrivesScreen() {
             ListFooterComponent={
                 visibleCount < drives.length ? (
                 <TouchableOpacity
-                    style={[styles.clearButton, { backgroundColor: '#ffffff18', marginBottom: 20, marginTop: 10, paddingHorizontal: 90 }]}
+                    style={[styles.loadMoreButton, { backgroundColor: '#ffffff18', marginBottom: 20, marginTop: 10, paddingHorizontal: 90 }]}
                     onPress={() => setVisibleCount(prev => prev + LOAD_BATCH)}
                 >
-                    <Text style={styles.clearButtonText}>Load More</Text>
+                    <Text style={styles.loadMoreButtonText}>Load More</Text>
                 </TouchableOpacity>
                 ) : null
             }
@@ -345,4 +345,18 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 5,
   },
+  loadMoreButton: {
+    backgroundColor: '#cc3333',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignSelf: 'center',
+    marginTop: height / (667/20),
+    marginBottom: height / (667/16),
+    marginTop: height / 13.3, 
+  },
+  loadMoreButtonText: {
+    color: '#fff',
+    fontSize: 16
+  }
 });
