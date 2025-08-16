@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Dimensions } fro
 import { getAIFeedback } from "../utils/gptApi";
 import { getAuth } from "firebase/auth";
 import { LinearGradient } from 'expo-linear-gradient';
+import LottieView from "lottie-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width: width, height: height } = Dimensions.get("window");
 
@@ -30,40 +32,88 @@ function interpolateColor(percent) {
   return `rgb(${r},${g},${b})`;
 }
 
+function normalizeInput(stats) {
+  const { generatedAt, ...rest } = stats; 
+  return rest;
+}
+
 export default function AIFeedbackScreen({ route }) {
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState(null);
 
   useEffect(() => {
-
     if (feedback !== null) return;
 
-    const fetchFeedback = async () => {
-      try {
-        const user = getAuth().currentUser;
-        if (!user) {
-          setFeedback({ summary: "No user logged in.", score: 0, tips: [] });
-          setLoading(false);
-          return;
-        }
-        const { statsJSON } = route.params;
+    const controller = new AbortController();
 
-        const aiResponse = await getAIFeedback(statsJSON);
-        if (!aiResponse) {
-          setFeedback({ summary: "No feedback received.", score: 0, tips: [] });
-        } else {
-          setFeedback(aiResponse);
+    const fetchFeedback = async () => {
+        try {
+            const user = getAuth().currentUser;
+            if (!user) {
+            if (!controller.signal.aborted) {
+                setFeedback({ summary: "No user logged in.", score: 0, tips: [] });
+                setLoading(false);
+            }
+            return;
+            }
+
+            const { statsJSON } = route.params;
+
+            const normalizedInput = normalizeInput(statsJSON);
+
+           let cache = [];
+           try {
+             const storedCache = await AsyncStorage.getItem("feedbackCache");
+             if (storedCache) cache = JSON.parse(storedCache);
+           } catch (err) {
+             console.error("Error loading cache:", err);
+           }
+        
+           const match = cache.find(entry => 
+             JSON.stringify(entry.input) === JSON.stringify(normalizedInput)
+           );
+           if (match) {
+             setFeedback(match.response);
+             setLoading(false);
+             return;
+           }
+
+            const aiResponse = await getAIFeedback(statsJSON, controller.signal);
+
+            if (!controller.signal.aborted) {
+                if (!aiResponse) {
+                    setFeedback({ summary: "No feedback received.", score: 0, tips: [] });
+                } else {
+                    setFeedback(aiResponse);
+
+                try {
+                    const newEntry = { input: normalizedInput, response: aiResponse };
+                    const updatedCache = [newEntry, ...cache].slice(0, 10);
+                    await AsyncStorage.setItem("feedbackCache", JSON.stringify(updatedCache));
+                } catch (err) {
+                    console.error("Error updating cache:", err);
+                }
+                }
+            }
+        } catch (err) {
+            if (!controller.signal.aborted) {
+                console.error(err);
+                setFeedback({ summary: "Error getting AI feedback.", score: 0, tips: [] });
+            }
+        } finally {
+            if (!controller.signal.aborted) {
+                setLoading(false);
+            }
         }
-      } catch (err) {
-        console.error(err);
-        setFeedback({ summary: "Error getting AI feedback.", score: 0, tips: [] });
-      } finally {
-        setLoading(false);
-      }
-    };
+        };
 
     fetchFeedback();
+
+    return () => {
+        controller.abort();
+    };
   }, []);
+
 
 const renderHeatBar = (score) => {
   const markerSize = 28; 
@@ -78,7 +128,7 @@ const renderHeatBar = (score) => {
 
       <LinearGradient
         colors={['rgba(255,0,0,1)', 'rgba(255,255,0,1)', 'rgba(0, 221, 0, 1)']}
-        locations={[0, 0.5, 1]} // middle color at 50%
+        locations={[0, 0.5, 1]} 
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.heatBarBackground}
@@ -111,7 +161,7 @@ const renderHeatBar = (score) => {
     </View>
   );
 };
-
+``
   return (
     <LinearGradient
       colors={['#00071aff', '#2b003bff']}
@@ -120,13 +170,18 @@ const renderHeatBar = (score) => {
     <View style={styles.container}>
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4caf50" />
+            <LottieView
+            source={require("../assets/loader.json")} 
+            autoPlay
+            loop
+            style={{ width: width, height: width }}
+            />
         </View>
       ) : (
-        <ScrollView>
+        <ScrollView style = {{paddingHorizontal: width/15}}>
           {feedback && (
             <>
-              <Text style={styles.title}>AI Feedback</Text>
+              <Text style={styles.title}>My Feedback</Text>
               <Text style={styles.sectionTitle}>Overall Safety Rating:</Text>
               {renderHeatBar(feedback.score)}
               <Text style={styles.summaryText}>{feedback.summary}</Text>
@@ -155,7 +210,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingTop: width / 15,
-    paddingHorizontal: width / 15,
   },
   loadingContainer: {
     flex: 1,
@@ -165,6 +219,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: "bold",
+    fontFamily: "Arial Rounded MT Bold",
     color: "#fff",
     marginTop: 15,
     marginBottom: 8,
@@ -173,6 +228,7 @@ const styles = StyleSheet.create({
     fontSize: 32,
     textAlign: "center",
     fontWeight: "bold",
+    fontFamily: "Arial Rounded MT Bold",
     color: "#fff",
     marginTop: height / (667/50),
     marginBottom: 20,

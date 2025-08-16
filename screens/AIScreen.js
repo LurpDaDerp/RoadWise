@@ -14,6 +14,7 @@ import { ThemeContext } from '../context/ThemeContext';
 import { getDriveMetrics } from '../utils/firestore';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { getAIFeedback } from '../utils/gptApi';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -94,6 +95,11 @@ function aggregateDistractionsByTimeframe(drives, timeframe) {
   return { labels, data };
 }
 
+function normalizeInput(stats) {
+  const { generatedAt, ...rest } = stats; 
+  return rest;
+}
+
 function formatTotalDuration(seconds) {
   const minutes = Math.round(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -133,6 +139,8 @@ export default function AIScreen({ route, navigation }) {
     avgSpeed: 0,
     totalDistance: 0,
   });
+
+  const [feedbackLabel, setFeedbackLabel] = useState("✦");
 
   const [percentDistracted, setPercentDistracted] = useState(0);
   const [percentColor, setPercentColor] = useState(interpolateColor(0));
@@ -250,6 +258,22 @@ export default function AIScreen({ route, navigation }) {
     fetchMetrics();
   }, [uid, timeframe]);
 
+  useEffect(() => {
+    const fetchFeedbackLabel = async () => {
+      const normalizedInput = normalizeInput(generateStatsJSON());
+      let cache = [];
+      try {
+        const storedCache = await AsyncStorage.getItem("feedbackCache");
+        if (storedCache) cache = JSON.parse(storedCache);
+      } catch {}
+      const match = cache.find(
+        entry => JSON.stringify(entry.input) === JSON.stringify(normalizedInput)
+      );
+      setFeedbackLabel(match ? "✦ View Feedback" : "✦ Get Personalized Feedback");
+    };
+    fetchFeedbackLabel();
+  }, [drives, timeframe]);
+
 
   const { labels, data } = aggregateDistractionsByTimeframe(drives, timeframe);
   const maxDistractions = data.length > 0 ? Math.max(...data) : 1;
@@ -297,33 +321,7 @@ export default function AIScreen({ route, navigation }) {
         contentContainerStyle={{ paddingBottom: height / (667/40) }}
       >
       
-      <TouchableOpacity
-        onPress={() => {
-          const statsJSON = generateStatsJSON();
-          console.log(statsJSON);
-          navigation.navigate("AIFeedback", { statsJSON });
-        }}
-        style={{
-          borderRadius: 10,
-          overflow: 'hidden', 
-          marginHorizontal: 5,
-          marginBottom: 20,
-        }}
-      >
-        <LinearGradient
-          colors={['#a300e4ff', '#2a00c0ff']} 
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{
-            paddingVertical: 12,
-            alignItems: 'center',
-          }}
-        >
-          <Text style={{ fontSize: 16, fontWeight: 'bold', color: "#fff" }}>
-            ✦ Get AI Feedback
-          </Text>
-        </LinearGradient>
-      </TouchableOpacity>
+      
 
       <SegmentedControl
         values={['1D', '7D', '30D']}
@@ -343,6 +341,34 @@ export default function AIScreen({ route, navigation }) {
         }}
         style={{ marginBottom: 10, marginTop: 10, marginHorizontal: 5 }}
       />
+
+      <TouchableOpacity
+        onPress={() => {
+          const statsJSON = generateStatsJSON();
+          navigation.navigate("AIFeedback", { statsJSON });
+        }}
+        style={{
+          borderRadius: 10,
+          overflow: 'hidden', 
+          marginHorizontal: 5,
+          marginTop: 10,
+          marginBottom: 20,
+        }}
+      >
+        <LinearGradient
+          colors={['#a300e4ff', '#2a00c0ff']} 
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{
+            paddingVertical: 12,
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: "#fff" }}>
+            {feedbackLabel}
+          </Text>
+        </LinearGradient>
+      </TouchableOpacity>
 
       <Text style={{ 
         fontSize: 18, 
