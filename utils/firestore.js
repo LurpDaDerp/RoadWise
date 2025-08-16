@@ -1,4 +1,4 @@
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, orderBy, query, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, orderBy, where, Timestamp, query, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from './firebase';
 
 export async function getUserPoints(uid) {
@@ -69,7 +69,7 @@ export async function saveUserDrive(uid, driveData) {
 export async function getUserDrives(uid) {
   if (!uid) return [];
   try {
-    const drivesRef = collection(db, "users", uid, "drives");
+    const drivesRef = collection(db, "users", uid, "drivemetrics");
     const q = query(drivesRef, orderBy("timestamp", "desc"));
     const snapshot = await getDocs(q);
     const drives =  snapshot.docs.map(doc => ({
@@ -86,19 +86,65 @@ export async function getUserDrives(uid) {
 
 export async function saveDriveMetrics(uid, metrics) {
   try {
-    await addDoc(collection(db, 'users', uid, 'drivemetrics'), metrics);
+    await addDoc(collection(db, "users", uid, "drivemetrics"), {
+      ...metrics,
+      timestamp: serverTimestamp(), 
+    });
   } catch (err) {
-    console.error('Failed to save drive metrics:', err);
+    console.error("Failed to save drive metrics:", err);
+  }
+}
+
+export async function getDriveMetrics(uid, daysBack = 30) {
+  try {
+    const metricsRef = collection(db, "users", uid, "drivemetrics");
+    const snapshot = await getDocs(metricsRef);
+
+    const allMetrics = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const now = new Date();
+    const cutoff = new Date();
+    cutoff.setDate(now.getDate() - daysBack);
+
+    const filtered = allMetrics.filter(drive => {
+      const date = drive.timestamp?.toDate ? drive.timestamp.toDate() : new Date(drive.timestamp);
+      return date >= cutoff && date <= now;
+    });
+
+    filtered.sort((a, b) => {
+      const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+      const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
+      return dateA - dateB;
+    });
+
+    return filtered;
+  } catch (err) {
+    console.error("Failed to fetch drive metrics:", err);
+    return [];
+  }
+}
+
+
+export async function getAllDriveMetrics(uid) {
+  try {
+    const metricsRef = collection(db, "users", uid, "drivemetrics");
+    const snapshot = await getDocs(metricsRef);
+    const metrics = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    console.log("All metrics:", metrics);
+    return metrics;
+  } catch (err) {
+    console.error("Failed to fetch drive metrics:", err);
+    return [];
   }
 }
 
 export async function clearUserDrives(uid) {
   if (!uid) return;
   try {
-    const drivesRef = collection(db, "users", uid, "drives");
+    const drivesRef = collection(db, "users", uid, "drivemetrics");
     const snapshot = await getDocs(drivesRef);
     for (const docSnap of snapshot.docs) {
-      await deleteDoc(doc(db, "users", uid, "drives", docSnap.id));
+      await deleteDoc(doc(db, "users", uid, "drivemetrics", docSnap.id));
     }
   } catch (error) {
     console.error("Error clearing user drives:", error);
@@ -109,4 +155,15 @@ export async function getHereKey(key) {
   const docRef = doc(db, "apikeys", key); 
   const docSnap = await getDoc(docRef);
   return docSnap.exists() ? docSnap.data().value : null;
+}
+
+export async function getChatGPTKey() {
+  try {
+    const docRef = doc(db, "apikeys", "CHATGPT");
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists() ? docSnap.data().value : null;
+  } catch (error) {
+    console.error("Error retrieving ChatGPT API key:", error);
+    return null;
+  }
 }

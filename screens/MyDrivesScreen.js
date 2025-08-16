@@ -53,7 +53,6 @@ export default function MyDrivesScreen() {
   const focusedColor = isDark ? 'lightgreen' : 'green';
   const closeButtonColor = isDark? '#5e5e5eff' : '#929292ff';
 
-  const [modalVisible, setModalVisible] = useState(false);
   const customFadeAnim = useRef(new Animated.Value(0)).current;
   
   const [loading, setLoading] = useState(true);
@@ -113,24 +112,17 @@ export default function MyDrivesScreen() {
   };
 
 
-  const openModal = () => {
-    setModalVisible(true);
-    Animated.timing(customFadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  };
 
-  const closeModal = () => {
-    Animated.timing(customFadeAnim, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      setModalVisible(false);
-    });
-  };
+  const formatDuration = (seconds) => {
+    const minutes = Math.round(seconds/60);
+    let formatted = minutes + " min";
+    if (minutes >= 60) {
+      const hours = Math.floor(minutes/60);
+      const min = minutes - (hours*60);
+      formatted = hours + " hr " + min + " min";
+    }
+    return formatted;
+  }
 
   const renderItem = ({ item }) => (
     <View style={[styles.item, { backgroundColor: itemBackground }]}>
@@ -146,7 +138,7 @@ export default function MyDrivesScreen() {
       </Text>
       <Text style={[styles.detail, { color: detailColor }]}>Points: {item.points}</Text>
       <Text style={[styles.detail, { color: detailColor }]}>
-        Duration: {item.duration ?? 'N/A'} sec
+        Duration: {formatDuration(item.duration) ?? 'N/A'} 
       </Text>
       <Text
         style={[
@@ -169,29 +161,6 @@ export default function MyDrivesScreen() {
 
   return (
     <>
-      {modalVisible && (
-        <Animated.View style={[styles.modalOverlay, { opacity: customFadeAnim }]} pointerEvents="box-none">
-          <View style={[styles.modalContent, { backgroundColor: itemBackground }]} pointerEvents="auto">
-            <Text style={[styles.modalTitle, { color: dateColor }]}>My Stats</Text>
-            <Text style={[styles.modalText, { color: detailColor }]}>
-                Distracted Drives: {drives.length > 0 ? distractedCount : 'N/A'}
-            </Text>
-            <Text style={[styles.modalText, { color: detailColor }]}>
-                Focused Drives: {drives.length > 0 ? undistractedCount : 'N/A'}
-            </Text>
-            <Text style={[styles.modalText, { color: percentColor }]}>
-                Percent Distracted: {percentDistracted !== null ? `${percentDistracted}%` : 'N/A'}
-            </Text>
-
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: closeButtonColor }]}
-              onPress={closeModal}
-            >
-              <Text style={[styles.modalCloseText, { color: '#fff' }]}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      )}
 
       <ImageBackground
         source={require('../assets/drivehistoryback.jpg')}
@@ -199,13 +168,6 @@ export default function MyDrivesScreen() {
         resizeMode="cover"
       >
         <View style={styles.overlay}>
-          <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
-            <Ionicons name="menu" size={32} color="#fff" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.statsButton} onPress={openModal}>
-            <Ionicons name="stats-chart" size={32} color="#fff" />
-          </TouchableOpacity>
 
           <Text style={styles.title}>My Drives</Text>
 
@@ -227,7 +189,7 @@ export default function MyDrivesScreen() {
           />
 
           <TouchableOpacity onPress={clearDriveHistory} style={styles.trashButton}>
-            <Ionicons name="trash-outline" size={32} color="#fff" />
+            <Ionicons name="trash-outline" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
       </ImageBackground>
@@ -243,7 +205,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    padding: width/18,
+    padding: width/25,
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   loading: {
@@ -263,53 +225,16 @@ const styles = StyleSheet.create({
     right: width/15,
   },
   list: {
-    marginBottom: height/13,
-    padding: width/40,
-    backgroundColor: 'rgba(107, 107, 107, 0.5)',
-    borderRadius: 10,
-  },
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  modalContent: {
-    width: '80%',
-    padding: width/12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: width/12,
-    fontWeight: 'bold',
-    marginBottom: width/20,
-  },
-  modalText: {
-    fontSize: width/20,
-    textAlign: 'center',
-    marginBottom: width/55,
-  },
-  modalCloseText: {
-    fontSize: width/24,
-    textAlign: 'center',
-  },
-  modalButton: {
-    marginTop: height/40,
-    paddingHorizontal: width/5,
-    paddingVertical: width/40,
+    marginBottom: height/300,
+    padding: width/60,
+    backgroundColor: 'rgba(66, 66, 66, 0.5)',
     borderRadius: 10,
   },
   title: {
-    fontSize: width/11,
+    fontSize: width/12,
     fontWeight: 'bold',
     color: '#fff',
-    marginTop: height/17,
+    marginTop: height/25,
     marginBottom: height/24,
     alignSelf: 'center',
   },
@@ -333,12 +258,13 @@ const styles = StyleSheet.create({
   },
   trashButton: {
     position: 'absolute',
-    bottom: height / 33.35, 
-    left: width / 18.75,     
-    padding: width / 37.5,         
+    top: height/16,
+    right: width/20,
+    padding: width / 60,         
     borderRadius: width / 12.5,   
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(24, 24, 24, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,

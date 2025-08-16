@@ -103,6 +103,7 @@ export default function DriveScreen({ route }) {
   const [displayedPoints, setDisplayedPoints] = useState(0);
   const [startingPoints, setStartingPoints] = useState(route.params?.totalPoints ?? 0);
   const [distractedNotificationsEnabled, setDistractedNotificationsEnabled] = useState(true);
+  const [distractedCount, setDistractedCount] = useState(0);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [trustedContacts, setTrustedContacts] = useState([]);
   const [HERE_API_KEY, setHereKey] = useState();
@@ -176,16 +177,11 @@ export default function DriveScreen({ route }) {
     const wasDistracted = isDistracted.current;
     const timestamp = new Date().toISOString();
 
-    const driveData = {
+    const driveMetrics = {
       timestamp, 
-      distracted: wasDistracted,
       points: pointsThisDrive,
       duration: Math.round(driveDurationMs / 1000),
-    };
-
-    const driveMetrics = {
-      timestamp,
-      distracted: isDistracted.current,
+      distracted: distractedCount,
       points: pointsThisDrive,
       avgSpeed: speedSampleCount.current
         ? totalSpeedSum.current / speedSampleCount.current
@@ -201,7 +197,6 @@ export default function DriveScreen({ route }) {
 
     if (pointsThisDrive > 0 /* && droveLongEnough */) {
       try {
-        await saveUserDrive(user.uid, driveData);
         await saveDriveMetrics(user.uid, driveMetrics);
       } catch (e) {
         console.warn('Failed to save drive history:', e);
@@ -355,11 +350,12 @@ export default function DriveScreen({ route }) {
 
       if (wasActive && nowInactive) {
         unfocusedAt.current = Date.now();
-
+        setDistractedCount(prev => prev + 1);
         backgroundTimeout.current = setTimeout(async () => {
           
           if (pointsThisDrive > 0) {
             isDistracted.current = true;
+            
             await Notifications.scheduleNotificationAsync({
               content: {
                 title: 'Drive ended',
@@ -388,6 +384,8 @@ export default function DriveScreen({ route }) {
         }
 
         if (pointsThisDrive > 0) {
+          
+          
           if (unfocusedDuration > 5000) {
             isDistracted.current = true;
 

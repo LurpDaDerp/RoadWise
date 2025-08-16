@@ -99,7 +99,7 @@ function AppNavigation() {
         initialRouteName="Home"
         screenOptions={{
           drawerStyle: {
-            width: width*0.6,
+            width: width,
           },
           swipeEnabled: false
         }}
@@ -115,7 +115,7 @@ function AppNavigation() {
           }}
         />
 
-        <Drawer.Screen
+        {/* <Drawer.Screen
           name="My Drives"
           component={MyDrivesScreen}
           options={{
@@ -124,7 +124,7 @@ function AppNavigation() {
               <MaterialIcons name="directions-car" size={size} color={color} />
             ),
           }}
-        />
+        /> */}
 
         <Drawer.Screen
           name="Rewards"

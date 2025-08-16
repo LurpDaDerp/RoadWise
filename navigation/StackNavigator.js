@@ -15,6 +15,7 @@ import SignUpScreen from '../screens/SignUpScreen';
 import MyDrivesScreen from '../screens/MyDrivesScreen';
 import AboutScreen from '../screens/AboutScreen';
 import AIScreen from '../screens/AIScreen';
+import AIFeedbackScreen from '../screens/AIFeedbackScreen';
 
 const Stack = createStackNavigator();
 
@@ -39,8 +40,9 @@ export default function StackNavigator() {
           <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Drive" component={DriveScreen} options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="SettingsStack" component={SettingsStackNavigator} options={{ headerShown: false }} />
-          <Stack.Screen name="MyDrives" component={MyDrivesScreen} />
+          <Stack.Screen name="MyDrives" component={MyDrivesScreen}options={{headerTransparent: true, headerTitle: "", headerBackTitle: 'Back'}} />
           <Stack.Screen name="AIScreen" component={AIScreen} options={{headerTransparent: true, headerTitle: ""}}/>
+          <Stack.Screen name="AIFeedback" component={AIFeedbackScreen} options={{headerTransparent: true, headerTitle: "", headerBackTitle: 'Back'}}/>
           <Stack.Screen name="About" component={AboutScreen} />
         </>
       ) : (
