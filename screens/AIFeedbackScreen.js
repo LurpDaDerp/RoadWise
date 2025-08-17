@@ -86,13 +86,19 @@ export default function AIFeedbackScreen({ route }) {
                 } else {
                     setFeedback(aiResponse);
 
-                try {
-                    const newEntry = { input: normalizedInput, response: aiResponse };
-                    const updatedCache = [newEntry, ...cache].slice(0, 10);
-                    await AsyncStorage.setItem("feedbackCache", JSON.stringify(updatedCache));
-                } catch (err) {
-                    console.error("Error updating cache:", err);
-                }
+                    try {
+                        await AsyncStorage.setItem("safetyScore", aiResponse.score.toString());
+                    } catch (err) {
+                        console.error("Error saving safety score:", err);
+                    }
+
+                    try {
+                        const newEntry = { input: normalizedInput, response: aiResponse };
+                        const updatedCache = [newEntry, ...cache].slice(0, 10);
+                        await AsyncStorage.setItem("feedbackCache", JSON.stringify(updatedCache));
+                    } catch (err) {
+                        console.error("Error updating cache:", err);
+                    }
                 }
             }
         } catch (err) {
@@ -143,7 +149,7 @@ const renderHeatBar = (score) => {
             width: 50,  
             marginLeft: -25, 
             textAlign: 'center', 
-            color: interpolateColor(score)
+            color: interpolateColor(score),
             },
         ]}
         >
@@ -259,40 +265,43 @@ const styles = StyleSheet.create({
     alignItems: "center",
     position: "absolute"
   },
-heatBarBox: {
-  marginTop: 5,
-  marginBottom: 15,
-  paddingHorizontal: 10,
-  paddingVertical: 10,
-  borderRadius: 16,
-  backgroundColor: 'rgba(255, 255, 255, 0.1)', 
-  position: 'relative',
-  height: 75, 
-},
-heatBarBackground: {
-  height: 20,
-  borderRadius: 10,
-  width: '100%',
-  position: 'absolute',
-  top: 28,
-  
-},
-heatBarMarker: {
-  position: 'absolute',
-  width: 28,
-  height: 28,
-  borderRadius: 14,
-  top: 28 - (28-20)/2, 
-  backgroundColor: '#fff',
-  borderWidth: 2,
-  borderColor: '#808080',
-},
-heatBarScore: {
-  position: 'absolute',
-  fontWeight: 'bold',
-  top: -4,
-  fontSize: 22,
-  color: '#fff',
-  textAlign: 'center',
-},
+  heatBarBox: {
+    marginTop: 5,
+    marginBottom: 15,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)', 
+    position: 'relative',
+    height: 75, 
+  },
+  heatBarBackground: {
+    height: 20,
+    borderRadius: 10,
+    width: '100%',
+    position: 'absolute',
+    top: 28,
+    
+  },
+  heatBarMarker: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    top: 28 - (28-20)/2, 
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 5,
+    elevation: 6,
+  },
+  heatBarScore: {
+    position: 'absolute',
+    fontWeight: 'bold',
+    top: -4,
+    fontSize: 22,
+    color: '#fff',
+    textAlign: 'center',
+  },
 });

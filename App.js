@@ -1,6 +1,6 @@
 // App.js
 import React, { useRef } from 'react';
-import { AppState, useColorScheme, Dimensions } from 'react-native';
+import { AppState, useColorScheme, Dimensions, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   NavigationContainer,
@@ -10,6 +10,7 @@ import {
 } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { MaterialIcons } from '@expo/vector-icons'; 
+import { Ionicons } from '@expo/vector-icons';
 
 import StackNavigator from './navigation/StackNavigator';
 import SettingsStackNavigator from './navigation/SettingsStackNavigator';
@@ -27,7 +28,7 @@ import { Provider as PaperProvider } from 'react-native-paper';
 
 import * as Notifications from 'expo-notifications';
 import RewardsScreen from './screens/RewardsScreen';
-
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -41,10 +42,13 @@ const Drawer = createDrawerNavigator();
 
 const { width, height } = Dimensions.get('window');
 
+const Tab = createBottomTabNavigator();
+
 function AppNavigation() {
-  const { resolvedTheme } = useContext(ThemeContext);
   const appState = useRef(AppState.currentState);
   const navigationRef = useNavigationContainerRef();
+  const { resolvedTheme } = useContext(ThemeContext);
+  const isDark = resolvedTheme === 'dark';
 
   React.useEffect(() => {
     (async () => {
@@ -94,86 +98,35 @@ function AppNavigation() {
       ref={navigationRef}
       theme={resolvedTheme === 'dark' ? DarkTheme : DefaultTheme}
     >
-
-      <Drawer.Navigator 
-        initialRouteName="Home"
-        screenOptions={{
-          drawerStyle: {
-            width: width,
+      <Tab.Navigator
+        initialRouteName="Dashboard"
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          tabBarShowLabel: false, 
+          tabBarIconStyle: {
+            marginTop: 5,  
+            marginBottom: 5, 
           },
-          swipeEnabled: false
-        }}
+          tabBarActiveTintColor: resolvedTheme === "dark" ? "#fff" : "#000",
+          tabBarInactiveTintColor: "gray",
+          tabBarIcon: ({ color, size }) => {
+            let iconName;
+            if (route.name === "Dashboard") iconName = "home";
+            else if (route.name === "Rewards") iconName = "card-giftcard";
+            else if (route.name === "Leaderboard") iconName = "leaderboard";
+            else if (route.name === "Settings") iconName = "settings";
+            else if (route.name === "About") iconName = "info-outline";
+            return <MaterialIcons name={iconName} size={size} color={color} />;
+          },
+        })}
       >
-        <Drawer.Screen
-          name="Home"
-          component={StackNavigator}
-          options={{
-            headerShown: false,
-            drawerIcon: ({ color, size }) => (
-              <MaterialIcons name="home" size={size} color={color} />
-            ),
-          }}
-        />
-
-        {/* <Drawer.Screen
-          name="My Drives"
-          component={MyDrivesScreen}
-          options={{
-            headerShown: false,
-            drawerIcon: ({ color, size }) => (
-              <MaterialIcons name="directions-car" size={size} color={color} />
-            ),
-          }}
-        /> */}
-
-        <Drawer.Screen
-          name="Rewards"
-          component={RewardsStackNavigator}
-          options={{
-            headerShown: false,
-            drawerIcon: ({ color, size }) => (
-              <MaterialIcons name="card-giftcard" size={size} color={color} />
-            ),
-          }}
-        />
-
-        <Drawer.Screen
-          name="Leaderboard"
-          component={LeaderboardScreen}
-          options={{
-            headerShown: false,
-            drawerIcon: ({ color, size }) => (
-              <MaterialIcons name="leaderboard" size={size} color={color} />
-            ),
-          }}
-        />
-
-        <Drawer.Screen
-          name="Settings"
-          component={SettingsStackNavigator}
-          options={{
-            headerShown: false,
-            drawerIcon: ({ color, size }) => (
-              <MaterialIcons name="settings" size={size} color={color} />
-            ),
-          }}
-        />
         
-        
-        <Drawer.Screen
-          name="About"
-          component={AboutScreen}
-          options={{
-            headerShown: false,
-            drawerIcon: ({ color, size }) => (
-              <MaterialIcons name="info-outline" size={size} color={color} />
-            ),
-          }}
-        />
-
-        
-        
-      </Drawer.Navigator>
+        <Tab.Screen name="Rewards" component={RewardsStackNavigator} />
+        <Tab.Screen name="Leaderboard" component={LeaderboardScreen} />
+        <Tab.Screen name="Dashboard" component={StackNavigator}/>
+        <Tab.Screen name="Settings" component={SettingsStackNavigator} />
+        <Tab.Screen name="About" component={AboutScreen} />
+      </Tab.Navigator>
     </NavigationContainer>
   );
 }

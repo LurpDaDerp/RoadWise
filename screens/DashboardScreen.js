@@ -10,6 +10,7 @@ import {
   Pressable,
   ImageBackground,
   Dimensions,
+  ScrollView
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,12 +19,15 @@ import { BlurView } from 'expo-blur';
 import { Easing } from 'react-native';
 import { Snackbar } from 'react-native-paper';
 import ConfettiCannon from "react-native-confetti-cannon";
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '../utils/firebase';
-import { getUserPoints, saveUserPoints, saveUserStreak } from '../utils/firestore';
+import { getUserPoints, saveUserPoints, saveUserStreak, getUsername, getTotalDrivesNumber } from '../utils/firestore';
 
 import { ThemeContext } from '../context/ThemeContext'; 
+import dashboardDark from '../assets/dashboard.png';
+import dashboardLight from '../assets/dashboardlight.png';
 
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 
@@ -51,24 +55,67 @@ function getFireImage(streak) {
   else return fireImages.blue;
 }
 
+function interpolateColor(percent) {
+  const p = Math.min(Math.max(percent, 0), 100) / 100;
+  const start = { r: 255, g: 0, b: 0 };
+  const mid   = { r: 255, g: 255, b: 0 };
+  const end   = { r: 0, g: 225, b: 0 };
+
+  let r, g, b;
+  if (p < 0.5) {
+    const t = p / 0.5;
+    r = Math.round(start.r + (mid.r - start.r) * t);
+    g = Math.round(start.g + (mid.g - start.g) * t);
+    b = Math.round(start.b + (mid.b - start.b) * t);
+  } else {
+    const t = (p - 0.5) / 0.5;
+    r = Math.round(mid.r + (end.r - mid.r) * t);
+    g = Math.round(mid.g + (end.g - mid.g) * t);
+    b = Math.round(mid.b + (end.b - mid.b) * t);
+  }
+
+  return `rgb(${r},${g},${b})`;
+}
+
+
 
 export default function DashboardScreen({ route }) {
   const navigation = useNavigation();
-  const { resolvedTheme } = useContext(ThemeContext); 
+  const { resolvedTheme } = useContext(ThemeContext);
+  const isDark = resolvedTheme === 'dark';
 
   const [user, setUser] = useState(null);
   const [totalPoints, setTotalPoints] = useState(null);
   const updatedPointsHandled = useRef(false);
+
+  const [username, setUsername] = React.useState("Guest");
+
+  React.useEffect(() => {
+    if (user?.uid) {
+      getUsername(user.uid).then((name) => setUsername(name));
+      getTotalDrivesNumber(user.uid).then(setTotalDrives);
+    }
+  }, [user]);
+
+  const [totalDrives, setTotalDrives] = React.useState(0);
 
   const animatedPoints = useRef(new Animated.Value(0)).current;
   const [displayedPoints, setDisplayedPoints] = useState(0);
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const[snackbarColor, setSnackBarColor] = useState();
-
-  const snackbarBackgroundColor = resolvedTheme === 'dark' ? '#222' : '#fff';
-  const snackbarTextColor = resolvedTheme === 'dark' ? '#fff' : '#555';
-
+  
+  const backgroundColor = isDark ? '#161616ff' : '#fff';
+  const chartBackground = isDark ? '#000' : '#eeeeeeff';
+  const titleColor = isDark ? '#fff' : '#000';
+  const textColor = isDark ? '#fff' : '#000';
+  const moduleBackground = isDark ? '#333' : '#ebebebff';
+  const altTextColor = isDark ? '#aaa' : '#555';
+  const textOutline = isDark? 'rgba(255, 255, 255, 0.47)' : '#0000008e';
+  const chartLineColor = isDark ? `rgba(132, 87, 255, 0.5)` : `rgba(38, 0, 255, 0.5)`;
+  const buttonColor = isDark ? `rgba(108, 55, 255, 1)` : `rgba(99, 71, 255, 1)`;
+  const snackbarBackgroundColor = isDark ? '#222' : '#fff';
+  const snackbarTextColor = isDark ? '#fff' : '#555';
   const [driveStreak, setDriveStreak] = useState(0);
 
   const confettiRef = useRef(null);
@@ -118,11 +165,10 @@ export default function DashboardScreen({ route }) {
         setTotalPoints(0);
         animatedPoints.setValue(0);
 
-        const stored = await AsyncStorage.getItem('@drivingStreak');
-        setStreak(stored ? parseInt(stored, 10) : 0);
+        const stored = 0;
+        setStreak(stored);
       }
 
-      fadeInContent();
     });
 
     return unsubscribe;
@@ -133,7 +179,7 @@ export default function DashboardScreen({ route }) {
   const fadeInContent = useCallback(() => {
     Animated.timing(contentOpacity, {
       toValue: 1,
-      duration: 500,
+      duration: 300,
       easing: Easing.out(Easing.poly(3)),
       useNativeDriver: true,
     }).start();
@@ -151,8 +197,9 @@ export default function DashboardScreen({ route }) {
 
   useFocusEffect(
     useCallback(() => {
-      let isActive = true;
+      contentOpacity.setValue(0);
       fadeInContent();
+      let isActive = true;
 
       (async () => {
         if (!user) {
@@ -177,7 +224,9 @@ export default function DashboardScreen({ route }) {
           if (!isActive) return;
 
           setTotalPoints(newTotal);
-          animatePoints(displayedPoints, newTotal);
+          animatePoints(0, newTotal);
+
+          await AsyncStorage.setItem(key, newTotal.toString());
 
           if (drivePoints > 0) {
             await AsyncStorage.setItem(key, newTotal.toString());
@@ -249,9 +298,8 @@ export default function DashboardScreen({ route }) {
   }, [confettiVisible]);
 
   const animatePoints = (from, to) => {
-    const pointDifference = Math.abs(to - from);
     
-    const duration = 25;
+    const duration = 40;
 
     Animated.timing(animatedPoints, {
       toValue: to,
@@ -263,7 +311,7 @@ export default function DashboardScreen({ route }) {
   useEffect(() => {
     const updated = route.params?.updatedPoints;
     if (updated != null && !updatedPointsHandled.current) {
-      animatePoints(displayedPoints, updated);
+      animatePoints(0, updated);
       setTotalPoints(updated);
 
       (async () => {
@@ -351,87 +399,112 @@ export default function DashboardScreen({ route }) {
     }
   }, [route.params, navigation]);
 
-  const AnimatedButton = ({ onPress, children, containerStyle, style }) => {
-    const scaleAnim = useRef(new Animated.Value(1)).current;
+  const [safetyScore, setSafetyScore] = useState(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      const loadSafetyScore = async () => {
+        try {
+          const stored = await AsyncStorage.getItem("safetyScore");
+          if (stored !== null && isActive) {
+            setSafetyScore(parseInt(stored, 10));
+          }
+        } catch (err) {
+          console.error("Error loading safety score:", err);
+        }
+      };
+
+      loadSafetyScore();
+
+      return () => {
+        isActive = false;
+      };
+    }, [])
+  );
+
+  const renderHeatBar = (score) => {
+    const markerSize = 28;
+    const barWidth = width * 0.8; // use ~90% of screen width
+    const margin = 14;
+    const usableWidth = barWidth - 2 * margin;
+    const clampedScore = Math.min(Math.max(score, 0), 100);
+    const markerLeft = margin + (usableWidth * clampedScore) / 100 - markerSize / 2;
+
     return (
-      <Pressable
-        onPress={onPress}
-        onPressIn={() => Animated.spring(scaleAnim, { toValue: 0.9, useNativeDriver: true }).start()}
-        onPressOut={() => Animated.spring(scaleAnim, { toValue: 1, friction: 3, useNativeDriver: true }).start()}
-        style={containerStyle}
-      >
-        <Animated.View style={[style, { transform: [{ scale: scaleAnim }] }]}>{children}</Animated.View>
-      </Pressable>
+      <View style={[styles.heatBarBox, { marginTop: height/16 }]}>
+        <View style={[styles.heatBarContainer, { width: barWidth }]}>
+          <LinearGradient
+            colors={['rgba(255,0,0,1)', 'rgba(255,255,0,1)', 'rgba(0, 221, 0, 1)']}
+            locations={[0, 0.5, 1]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.heatBarBackground}
+          />
+          <View style={styles.markerScore}>
+            <Text
+              style={[
+                styles.heatBarScore,
+                {
+                  left: markerLeft + markerSize / 2,
+                  width: 50,
+                  marginLeft: -25,
+                  textAlign: 'center',
+                  color: interpolateColor(clampedScore),
+                  textShadowOffset: { width: 0, height: 0 },
+                  textShadowColor: textOutline,
+                  textShadowRadius: 4
+                },
+              ]}
+            >
+              {clampedScore}
+            </Text>
+            <View style={[styles.heatBarMarker, { left: markerLeft }]} />
+          </View>
+        </View>
+      </View>
     );
   };
 
-  if (totalPoints === null) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading Points...</Text>
-      </View>
-    );
-  }
+
 
   return (
-    <Animated.View style={[styles.flex, { opacity: contentOpacity }]}>
-      <ImageBackground
-        source={require('../assets/dashback.jpg')}
-        style={styles.background}
-        resizeMode="cover"
+    <Animated.View style={[styles.flex, { opacity: contentOpacity, backgroundColor: backgroundColor }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
       >
-        <BlurView intensity={5} tint="dark" style={StyleSheet.absoluteFill} />
-        <View style={styles.darkOverlay} />
-
         <View style={styles.overlay}>
-          <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
-            <Ionicons name="menu" size={32} color="#fff" />
-          </TouchableOpacity>
-                      
-          {user ? (
-            <View style={styles.streakContainer}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Image source={getFireImage(streak)} style={styles.streakImage} />
-                <Text style={styles.streakText}>
-                  {streak} 
-                </Text>
-              </View>
-
+          <View style={styles.headerRow}>
+            <View style={styles.headerContainer}>
+              <Text style={[styles.header, { color: titleColor }]}>Dashboard</Text>
+              <Text style={[styles.subHeader, { color: altTextColor }]}>{new Date().toDateString()}</Text>
             </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.loginButton}
-              onPress={() => {
-                fadeOutContent().then(() => navigation.navigate('Login'));
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.loginButtonText}>Log In</Text>
-            </TouchableOpacity>
-          )}
 
-          <Text style={styles.header}>Dashboard</Text>
-
-          <ImageBackground
-            source={require('../assets/dashboard.png')}
-            style={styles.pointsBackground}
-            resizeMode="cover"
-          >
-            {totalPoints !== null ? (
-              <Text style={styles.points} adjustsFontSizeToFit numberOfLines={1}>
-                {displayedPoints}
-              </Text>
-            ) : (
-              <Text style={styles.points} adjustsFontSizeToFit numberOfLines={1}>
-                ...
-              </Text>
+            {user && (
+              <View style={[styles.streakBox, { backgroundColor: moduleBackground }]}>
+                <Image source={getFireImage(streak)} style={styles.streakImage} />
+                <Text style={[styles.streakText, { color: textColor }]}>{streak}</Text>
+              </View>
             )}
 
-            <Text style={styles.pointsLabel}>Points</Text>
-          </ImageBackground>
+            {!user && (
+              <TouchableOpacity
+                style={styles.loginButtonInline}
+                onPress={() => fadeOutContent().then(() => navigation.navigate('Login'))}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.loginButtonText}>Log In</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <Text style={[styles.greeting, {color: textColor}]}>
+            {user ? `Welcome, ${username}` : "Welcome!"}
+          </Text>
 
           <TouchableOpacity
-            style={styles.driveButton}
+            style={styles.driveButton }
             onPress={() => {
               fadeOutContent().then(() =>
                 navigation.navigate('Drive', { totalPoints })
@@ -441,37 +514,97 @@ export default function DashboardScreen({ route }) {
             <ImageBackground
               source={require('../assets/drivebutton.jpeg')}
               style={styles.buttonImage} 
-              imageStyle={{ borderRadius: width / 18}}
+              imageStyle={{ borderRadius: 15,}}
               resizeMode="cover"
             >
               <BlurView intensity={5} tint="dark" style={StyleSheet.absoluteFill} />
               <View style={styles.buttonDarkOverlay} />
               <View style={styles.buttonTextContainer}>
-                <Text style={styles.driveButtonText}>Start Driving!</Text>
+                <Text style={[styles.driveButtonText, { color: "#fff" }]}>Start Driving!</Text>
               </View>
             </ImageBackground>
           </TouchableOpacity>
+
+          <Text style={[styles.sectionTitle, { color: textColor, textAlign: 'left', }]}>
+            Safety Score
+          </Text>
+          
+          <View style={[styles.safetyBox, { backgroundColor: moduleBackground }]}>
+
+              {safetyScore !== null ? renderHeatBar(safetyScore) : (
+                <TouchableOpacity
+                  style={[styles.safetyButton, { backgroundColor: buttonColor }]}
+                  onPress={() => navigation.navigate("AIScreen")}
+                >
+                  <Text style={[styles.safetyButtonText, { color: '#fff' }]}>Get Safety Score</Text>
+                </TouchableOpacity>
+              )}
+
+          </View>
+
+          <Text style={[styles.sectionTitle, { color: textColor, textAlign: 'left', }]}>
+            My Stats
+          </Text>
+
+          <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 12 }}>
+            <View style={{
+              backgroundColor: moduleBackground,
+              borderRadius: 15,
+              padding: 12,
+              alignItems: 'center',
+              flex: 1,
+              marginRight: 5,
+            }}>
+              <Text style={{
+                fontSize: 24,
+                fontWeight: 'bold',
+                color: textColor,
+              }}>
+                {totalPoints !== null ? displayedPoints : '...'}
+              </Text>
+              <Text style={{ fontSize: 14, color: altTextColor, marginTop: 4 }}>Points</Text>
+            </View>
+
+            <View style={{
+              backgroundColor: moduleBackground,
+              borderRadius: 15,
+              padding: 12,
+              alignItems: 'center',
+              flex: 1,
+              marginLeft: 5,
+            }}>
+              <Text style={{
+                fontSize: 24,
+                fontWeight: 'bold',
+                color: textColor,
+              }}>
+                {totalDrives !== null ? totalDrives : '...'}
+              </Text>
+              <Text style={{ fontSize: 14, color: altTextColor, marginTop: 4 }}>Drives</Text>
+            </View>
+          </View>
+
+          
           
           <TouchableOpacity
-            style={styles.driveButton}
+            style={styles.aiButton}
             onPress={() => {
               fadeOutContent().then(() =>
                 navigation.navigate('AIScreen')
               );
             }}
           >
-            <ImageBackground
-              source={require('../assets/AIbutton.jpg')}
-              style={styles.buttonImage}
-              imageStyle={{ borderRadius: width / 18 }} 
-              resizeMode="cover"
+            <LinearGradient
+              colors={['#a300e4', '#2a00c0']} 
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.aiButtonImage, { borderRadius: 15 }]}
             >
               <BlurView intensity={5} tint="dark" style={StyleSheet.absoluteFill} />
-              <View style={styles.buttonDarkOverlay} />
               <View style={styles.buttonTextContainer}>
-                <Text style={styles.driveButtonText}>AI Coach</Text>
+                <Text style={[styles.aiButtonText, { color: "#fff" }]}>✦ View Full Report</Text>
               </View>
-            </ImageBackground>
+            </LinearGradient>
           </TouchableOpacity>
 
 
@@ -511,7 +644,7 @@ export default function DashboardScreen({ route }) {
           )}
 
         </View>
-      </ImageBackground>
+      </ScrollView>
     </Animated.View>
   );
 }
@@ -520,30 +653,22 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: { color: '#fff', fontSize: 24 },
   background: { flex: 1 },
-  darkOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-  },
   buttonDarkOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   overlay: {
     flex: 1,
-    padding: width/9,
+    paddingHorizontal: width/15,
+    paddingVertical: height/12,
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menuButton: {
-    position: 'absolute',
-    top: height/11,
-    left: width/10,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
   },
   loginButton: {
     position: 'absolute',
@@ -555,79 +680,192 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   loginButtonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
-  streakContainer: {
-    position: 'absolute',
-    top: height/13,
-    right: width/11,
-    backgroundColor: 'rgba(255,255,255,0.0)',
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "Arial Rounded MT Bold",
+    color: "#fff",
+    marginTop: 15,
+    marginBottom: 8,
   },
-  streakText: {
-    color: '#fff',
-    fontSize: 40,
-    fontWeight: 'bold',
-    fontFamily: 'futura',
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: height/100,
+  },
+  headerContainer: {
+    width: '70%',
+    alignItems: 'flex-start', 
+    marginBottom: 30, 
+  },
+  streakBox: {
+    position: 'absolute', 
+    top: 0,      
+    right: 0,   
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 20,
   },
   streakImage: {
-    width: 40,
-    height: 40,
+    width: 28,
+    height: 28,
     marginRight: 6,
   },
+
+  streakText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    fontFamily: 'Arial Rounded MT Bold',
+  },
+
+  loginButtonInline: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+  },
   header: {
-    fontSize: width/8,
+    fontSize: 32,
     fontWeight: '500',
     fontFamily: 'Arial Rounded MT Bold',
-    marginTop: height/10,
-    marginBottom: height/25,
-    color: '#fff',
+    alignSelf: 'flex-start',
   },
-  pointsBackground: {
+  subHeader: {
+    fontSize: 16,
+    marginTop: 4,  
+  },
+
+  greeting: {
+    fontSize: 24, 
+    fontWeight: 'bold',
+    font: 'Arial Rounded MT Bold',
+    marginBottom: 25,
+    alignSelf: 'center'
+  },
+  safetyBox: {
     width: '100%',
-    height: height/3.5,
+    borderRadius: 15,
+    padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: height/20,
-    borderRadius: width/30,
-    overflow: 'hidden',
+    marginBottom: height / 50,
+    height: height/8
+  },
+  safetyButton: {
+    width: '80%',
+    paddingVertical: 12,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  safetyButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  heatBarBox: {
+    marginTop: 5,
+    marginBottom: 15,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0)',
+    position: 'relative',
+    height: 75, 
+  },
+  heatBarContainer: {
+    height: 50,
+    position: 'relative', 
+    justifyContent: 'center',
+  },
+  heatBarBackground: {
+    height: 25,
+    borderRadius: 20,
+    width: '100%',
+    position: 'absolute',
+    top: 14,
+  },
+  markerScore: {
+    alignItems: 'center',
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    bottom: 12
+  },
+  heatBarMarker: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    top: 24,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 5,
+    elevation: 6,
+  },
+  heatBarScore: {
+    position: 'absolute',
+    fontWeight: 'bold',
+    top: -4,
+    fontSize: 22,
+    color: '#fff',
+    textAlign: 'center',
   },
   points: {
-    fontSize: width/6,
+    fontSize: height/12,
     fontWeight: 'bold',
-    marginTop: height/11,
-    marginBottom: 0,
     maxWidth: '60%',
     textAlign: 'center',
-    color: '#fff',
-    textShadowColor: '#fff',
+    textShadowColor: '#00000079',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
-    fontFamily: 'futura',
+    textShadowRadius: 4,
   },
-  pointsLabel: {
-    fontSize: width/18,
-    marginBottom: height/20,
-    color: '#fff',
+  pointsBox: {
+    borderRadius: 15,
+    overflow: 'hidden', 
+    width: "100%", 
+    height: height/8, 
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: width/25,
+    marginBottom: height/ 25
   },
   driveButton: {
     width: '100%',
-    height: 75,
-    borderRadius: width / 18,
-    borderWidth: 2,
-    borderColor: '#fff',
+    height: 70,
+    borderRadius: 15,
+    outlineColor: "#fff",
+    outlineWidth: 1.5,
     overflow: 'hidden',
     marginBottom: height / 48,
   },
-  
+  aiButton: {
+    width: '100%',
+    height: 50,
+    borderRadius: 15,
+    overflow: 'hidden',
+    marginBottom: height / 48,
+  },
   driveButtonText: {
-    color: '#fff',
-    fontSize: width/14,
+    fontSize: 24,
     fontWeight: 'bold',
-    fontFamily: 'Arial Rounded MT Bold',
+  },
+  aiButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   buttonImage: {
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+  },
+  aiButtonImage: {
     flex: 1, 
     justifyContent: 'center', 
     alignItems: 'center', 
@@ -650,7 +888,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0000007c',
     borderWidth: 2,
     paddingVertical: width/60,
-    borderRadius: width/20,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,5 +1,5 @@
 //LoginScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useContext } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Dimensions,
 } from 'react-native';
@@ -12,6 +12,7 @@ import {
 import * as Google from 'expo-auth-session/providers/google';
 import { useNavigation } from '@react-navigation/native';
 import { ensureUserStreakFields } from '../utils/firestoreHelpers';
+import { ThemeContext } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -20,6 +21,22 @@ export default function LoginScreen() {
   const navigation = useNavigation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const { resolvedTheme } = useContext(ThemeContext);
+  const isDark = resolvedTheme === 'dark';
+
+  useLayoutEffect(() => {
+    navigation.getParent()?.setOptions({
+      tabBarStyle: { display: 'none' },
+    });
+
+    return () => {
+      navigation.getParent()?.setOptions({
+        tabBarStyle: {
+          display: 'flex',
+        },
+      });
+    };
+  }, [navigation]);
 
   // Initialize Google Auth Request
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({

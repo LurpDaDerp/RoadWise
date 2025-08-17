@@ -214,11 +214,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#111',  
   },
-  menuButton: {
-    position: 'absolute',
-    top: height/10,
-    left: width/15,
-  },
   statsButton: {
     position: 'absolute',
     top: height/10,

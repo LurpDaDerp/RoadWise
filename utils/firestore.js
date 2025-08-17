@@ -17,6 +17,31 @@ export async function saveUserPoints(uid, points) {
   await setDoc(docRef, { points }, { merge: true });
 }
 
+export async function getUsername(uid) {
+  const docRef = doc(db, "users", uid);
+  const docSnap = await getDoc(docRef);
+  if (docSnap.exists()) {
+    return docSnap.data().username || "guest";
+  } else {
+    await setDoc(docRef, { username: uid });
+    return 0;
+  }
+}
+
+
+export async function getTotalDrivesNumber(uid) {
+  if (!uid) return 0;
+
+  try {
+    const metricsRef = collection(db, "users", uid, "drivemetrics");
+    const snapshot = await getDocs(metricsRef);
+    return snapshot.size;
+  } catch (error) {
+    console.error("Error fetching drive metrics:", error);
+    return 0;
+  }
+}
+
 export async function saveUserStreak(uid, streak) {
   if (!uid) return;
   const userRef = doc(db, 'users', uid);
@@ -130,7 +155,6 @@ export async function getAllDriveMetrics(uid) {
     const metricsRef = collection(db, "users", uid, "drivemetrics");
     const snapshot = await getDocs(metricsRef);
     const metrics = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    console.log("All metrics:", metrics);
     return metrics;
   } catch (err) {
     console.error("Failed to fetch drive metrics:", err);

@@ -46,6 +46,7 @@ export const ThemeProvider = ({ children }) => {
     await AsyncStorage.setItem('@appTheme', newTheme);
   };
 
+
   return (
     <ThemeContext.Provider value={{ theme, resolvedTheme: colorScheme, updateTheme }}>
       {children}

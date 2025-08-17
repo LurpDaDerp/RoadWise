@@ -20,7 +20,7 @@ import { query, where, getDocs, collection } from 'firebase/firestore';
 
 const { width, height } = Dimensions.get('window');
 
-export default function AccountSettings() {
+export default function AccountSettings(route) {
   const navigation = useNavigation();
   const [user, setUser] = useState(null);
   const [username, setUsername] = useState(null);
@@ -29,6 +29,8 @@ export default function AccountSettings() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const rootNav = route.params?.rootNavigation;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -71,7 +73,7 @@ export default function AccountSettings() {
       }
 
       await signOut(auth);
-      navigation.navigate('Home', { screen: 'Login' });
+      rootNav?.reset({ index: 0, routes: [{ name: 'Login' }] });
     } catch (error) {
       Alert.alert('Sign Out Failed', error.message);
     }
@@ -80,7 +82,7 @@ export default function AccountSettings() {
   const handleSwitchAccount = async () => {
     try {
       await signOut(auth);
-      navigation.navigate('Home', { screen: 'Login' });
+      rootNav?.reset({ index: 0, routes: [{ name: 'Login' }] });
     } catch (error) {
       Alert.alert('Switch Failed', error.message);
     }
@@ -211,7 +213,10 @@ export default function AccountSettings() {
           </TouchableOpacity>
         </>
       ) : (
-        <TouchableOpacity style={styles.loginButton} onPress={() => navigation.navigate('Home', { screen: 'Login' })}>
+        <TouchableOpacity
+          style={styles.loginButton}
+          onPress={() => rootNav?.reset({ index: 0, routes: [{ name: 'Login' }] })}
+        >
           <Text style={styles.loginButtonText}>Log In</Text>
         </TouchableOpacity>
       )}

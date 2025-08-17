@@ -1,5 +1,5 @@
 //DriveScreen
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -35,7 +35,6 @@ const db = getFirestore();
 const { width, height } = Dimensions.get('window');
 
 const AnimatedImageBackground = Animated.createAnimatedComponent(ImageBackground);
-/* const HERE_API_KEY = 'uninitialized'; */
 const GRID_RESOLUTION = 0.002;
 const speedLimitCache = new Map();
 let lastSpeedLimitFetchTime = 0;
@@ -161,6 +160,20 @@ export default function DriveScreen({ route }) {
   const ACCEL_THRESHOLD = 3.0; 
   const BRAKE_THRESHOLD = -3.0; 
   let lastUpdateTime = Date.now();
+
+  useLayoutEffect(() => {
+    navigation.getParent()?.setOptions({
+      tabBarStyle: { display: 'none' },
+    });
+
+    return () => {
+      navigation.getParent()?.setOptions({
+        tabBarStyle: {
+          display: 'flex',
+        },
+      });
+    };
+  }, [navigation]);
 
   //finalize drive function
   const finalizeDrive = async () => {
@@ -804,7 +817,7 @@ export default function DriveScreen({ route }) {
             <ImageBackground
               source={require('../assets/dashboard.png')}
               style={styles.speedBackground}
-              resizeMode="cover"
+              resizeMode="stretch"
               imageStyle={{ borderRadius: 20 }}
             >
               <Text style={styles.speedText}>
@@ -932,11 +945,10 @@ const styles = StyleSheet.create({
   points: {
     marginTop: (height / 667) * 100,
     fontWeight: 'bold',
-    fontFamily: 'Avenir',
     color: '#fff',
-    textShadowColor: '#fff',
+    textShadowColor: '#0000007a',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: (width / 375) * 12,
+    textShadowRadius: 6,
     textAlign: 'center',
   },
   pointsLabel: {
@@ -965,7 +977,7 @@ const styles = StyleSheet.create({
     paddingVertical: (height / 667) * 15,
     paddingHorizontal: (width / 375) * 60,
     marginTop: (height / 667) * 0,
-    marginBottom: (height / 667) * 10,
+    marginBottom: (height / 667) * 60,
     borderRadius: (width / 375) * 20,
     fontWeight: 'bold',
     fontSize: (width / 375) * 24,
@@ -976,10 +988,10 @@ const styles = StyleSheet.create({
   },
   speedBackground: {
     width: '100%',
-    paddingVertical: (height / 667) * 120,
+    height: "60%",
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: (height / 667) * -110,
+    marginBottom: (height / 667) * -220,
     borderRadius: (width / 375) * 20,
     overflow: 'hidden',
   },
@@ -991,7 +1003,7 @@ const styles = StyleSheet.create({
     textShadowColor: '#000',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: (width / 375) * 4,
-    marginBottom: (width / 375) * 5,
+    marginBottom: (width / 375) * 150,
   },
   warningOverlay: {
     position: 'absolute',

@@ -46,7 +46,6 @@ export default function StackNavigator() {
           <Stack.Screen name="About" component={AboutScreen} />
         </>
       ) : (
-        
         <>
           <Stack.Screen name="Login" component={LoginScreen} options={{ headerTransparent: true, headerTitle: '' }} />
           <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerTransparent: true, headerTitle: '' }} />

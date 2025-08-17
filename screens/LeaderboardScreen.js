@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   Dimensions,
   TouchableOpacity, 
   ScrollView, 
-  Image
+  Image, 
+  Animated, 
+  Easing
 } from 'react-native';
 import {
   collection,
@@ -21,7 +23,7 @@ import { db } from '../utils/firebase';
 import { ImageBackground } from 'expo-image';
 import Svg, { Text as SvgText, TextPath, Defs, Path } from 'react-native-svg';
 import { BlurView } from 'expo-blur';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -67,6 +69,24 @@ export default function LeaderboardScreen() {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [currentUserPlacement, setCurrentUserPlacement] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+
+  const fadeInContent = useCallback(() => {
+    Animated.timing(contentOpacity, {
+      toValue: 1,
+      duration: 300,
+      easing: Easing.out(Easing.poly(3)),
+      useNativeDriver: true,
+    }).start();
+  }, [contentOpacity]);
+
+  useFocusEffect(
+    useCallback(() => {
+      contentOpacity.setValue(0);
+      fadeInContent();
+    }, [])
+  );
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -144,12 +164,9 @@ export default function LeaderboardScreen() {
       style={styles.background}
       contentFit="cover"
     >
+      <Animated.View style={[styles.fadeIn, { opacity: contentOpacity }]}>
       <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
       <View style={styles.overlay}>
-        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
-          <Ionicons name="menu" size={32} color="#fff" />
-        </TouchableOpacity>
-
         <View style={styles.ribbonContainer}>
           <Image
             source={require('../assets/ribbon.png')}
@@ -233,6 +250,7 @@ export default function LeaderboardScreen() {
           </ScrollView>
         )}
       </View>
+      </Animated.View>
     </ImageBackground>
   );
 }
@@ -245,11 +263,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     overflow: 'visible',
   },
-  menuButton: { 
-    position: 'absolute', 
-    top: height / (667 / 70), 
-    left:  width / (375 / 30),
-    zIndex: 50 
+  fadeIn: {
+    flex: 1,
+    overflow: 'visible',
   },
   ribbonContainer: {
     alignItems: 'center',

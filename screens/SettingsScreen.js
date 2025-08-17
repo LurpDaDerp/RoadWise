@@ -1,10 +1,9 @@
-// SettingsScreen.js
-import React from 'react';
+import React, { useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ImageBackground, TouchableOpacity, FlatList, Dimensions,
+  View, Text, StyleSheet, ImageBackground, TouchableOpacity, FlatList, Dimensions, Animated, Easing,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 const CATEGORIES = [
   { title: 'General', route: 'GeneralSettings' },
@@ -17,14 +16,31 @@ const { width, height } = Dimensions.get('window');
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+
+  const fadeInContent = useCallback(() => {
+    Animated.timing(contentOpacity, {
+      toValue: 1,
+      duration: 300,
+      easing: Easing.out(Easing.poly(3)),
+      useNativeDriver: true,
+    }).start();
+  }, [contentOpacity]);
+
+  useFocusEffect(
+    useCallback(() => {
+      contentOpacity.setValue(0); // reset opacity
+      fadeInContent(); // animate fade-in
+    }, [fadeInContent])
+  );
 
   return (
-    <ImageBackground source={require('../assets/settingsback.jpg')} style={styles.background} resizeMode="cover">
-      <View style={styles.overlay}>
-        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
-          <Ionicons name="menu" size={32} color="#fff" />
-        </TouchableOpacity>
-
+    <ImageBackground
+      source={require('../assets/settingsback.jpg')}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      <Animated.View style={[styles.overlay, { opacity: contentOpacity }]}>
         <Text style={styles.title}>Settings</Text>
 
         <FlatList
@@ -34,14 +50,13 @@ export default function SettingsScreen() {
             <TouchableOpacity
               style={styles.optionRow}
               onPress={() => navigation.navigate(item.route)}
-
             >
               <Text style={styles.optionText}>{item.title}</Text>
               <Ionicons name="chevron-forward" size={24} color="#fff" />
             </TouchableOpacity>
           )}
         />
-      </View>
+      </Animated.View>
     </ImageBackground>
   );
 }
@@ -51,12 +66,7 @@ const styles = StyleSheet.create({
   overlay: { 
     flex: 1, 
     padding: 0.07 * width, 
-    backgroundColor: 'rgba(0, 0, 0, 0.4)' 
-  },
-  menuButton: { 
-    position: 'absolute', 
-    top: height / (667 / 75), 
-    left:  width / (375 / 20) 
+    backgroundColor: 'rgba(0, 0, 0, 0.3)' 
   },
   title: {
     fontSize: width / (375 / 32),

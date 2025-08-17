@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useState, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import {
   View,
   Text,
@@ -6,16 +9,45 @@ import {
   ImageBackground,
   TouchableOpacity,
   Dimensions,
+  Animated, 
+  Easing
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
-const BUTTON_WIDTH = width * 2/5;
 
+const getStorageKey = (uid) => `totalPoints_${uid}`
 
 export default function RewardsScreen({ route, navigation }) {
-  const totalPoints = route.params?.totalPoints ?? 0;
+  const [totalPoints, setTotalPoints] = useState(0);
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+
+  const fadeInContent = useCallback(() => {
+    Animated.timing(contentOpacity, {
+      toValue: 1,
+      duration: 300,
+      easing: Easing.out(Easing.poly(3)),
+      useNativeDriver: true,
+    }).start();
+  }, [contentOpacity]);
+
+  useFocusEffect(
+    useCallback(() => {
+      contentOpacity.setValue(0);
+      fadeInContent();
+      let isActive = true;
+      (async () => {
+        try {
+          const stored = await AsyncStorage.getItem('totalPoints');
+          if (isActive) setTotalPoints(stored ? parseFloat(stored) : 0);
+        } catch (e) {
+          console.error(e);
+        }
+      })();
+      return () => { isActive = false; };
+    }, [])
+  );
 
   return (
     <ImageBackground
@@ -23,14 +55,12 @@ export default function RewardsScreen({ route, navigation }) {
       style={styles.background}
       resizeMode="cover"
     >
+      <Animated.View style={[styles.fadeIn, { opacity: contentOpacity }]}>
       <View style={styles.overlay}>
 
         <Text style={styles.title}>Rewards</Text>
         <Text style={styles.subtitle}>Redeem points for prizes!</Text>
 
-        <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
-          <Ionicons name="menu" size={32} color="#fff" />
-        </TouchableOpacity>
 
         <Text style={styles.points}>{totalPoints.toFixed(0)} Points</Text>
 
@@ -81,6 +111,7 @@ export default function RewardsScreen({ route, navigation }) {
 
         </View>
       </View>
+      </Animated.View>
     </ImageBackground>
   );
 }
@@ -93,13 +124,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: height / (667 / 80),
     paddingHorizontal: width / (375 / 24),
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
     alignItems: 'center',
   },
-  menuButton: { 
-    position: 'absolute', 
-    top: height / (667 / 90), 
-    left:  width / (375 / 20) 
+  fadeIn: {
+    flex: 1,
+    alignItems: 'center',
   },
   points: {
     fontSize: width / (375 / 24),
@@ -111,15 +141,15 @@ const styles = StyleSheet.create({
     textShadowRadius: width / (375 / 10),
   },
   title: {
-    fontSize: 40,
+    fontSize: 36,
     fontWeight: 'bold',
     color: '#fff',
     marginTop: 0,
-    paddingBottom: height / (667 / 40),
+    paddingBottom: 20,
     alignSelf: 'center',
   },
   subtitle: {
-    fontSize: width / (375 / 24),
+    fontSize: 20,
     color: 'white',
     marginBottom: height / (667 / 12),
     textAlign: 'center',
