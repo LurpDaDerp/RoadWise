@@ -454,14 +454,14 @@ export default function DriveScreen({ route }) {
       locationSubscription.current = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
-          timeInterval: 1000,
-          distanceInterval: 3,
+          timeInterval: 2500,
+          distanceInterval: 25,
         },
         async (loc) => {
           if (!isAppActive.current) return;
 
           const coordinates = [loc.coords.latitude, loc.coords.longitude];
-          const testcoordinates = [40.142111699440335, -88.29369230357632];
+          const testcoordinates = [47.56560520753297, -122.2253784109515];
           const rawSpeed = loc.coords.speed ?? 0;
           const lat = coordinates[0];
           const lon = coordinates[1];
@@ -491,7 +491,7 @@ export default function DriveScreen({ route }) {
             }
 
             setSpeedLimit(adjustedValue);
-          } else if (Date.now() - lastSpeedLimitFetchTime > 10000 && showSpeedLimit) {
+          } else if (Date.now() - lastSpeedLimitFetchTime > 15000 && showSpeedLimit) {
             lastSpeedLimitFetchTime = Date.now();
             const sl = await fetchSpeedLimit(lat, lon, unit);
             if (sl !== null) {
@@ -988,10 +988,10 @@ const styles = StyleSheet.create({
   },
   speedBackground: {
     width: '100%',
-    height: "60%",
+    height: height * 1/3.1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: (height / 667) * -220,
+    marginBottom: (height / 667) * -50,
     borderRadius: (width / 375) * 20,
     overflow: 'hidden',
   },
@@ -1003,7 +1003,7 @@ const styles = StyleSheet.create({
     textShadowColor: '#000',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: (width / 375) * 4,
-    marginBottom: (width / 375) * 150,
+    marginBottom: (height / 667) *0,
   },
   warningOverlay: {
     position: 'absolute',

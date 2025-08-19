@@ -1,5 +1,5 @@
 export function getSpeedLimit() {
-  return 30; // mock for now
+  return 30; 
 }
 
 export function getSpeedColorStyle(speed, speedLimit) {

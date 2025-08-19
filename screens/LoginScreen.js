@@ -100,7 +100,7 @@ export default function LoginScreen() {
       <TouchableOpacity
         disabled={!request}
         onPress={() => promptAsync()}
-        style={[styles.button, { backgroundColor: '#4285F4', marginTop: 12 }]}
+        style={[styles.button, { backgroundColor: '#8f42f4ff', marginTop: 12 }]}
       >
         <Text style={styles.buttonText}>Sign In with Google</Text>
       </TouchableOpacity>
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     marginBottom: height / (667 / 16),
   },
   button: {
-    backgroundColor: '#00b894',
+    backgroundColor: '#5600e0ff',
     padding: 15,
     borderRadius: 8,
     marginTop: 8,

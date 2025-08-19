@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import {
   View,
@@ -50,10 +51,11 @@ export default function RewardsScreen({ route, navigation }) {
   );
 
   return (
-    <ImageBackground
-      source={require('../assets/rewardsback.jpg')}
+    <LinearGradient
+      colors={['#0a0035ff', '#500068ff']} // gradient colors
       style={styles.background}
-      resizeMode="cover"
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
     >
       <Animated.View style={[styles.fadeIn, { opacity: contentOpacity }]}>
       <View style={styles.overlay}>
@@ -112,7 +114,7 @@ export default function RewardsScreen({ route, navigation }) {
         </View>
       </View>
       </Animated.View>
-    </ImageBackground>
+    </LinearGradient>
   );
 }
 
@@ -122,7 +124,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    paddingTop: height / (667 / 80),
+    paddingTop: height / (667 / 70),
     paddingHorizontal: width / (375 / 24),
     backgroundColor: 'rgba(0,0,0,0.2)',
     alignItems: 'center',

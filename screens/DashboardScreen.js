@@ -10,7 +10,8 @@ import {
   Pressable,
   ImageBackground,
   Dimensions,
-  ScrollView
+  ScrollView,
+  ActivityIndicator
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -99,6 +100,8 @@ export default function DashboardScreen({ route }) {
 
   const [totalDrives, setTotalDrives] = React.useState(0);
 
+  const [loading, setLoading] = useState(true);
+
   const animatedPoints = useRef(new Animated.Value(0)).current;
   const [displayedPoints, setDisplayedPoints] = useState(0);
   const contentOpacity = useRef(new Animated.Value(0)).current;
@@ -106,13 +109,11 @@ export default function DashboardScreen({ route }) {
   const[snackbarColor, setSnackBarColor] = useState();
   
   const backgroundColor = isDark ? '#161616ff' : '#fff';
-  const chartBackground = isDark ? '#000' : '#eeeeeeff';
   const titleColor = isDark ? '#fff' : '#000';
   const textColor = isDark ? '#fff' : '#000';
   const moduleBackground = isDark ? '#333' : '#ebebebff';
   const altTextColor = isDark ? '#aaa' : '#555';
   const textOutline = isDark? 'rgba(255, 255, 255, 0.47)' : '#0000008e';
-  const chartLineColor = isDark ? `rgba(132, 87, 255, 0.5)` : `rgba(38, 0, 255, 0.5)`;
   const buttonColor = isDark ? `rgba(108, 55, 255, 1)` : `rgba(99, 71, 255, 1)`;
   const snackbarBackgroundColor = isDark ? '#222' : '#fff';
   const snackbarTextColor = isDark ? '#fff' : '#555';
@@ -197,10 +198,38 @@ export default function DashboardScreen({ route }) {
 
   useFocusEffect(
     useCallback(() => {
-      contentOpacity.setValue(0);
-      fadeInContent();
       let isActive = true;
 
+      const loadUserAndFadeIn = async () => {
+        if (!user) {
+          setLoading(true);
+          contentOpacity.setValue(0);
+          return;
+        }
+
+        if (!isActive) return;
+
+        setLoading(false);
+        contentOpacity.setValue(0);
+        Animated.timing(contentOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      };
+
+      loadUserAndFadeIn();
+
+      return () => {
+        isActive = false;
+      };
+    }, [user])
+  );
+    
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
       (async () => {
         if (!user) {
           if (isActive) {
@@ -240,13 +269,14 @@ export default function DashboardScreen({ route }) {
             animatedPoints.setValue(0);
           }
         }
+        
       })();
 
       return () => {
         isActive = false;
         updatedPointsHandled.current = false;
       };
-    }, [user, displayedPoints, fadeInContent, animatedPoints])
+    }, [user, displayedPoints, animatedPoints])
   );
 
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -383,8 +413,7 @@ export default function DashboardScreen({ route }) {
           const docSnap = await getDoc(doc(firestore, 'users', user.uid));
           setStreak(docSnap.exists() ? docSnap.data().drivingStreak || 0 : 0);
         } else {
-          const stored = await AsyncStorage.getItem('@drivingStreak');
-          setStreak(stored ? parseInt(stored, 10) : 0);
+          setStreak(0);
         }
       };
       
@@ -470,7 +499,12 @@ export default function DashboardScreen({ route }) {
 
 
   return (
-    <Animated.View style={[styles.flex, { opacity: contentOpacity, backgroundColor: backgroundColor }]}>
+    <Animated.View style={[styles.flex, { opacity: contentOpacity, backgroundColor }]}>
+      {loading && (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: backgroundColor, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <ActivityIndicator size="medium" color="#fff" />
+        </View>
+      )}
       <ScrollView
         showsVerticalScrollIndicator={false}
       >
@@ -607,12 +641,25 @@ export default function DashboardScreen({ route }) {
             </LinearGradient>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.groupButton}
+            onPress={() => {
+              fadeOutContent().then(() =>
+                navigation.navigate('LocationScreen')
+              );
+            }}
+          >
+            <View style={styles.buttonTextContainer}>
+              <Text style={[styles.groupButtonText, { color: "#fff" }]}>My Group</Text>
+            </View>
+          </TouchableOpacity>
+
 
           <Snackbar
             visible={snackbarVisible}
             onDismiss={() => setSnackbarVisible(false)}
             duration={3000}
-            style={{ backgroundColor: snackbarBackgroundColor, paddingHorizontal: 0, marginBottom: height/4, borderRadius: 20, outlineColor: snackbarColor, outlineWidth: 2 }}
+            style={{ backgroundColor: snackbarBackgroundColor, paddingHorizontal: 0, marginBottom: height/4, borderRadius: 20, outlineColor: snackbarColor, outlineWidth: 2, alignSelf: 'center' }}
             theme={{
               colors: {
                 onSurface: snackbarTextColor, 
@@ -852,11 +899,23 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: height / 48,
   },
+  groupButton: {
+    width: '100%',
+    height: 50,
+    borderRadius: 15,
+    overflow: 'hidden',
+    marginBottom: height / 48,
+    backgroundColor: "#4083ffff",
+  },
   driveButtonText: {
     fontSize: 24,
     fontWeight: 'bold',
   },
   aiButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  groupButtonText: {
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -866,6 +925,11 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
   },
   aiButtonImage: {
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+  },
+  groupButtonImage: {
     flex: 1, 
     justifyContent: 'center', 
     alignItems: 'center', 
