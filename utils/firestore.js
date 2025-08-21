@@ -191,3 +191,33 @@ export async function getChatGPTKey() {
     return null;
   }
 }
+
+export const startDriving = async (userId) => {
+  try {
+    const userRef = doc(db, "users", userId);
+
+    await setDoc(
+      userRef,
+      { isDriving: true },
+      { merge: true } 
+    );
+
+  } catch (error) {
+    console.error("Error setting isDriving to true:", error);
+  }
+};
+
+export const stopDriving = async (userId) => {
+  try {
+    const userRef = doc(db, "users", userId);
+
+    await setDoc(
+      userRef,
+      { isDriving: false },
+      { merge: true }
+    );
+
+  } catch (error) {
+    console.error("Error setting isDriving to false:", error);
+  }
+};

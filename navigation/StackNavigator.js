@@ -38,7 +38,7 @@ export default function StackNavigator() {
     <Stack.Navigator>
       {user ? (
         <>
-          <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Home" component={DashboardScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Drive" component={DriveScreen} options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="SettingsStack" component={SettingsStackNavigator} options={{ headerShown: false }} />
           <Stack.Screen name="MyDrives" component={MyDrivesScreen}options={{headerTransparent: true, headerTitle: "", headerBackTitle: 'Back'}} />

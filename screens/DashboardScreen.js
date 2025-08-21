@@ -560,7 +560,7 @@ export default function DashboardScreen({ route }) {
           </TouchableOpacity>
 
           <Text style={[styles.sectionTitle, { color: textColor, textAlign: 'left', }]}>
-            Safety Score
+            My Driver Score
           </Text>
           
           <View style={[styles.safetyBox, { backgroundColor: moduleBackground }]}>
@@ -641,6 +641,10 @@ export default function DashboardScreen({ route }) {
             </LinearGradient>
           </TouchableOpacity>
 
+          <Text style={[styles.sectionTitle, { color: textColor, textAlign: 'left', }]}>
+            Family Safety
+          </Text>
+          
           <TouchableOpacity
             style={styles.groupButton}
             onPress={() => {
@@ -649,9 +653,18 @@ export default function DashboardScreen({ route }) {
               );
             }}
           >
-            <View style={styles.buttonTextContainer}>
-              <Text style={[styles.groupButtonText, { color: "#fff" }]}>My Group</Text>
-            </View>
+            <LinearGradient
+              colors={['#4bb2b9ff', '#2575fc']} 
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.aiButtonImage}
+            >
+              <View style={styles.buttonTextContainer}>
+                <Text style={[styles.groupButtonText, { color: "#fff" }]}>
+                  My Group
+                </Text>
+              </View>
+            </LinearGradient>
           </TouchableOpacity>
 
 
@@ -802,7 +815,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: height / 50,
-    height: height/8
+    height: 100
   },
   safetyButton: {
     width: '80%',
@@ -819,7 +832,6 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginBottom: 15,
     paddingHorizontal: 10,
-    paddingVertical: 10,
     backgroundColor: 'rgba(255, 255, 255, 0)',
     position: 'relative',
     height: 75, 

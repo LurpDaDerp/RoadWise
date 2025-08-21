@@ -17,8 +17,8 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth, signOut } from 'firebase/auth';
-import { getFirestore, doc, updateDoc, increment } from 'firebase/firestore';
-import { saveTrustedContacts, getTrustedContacts, saveUserDrive, saveDriveMetrics, getHereKey } from '../utils/firestore';
+import { getFirestore, doc, updateDoc, increment, setDoc } from 'firebase/firestore';
+import { saveTrustedContacts, getTrustedContacts, saveUserDrive, saveDriveMetrics, getHereKey, startDriving, stopDriving } from '../utils/firestore';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { useContext } from 'react';
@@ -85,6 +85,7 @@ function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
 
 
 export default function DriveScreen({ route }) {
+  const userRef = doc(db, "users", getAuth().currentUser.uid);
   const player = useAudioPlayer(audioSource);
   const navigation = useNavigation();
   const [pointsThisDrive, setPointsThisDrive] = useState(0);
@@ -177,10 +178,13 @@ export default function DriveScreen({ route }) {
 
   //finalize drive function
   const finalizeDrive = async () => {
+    
     if (driveFinalizedRef.current) return;
     driveFinalizedRef.current = true;
 
     const user = getAuth().currentUser;
+
+    stopDriving(user.uid);
     
     if (!user) return;
 
@@ -272,6 +276,8 @@ export default function DriveScreen({ route }) {
   useFocusEffect(
     React.useCallback(() => {
       const uid = getAuth().currentUser?.uid;
+
+      startDriving(uid);
 
       const loadContacts = async () => {
         const contacts = await getTrustedContacts(uid);
@@ -887,7 +893,7 @@ const styles = StyleSheet.create({
 
   modalOption: {
     borderRadius: (width / 375) * 12,
-    paddingVertical: (height / 667) * 12,
+    paddingVertical: 12,
     paddingHorizontal: (width / 375) * 20,
     marginTop: (height / 667) * 10,
     width: '100%',
@@ -903,7 +909,7 @@ const styles = StyleSheet.create({
   modalOptionText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: (width / 375) * 16,
+    fontSize: 16,
     textAlign: 'center',
   },
 

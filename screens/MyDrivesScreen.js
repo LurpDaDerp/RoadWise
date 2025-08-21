@@ -19,6 +19,7 @@ import { ThemeContext } from '../context/ThemeContext';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { saveUserDrive, getUserDrives, clearUserDrives } from '../utils/firestore';
 import { getAuth } from 'firebase/auth';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const firestore = getFirestore();
 
@@ -162,29 +163,38 @@ export default function MyDrivesScreen() {
   return (
     <>
 
-      <ImageBackground
-        source={require('../assets/drivehistoryback.jpg')}
+      <LinearGradient
+        colors={['#0d0c42ff', '#350847ff']}   // gray → black
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
         style={styles.background}
-        resizeMode="cover"
       >
         <View style={styles.overlay}>
-
           <Text style={styles.title}>My Drives</Text>
 
-          <FlatList style={styles.list}
+          <FlatList
+            style={styles.list}
             data={drives.slice(0, visibleCount)}
             keyExtractor={(_, index) => index.toString()}
             renderItem={renderItem}
             ListEmptyComponent={<Text style={styles.empty}>No drives yet.</Text>}
             ListFooterComponent={
-                visibleCount < drives.length ? (
+              visibleCount < drives.length ? (
                 <TouchableOpacity
-                    style={[styles.loadMoreButton, { backgroundColor: '#ffffff18', marginBottom: 20, marginTop: 10, paddingHorizontal: 90 }]}
-                    onPress={() => setVisibleCount(prev => prev + LOAD_BATCH)}
+                  style={[
+                    styles.loadMoreButton,
+                    {
+                      backgroundColor: '#ffffff18',
+                      marginBottom: 20,
+                      marginTop: 10,
+                      paddingHorizontal: 90,
+                    },
+                  ]}
+                  onPress={() => setVisibleCount(prev => prev + LOAD_BATCH)}
                 >
-                    <Text style={styles.loadMoreButtonText}>Load More</Text>
+                  <Text style={styles.loadMoreButtonText}>Load More</Text>
                 </TouchableOpacity>
-                ) : null
+              ) : null
             }
           />
 
@@ -192,7 +202,7 @@ export default function MyDrivesScreen() {
             <Ionicons name="trash-outline" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
-      </ImageBackground>
+      </LinearGradient>
     </>
   );
 }

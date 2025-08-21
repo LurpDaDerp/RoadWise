@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: height / 50,
+    paddingVertical: 12,
     paddingRight: width/15,
     paddingLeft: width/20,
     borderBottomWidth: 2,
@@ -313,11 +313,11 @@ const styles = StyleSheet.create({
     width: '100%', 
   },
   name: {
-    fontSize: width/20,
+    fontSize: 18,
     color: 'white',
   },
   points: {
-    fontSize: width/20,
+    fontSize: 18,
     color: 'white',
     fontFamily: 'Arial Rounded MT Bold',
   },

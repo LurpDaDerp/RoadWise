@@ -1,5 +1,5 @@
 // App.js
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { AppState, useColorScheme, Dimensions, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -29,6 +29,8 @@ import { Provider as PaperProvider } from 'react-native-paper';
 import * as Notifications from 'expo-notifications';
 import RewardsScreen from './screens/RewardsScreen';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+
+import { startLocationUpdates } from './utils/LocationService';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -134,6 +136,11 @@ function AppNavigation() {
 
 
 export default function App() {
+
+  useEffect(() => {
+    startLocationUpdates(); 
+  }, []);
+
   return (
     <DriveProvider>
       <ThemeProvider>
