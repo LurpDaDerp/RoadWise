@@ -61,6 +61,9 @@ export default function AccountSettings(route) {
       if (currentUser) {
         const uid = currentUser.uid;
 
+        const cachedImage = await AsyncStorage.getItem('cachedProfileImage');
+        if (cachedImage) setPhotoURL(cachedImage);
+
         try {
           const userPoints = await getUserPoints(uid);
           setPoints(userPoints);
@@ -143,6 +146,8 @@ export default function AccountSettings(route) {
 
         const publicURL = urlData.publicUrl + "?t=" + new Date().getTime();
         setPhotoURL(publicURL);
+
+        await AsyncStorage.setItem('cachedProfileImage', publicURL);
 
         const userDocRef = doc(db, "users", uid);
         await setDoc(userDocRef, { photoURL: publicURL }, { merge: true });

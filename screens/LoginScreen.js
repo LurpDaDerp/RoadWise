@@ -12,7 +12,7 @@ import {
 import * as Google from 'expo-auth-session/providers/google';
 import { useNavigation } from '@react-navigation/native';
 import { ensureUserStreakFields } from '../utils/firestoreHelpers';
-import { ThemeContext } from '@react-navigation/native';
+import { CommonActions } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 
@@ -21,8 +21,6 @@ export default function LoginScreen() {
   const navigation = useNavigation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { resolvedTheme } = useContext(ThemeContext);
-  const isDark = resolvedTheme === 'dark';
 
   useLayoutEffect(() => {
     navigation.getParent()?.setOptions({
@@ -52,6 +50,14 @@ export default function LoginScreen() {
         .then(async (userCred) => {
           await ensureUserStreakFields(userCred.user.uid);
           navigation.navigate('Dashboard');
+          const tabNav = navigation.getParent(); 
+          if (tabNav) {
+            tabNav.navigate('Settings', {
+              screen: 'SettingsMain', 
+              params: { reset: true },
+            });
+          }
+          navigation.navigate('Dashboard');
         })
         .catch((error) => {
           Alert.alert('Google Sign-In Failed', error.message);
@@ -63,6 +69,14 @@ export default function LoginScreen() {
     try {
       const userCred = await signInWithEmailAndPassword(auth, email, password);
       await ensureUserStreakFields(userCred.user.uid);
+      navigation.navigate('Dashboard');
+      const tabNav = navigation.getParent();
+      if (tabNav) {
+        tabNav.navigate('Settings', {
+          screen: 'SettingsMain', 
+          params: { reset: true }, 
+        });
+      }
       navigation.navigate('Dashboard');
     } catch (error) {
       Alert.alert('Incorrect email or password');

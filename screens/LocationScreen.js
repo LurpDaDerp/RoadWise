@@ -32,6 +32,7 @@ export default function LocationScreen() {
   const [HERE_API_KEY, setHereKey] = useState();
   const [addressSuggestions, setAddressSuggestions] = useState([]);
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
   const bottomSheetRef = useRef(null);
@@ -64,9 +65,56 @@ export default function LocationScreen() {
     addLocationSheetRef.current?.close();
   };
 
+  const handleDeleteLocation = async () => {
+    if (!groupId) return;
+
+    try {
+      const groupRef = doc(db, "groups", groupId);
+
+      await updateDoc(groupRef, {
+        savedLocations: arrayRemove({
+          name: newLocationName,
+          address: newLocationAddress,
+          createdBy: user.uid,
+        }),
+      });
+
+      setLocations(prev =>
+        prev.filter(
+          loc =>
+            loc.name !== newLocationName || loc.address !== newLocationAddress
+        )
+      );
+
+      setNewLocationName("");
+      setNewLocationAddress("");
+      closeAddLocationSheet();
+    } catch (error) {
+      console.error("Error deleting location:", error);
+      Alert.alert("Error", "Could not delete location.");
+    }
+  };
+
   const handleSaveLocation = async () => {
     if (!newLocationName.trim() || !newLocationAddress.trim()) {
       Alert.alert("Missing Info", "Please provide both a name and address.");
+      return;
+    }
+
+    // Check for duplicates
+    const nameTaken = locations.some(
+      loc => loc.name.trim().toLowerCase() === newLocationName.trim().toLowerCase()
+    );
+    const addressTaken = locations.some(
+      loc => loc.address.trim().toLowerCase() === newLocationAddress.trim().toLowerCase()
+    );
+
+    if (nameTaken) {
+      Alert.alert("Duplicate Name", "A location with this name already exists.");
+      return;
+    }
+    if (addressTaken) {
+      Alert.alert("Duplicate Address", "A location with this address already exists.");
       return;
     }
 
@@ -79,6 +127,11 @@ export default function LocationScreen() {
           createdBy: user.uid,
         }),
       });
+
+      setLocations(prev => [
+        ...prev,
+        { name: newLocationName.trim(), address: newLocationAddress.trim(), createdBy: user.uid }
+      ]);
 
       setNewLocationName("");
       setNewLocationAddress("");
@@ -161,10 +214,10 @@ export default function LocationScreen() {
                 // Save grid location and reverse geocode result to cache
                 await AsyncStorage.setItem(cacheKey, address);
               } else {
-                console.log("Nominatim error:", response.status, response.statusText);
+                console.warn("Nominatim error:", response.status, response.statusText);
               }
             } catch (e) {
-              console.log("Reverse geocode failed:", e);
+              console.warn("Reverse geocode failed:", e);
             }
 
             // wait a second before the next request to respect rate limit
@@ -182,9 +235,11 @@ export default function LocationScreen() {
         });
       }
       setMembers(memberData);
+      if (initialLoad) setInitialLoad(false);
+      
     } catch (error) {
       console.error("Error fetching members:", error);
-    }
+    } 
   }, [groupId]);
 
   const fadeInContent = useCallback(() => { 
@@ -244,6 +299,7 @@ export default function LocationScreen() {
       const fetchAndSetMembers = async () => {
         if (!isActive) return;
         await fetchMembers();
+        
       };
 
       fetchAndSetMembers();
@@ -576,6 +632,11 @@ export default function LocationScreen() {
             }}
           >
             <BottomSheetView>
+              {initialLoad ? (
+                <View style={{ flex: 1, justifyContent: "center", alignItems: "center", height: 200 }}>
+                  <ActivityIndicator size="medium" color={altTextColor} />
+                </View>
+              ) : (
               <SectionList
                 contentContainerStyle={{ paddingHorizontal: 24 }}
                 sections={[
@@ -711,6 +772,7 @@ export default function LocationScreen() {
                   </View>
                 }
               />
+              )}
 
             </BottomSheetView>
           </BottomSheet>
@@ -756,7 +818,7 @@ export default function LocationScreen() {
 
             <Text style={[styles.label, { color: textColor, marginTop: 30, fontWeight: "bold", fontSize: 20 }]}>Location Name</Text>
             <TextInput
-              style={[styles.input, { color: textColor, width: "100%", textAlign: "left" }]}
+              style={[styles.input, { color: textColor, width: "100%", textAlign: "left", borderColor: altTextColor  }]}
               placeholder="e.g. Home, Office"
               placeholderTextColor={altTextColor}
               value={newLocationName}
@@ -783,7 +845,7 @@ export default function LocationScreen() {
             {addressSuggestions.length > 0 && (
               <ScrollView
                 style={{
-                  maxHeight: height/5,
+                  maxHeight: height/3,
                   marginTop: 10,
                   borderWidth: 1,
                   borderColor: "#8080805e",
@@ -804,6 +866,24 @@ export default function LocationScreen() {
                   </TouchableOpacity>
                 ))}
               </ScrollView>
+            )}
+
+            {locations.some(
+              loc =>
+                loc.name === newLocationName && loc.address === newLocationAddress
+            ) && (
+              <TouchableOpacity
+                style={{
+                  marginTop: 20,
+                  backgroundColor: "#ff4d4d",
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                  alignItems: "center",
+                }}
+                onPress={handleDeleteLocation}
+              >
+                <Text style={{ color: "white", fontWeight: "bold" }}>Delete Location</Text>
+              </TouchableOpacity>
             )}
           </BottomSheetView>
         </BottomSheet>
