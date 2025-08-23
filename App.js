@@ -7,6 +7,7 @@ import {
   useNavigationContainerRef,
   DarkTheme,
   DefaultTheme,
+  createNavigationContainerRef
 } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { MaterialIcons } from '@expo/vector-icons'; 
@@ -46,6 +47,8 @@ const { width, height } = Dimensions.get('window');
 
 const Tab = createBottomTabNavigator();
 
+export const tabNavRef = createNavigationContainerRef();
+
 function AppNavigation() {
   const appState = useRef(AppState.currentState);
   const navigationRef = useNavigationContainerRef();
@@ -78,7 +81,7 @@ function AppNavigation() {
               index: 0,
               routes: [
                 {
-                  name: 'Home',
+                  name: 'Dashboard',
                   state: {
                     routes: [{ name: 'Dashboard' }],
                   },
@@ -101,6 +104,7 @@ function AppNavigation() {
       theme={resolvedTheme === 'dark' ? DarkTheme : DefaultTheme}
     >
       <Tab.Navigator
+        ref={tabNavRef}
         initialRouteName="Dashboard"
         screenOptions={({ route }) => ({
           headerShown: false,

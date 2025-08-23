@@ -22,6 +22,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { query, where, getDocs, collection } from 'firebase/firestore';
 import { ThemeContext } from '@react-navigation/native';
 import { supabase } from '../utils/supabase';
+import { tabNavRef } from '../App';
 
 const { width, height } = Dimensions.get('window');
 
@@ -268,7 +269,7 @@ export default function AccountSettings(route) {
       {/* Email */}
       <View style={styles.infoBox}>
         <Text style={styles.infoLabel}>Email</Text>
-        <Text style={styles.infoValue}>{user.email}</Text>
+        <Text style={styles.infoValue}>{user?.email ?? 'Not logged in'}</Text>
       </View>
 
       {/* Current Group */}
@@ -286,7 +287,10 @@ export default function AccountSettings(route) {
       {/* some buttons */}
       <TouchableOpacity style={styles.switchButton} onPress={async () => {
         await signOut(auth);
-        rootNav?.reset({ index: 0, routes: [{ name: 'Login' }] });
+
+        if (navigation) {
+          navigation.navigate('Dashboard');
+        }
       }}>
         <Text style={styles.switchButtonText}>Switch Account</Text>
       </TouchableOpacity>
@@ -299,7 +303,10 @@ export default function AccountSettings(route) {
           await saveUserPoints(uid, totalPoints);
         }
         await signOut(auth);
-        rootNav?.reset({ index: 0, routes: [{ name: 'Login' }] });
+
+        if (navigation) {
+          navigation.navigate('Dashboard');
+        }
       }}>
         <Text style={styles.signOutButtonText}>Sign Out</Text>
       </TouchableOpacity>

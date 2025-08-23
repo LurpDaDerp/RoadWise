@@ -120,9 +120,9 @@ function formatTotalDuration(seconds) {
 function interpolateColor(percent) {
   const p = Math.min(Math.max(percent, 0), 100) / 100;
 
-  const start = { r: 255, g: 0, b: 0 };
+  const start = { r: 0, g: 255, b: 0 };
   const mid   = { r: 255, g: 255, b: 0 }; 
-  const end   = { r: 0, g: 225, b: 0 };   
+  const end   = { r: 255, g: 0, b: 0 };   
 
   let r, g, b;
 
