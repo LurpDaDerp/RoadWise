@@ -19,6 +19,170 @@ import { Image } from "react-native";
 const db = getFirestore();
 const { width, height } = Dimensions.get('window');
 
+function normalizeAddress(addr) {
+  if (!addr) return "";
+
+  const directionMap = {
+    north: "N",
+    south: "S",
+    east: "E",
+    west: "W",
+    northeast: "NE",
+    northwest: "NW",
+    southeast: "SE",
+    southwest: "SW"
+  };
+
+  const streetTypeMap = {
+    avenue: "Ave",
+    place: "Pl",
+    street: "St",
+    road: "Rd",
+    boulevard: "Blvd",
+    drive: "Dr",
+    court: "Ct",
+    lane: "Ln",
+    terrace: "Ter",
+    parkway: "Pkwy",
+    circle: "Cir"
+  };
+
+  const stateAbbreviations = {
+    "Alabama": "AL",
+    "Alaska": "AK",
+    "Arizona": "AZ",
+    "Arkansas": "AR",
+    "California": "CA",
+    "Colorado": "CO",
+    "Connecticut": "CT",
+    "Delaware": "DE",
+    "Florida": "FL",
+    "Georgia": "GA",
+    "Hawaii": "HI",
+    "Idaho": "ID",
+    "Illinois": "IL",
+    "Indiana": "IN",
+    "Iowa": "IA",
+    "Kansas": "KS",
+    "Kentucky": "KY",
+    "Louisiana": "LA",
+    "Maine": "ME",
+    "Maryland": "MD",
+    "Massachusetts": "MA",
+    "Michigan": "MI",
+    "Minnesota": "MN",
+    "Mississippi": "MS",
+    "Missouri": "MO",
+    "Montana": "MT",
+    "Nebraska": "NE",
+    "Nevada": "NV",
+    "New Hampshire": "NH",
+    "New Jersey": "NJ",
+    "New Mexico": "NM",
+    "New York": "NY",
+    "North Carolina": "NC",
+    "North Dakota": "ND",
+    "Ohio": "OH",
+    "Oklahoma": "OK",
+    "Oregon": "OR",
+    "Pennsylvania": "PA",
+    "Rhode Island": "RI",
+    "South Carolina": "SC",
+    "South Dakota": "SD",
+    "Tennessee": "TN",
+    "Texas": "TX",
+    "Utah": "UT",
+    "Vermont": "VT",
+    "Virginia": "VA",
+    "Washington": "WA",
+    "West Virginia": "WV",
+    "Wisconsin": "WI",
+    "Wyoming": "WY"
+  };
+
+  const numberMap = {
+    first: "1st",
+    second: "2nd",
+    third: "3rd",
+    fourth: "4th",
+    fifth: "5th",
+    sixth: "6th",
+    seventh: "7th",
+    eighth: "8th",
+    ninth: "9th",
+    tenth: "10th",
+    eleventh: "11th",
+    twelfth: "12th",
+    thirteenth: "13th",
+    fourteenth: "14th",
+    fifteenth: "15th",
+    twentieth: "20th",
+    thirtieth: "30th",
+    fortieth: "40th",
+    fiftieth: "50th",
+  };
+
+  // lowercase and remove punctuation
+  let normalized = addr.toLowerCase().replace(/[.,]/g, "");
+
+  // direction abbreviations
+  Object.entries(directionMap).forEach(([word, abbr]) => {
+    const regex = new RegExp(`\\b${word}\\b`, "gi");
+    normalized = normalized.replace(regex, abbr);
+  });
+
+  // street type abbreviations
+  Object.entries(streetTypeMap).forEach(([word, abbr]) => {
+    const regex = new RegExp(`\\b${word}\\b`, "gi");
+    normalized = normalized.replace(regex, abbr);
+  });
+
+  // normalize state names to abbreviations
+  Object.entries(stateAbbreviations).forEach(([state, abbr]) => {
+    const regex = new RegExp(`\\b${state.toLowerCase()}\\b`, "gi");
+    normalized = normalized.replace(regex, abbr);
+  });
+
+  // remove zip codes 
+  normalized = normalized.replace(/\b\d{5}(?:-\d{4})?\b/g, "");
+
+  // no multi spaces
+  normalized = normalized.replace(/\s+/g, " ").trim();
+
+  //lowercase all again 
+  normalized = normalized.toLowerCase();
+
+  return normalized;
+}
+
+function compareAddresses(addr1, addr2, threshold = 0.7) {
+  if (!addr1 || !addr2) return false;
+
+  const tokens1 = addr1.split(" ").filter(Boolean);
+  const tokens2 = addr2.split(" ").filter(Boolean);
+
+  //exact match
+  if (tokens1.join(" ") === tokens2.join(" ")) return true;
+
+  //longest matching sequence in order
+  let i = 0, j = 0, matches = 0;
+
+  while (i < tokens1.length && j < tokens2.length) {
+    if (tokens1[i] === tokens2[j]) {
+      matches++;
+      i++;
+      j++;
+    } else {
+      j++;
+    }
+  }
+
+  // fraction of tokens matched relative to shorter address
+  const fractionMatched = matches / Math.min(tokens1.length, tokens2.length);
+
+  return fractionMatched >= threshold;
+}
+
 export default function LocationScreen() {
   const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
@@ -29,6 +193,7 @@ export default function LocationScreen() {
   const [groupName, setGroupName] = useState("");
   const [members, setMembers] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [editingLocation, setEditingLocation] = useState(null);
   const [HERE_API_KEY, setHereKey] = useState();
   const [addressSuggestions, setAddressSuggestions] = useState([]);
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
@@ -41,13 +206,13 @@ export default function LocationScreen() {
   const { resolvedTheme } = useContext(ThemeContext);
   const isDark = resolvedTheme === "dark";
 
-  const backgroundColor = isDark ? "#0f0f0fcc" : "#ffffffcc";
+  const backgroundColor = isDark ? "#070707cc" : "#ffffffcc";
   const bottomSheetBackground = isDark ? "#131313ff" : "#ffffff"; 
-  const moduleBackground = isDark ? '#333' : '#eeeeeeff';
+  const moduleBackground = isDark ? '#2c2c2cff' : '#eeeeeeff';
   const titleColor = isDark ? "#fff" : "#000";
   const textColor = isDark ? "#fff" : "#000";
   const altTextColor = isDark ? '#aaa' : '#555';
-  const buttonColor = isDark ? `rgba(124, 133, 255, 1)` : `rgba(85, 116, 255, 1)`;
+  const buttonColor = isDark ? `rgba(92, 179, 238, 1)` : `rgba(69, 146, 235, 1)`;
 
   const auth = getAuth();
   const user = auth.currentUser;
@@ -66,34 +231,50 @@ export default function LocationScreen() {
   };
 
   const handleDeleteLocation = async () => {
-    if (!groupId) return;
+    if (!groupId || !editingLocation) return;
 
-    try {
-      const groupRef = doc(db, "groups", groupId);
+    Alert.alert(
+      "Delete Location",
+      "Are you sure you want to remove this location?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const groupRef = doc(db, "groups", groupId);
 
-      await updateDoc(groupRef, {
-        savedLocations: arrayRemove({
-          name: newLocationName,
-          address: newLocationAddress,
-          createdBy: user.uid,
-        }),
-      });
+              await updateDoc(groupRef, {
+                savedLocations: arrayRemove(editingLocation),
+              });
 
-      setLocations(prev =>
-        prev.filter(
-          loc =>
-            loc.name !== newLocationName || loc.address !== newLocationAddress
-        )
-      );
+              setLocations(prev =>
+                prev.filter(
+                  loc =>
+                    loc.name !== editingLocation.name || loc.address !== editingLocation.address
+                )
+              );
 
-      setNewLocationName("");
-      setNewLocationAddress("");
-      closeAddLocationSheet();
-    } catch (error) {
-      console.error("Error deleting location:", error);
-      Alert.alert("Error", "Could not delete location.");
-    }
+              setNewLocationName("");
+              setNewLocationAddress("");
+              setEditingLocation(null);
+              closeAddLocationSheet();
+
+            } catch (error) {
+              console.error("Error deleting location:", error);
+              Alert.alert("Error", "Could not delete location.");
+            }
+          }
+        }
+      ],
+      { cancelable: true }
+    );
   };
+
 
   const handleSaveLocation = async () => {
     if (!newLocationName.trim() || !newLocationAddress.trim()) {
@@ -101,47 +282,60 @@ export default function LocationScreen() {
       return;
     }
 
-    // Check for duplicates
-    const nameTaken = locations.some(
-      loc => loc.name.trim().toLowerCase() === newLocationName.trim().toLowerCase()
-    );
-    const addressTaken = locations.some(
-      loc => loc.address.trim().toLowerCase() === newLocationAddress.trim().toLowerCase()
-    );
-
-    if (nameTaken) {
-      Alert.alert("Duplicate Name", "A location with this name already exists.");
-      return;
-    }
-    if (addressTaken) {
-      Alert.alert("Duplicate Address", "A location with this address already exists.");
-      return;
-    }
-
     try {
       const groupRef = doc(db, "groups", groupId);
+
+      if (editingLocation) {
+        await updateDoc(groupRef, {
+          savedLocations: arrayRemove(editingLocation)
+        });
+
+        setLocations(prev =>
+          prev.filter(
+            loc =>
+              loc.name !== editingLocation.name || loc.address !== editingLocation.address
+          )
+        );
+      } else {
+        const nameTaken = locations.some(
+          loc => loc.name.trim().toLowerCase() === newLocationName.trim().toLowerCase()
+        );
+        const addressTaken = locations.some(
+          loc => loc.address.trim().toLowerCase() === newLocationAddress.trim().toLowerCase()
+        );
+
+        if (nameTaken) {
+          Alert.alert("Duplicate Name", "A location with this name already exists.");
+          return;
+        }
+        if (addressTaken) {
+          Alert.alert("Duplicate Address", "A location with this address already exists.");
+          return;
+        }
+      }
+
+      const newLoc = {
+        name: newLocationName.trim(),
+        address: newLocationAddress.trim(),
+        createdBy: user.uid
+      };
+
       await updateDoc(groupRef, {
-        savedLocations: arrayUnion({
-          name: newLocationName,
-          address: newLocationAddress,
-          createdBy: user.uid,
-        }),
+        savedLocations: arrayUnion(newLoc)
       });
 
-      setLocations(prev => [
-        ...prev,
-        { name: newLocationName.trim(), address: newLocationAddress.trim(), createdBy: user.uid }
-      ]);
+      setLocations(prev => [...prev, newLoc]);
 
       setNewLocationName("");
       setNewLocationAddress("");
+      setEditingLocation(null);
       closeAddLocationSheet();
+
     } catch (error) {
       console.error("Error saving location:", error);
       Alert.alert("Error", "Could not save location.");
     }
   };
-
 
   //get group member locations
   const fetchMembers = useCallback(async () => {
@@ -154,6 +348,12 @@ export default function LocationScreen() {
 
       const groupData = groupSnap.data();
       const memberIds = groupData.members || [];
+      const savedLocations = groupData.savedLocations || [];
+
+      const normalizedSavedLocations = savedLocations.map(loc => ({
+        ...loc,
+        normalizedAddress: normalizeAddress(loc.address),
+      }));
 
       const memberData = [];
 
@@ -220,8 +420,17 @@ export default function LocationScreen() {
               console.warn("Reverse geocode failed:", e);
             }
 
-            // wait a second before the next request to respect rate limit
             await new Promise(res => setTimeout(res, 1000));
+          }
+
+          const normalizedMemberAddress = normalizeAddress(address);
+
+          const matchingLocation = normalizedSavedLocations.find(loc =>
+            compareAddresses(normalizedMemberAddress, loc.normalizedAddress)
+          );
+
+          if (matchingLocation) {
+            address = matchingLocation.name;
           }
         }
 
@@ -728,6 +937,7 @@ export default function LocationScreen() {
                             onPress={() => {
                               setNewLocationName(item.name);
                               setNewLocationAddress(item.address);
+                              setEditingLocation(item);
                               openAddLocationSheet();
                             }}
                           >
@@ -875,7 +1085,7 @@ export default function LocationScreen() {
               <TouchableOpacity
                 style={{
                   marginTop: 20,
-                  backgroundColor: "#ff4d4d",
+                  backgroundColor: "#ff2626ff",
                   paddingVertical: 12,
                   borderRadius: 10,
                   alignItems: "center",
