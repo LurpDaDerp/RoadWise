@@ -6,7 +6,7 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayRemove, arrayUnion }
 import { getHereKey } from "../utils/firestore";
 import { getAuth } from "firebase/auth";
 import { ThemeContext } from "../context/ThemeContext";
-import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetView, BottomSheetSectionList } from "@gorhom/bottom-sheet";
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -199,6 +199,7 @@ export default function LocationScreen() {
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
   const contentOpacity = useRef(new Animated.Value(0)).current;
+  const mapRef = useRef<MapView>(null);
 
   const bottomSheetRef = useRef(null);
   const snapPoints = useMemo(() => ["10%", "40%", "90%"], []);
@@ -515,7 +516,7 @@ export default function LocationScreen() {
 
       interval = setInterval(() => {
         fetchAndSetMembers();
-      }, 5000);
+      }, 10000);
 
       return () => {
         isActive = false; 
@@ -762,7 +763,7 @@ export default function LocationScreen() {
             style={styles.joinPanel}
           >
             <Text style={[styles.starttitle, { color: "#fff" }]}>
-             RoadCash Circles
+              RoadCash Groups
             </Text>
 
             <Text style={[styles.startsubtitle, { color: "#fff" }]}>
@@ -840,13 +841,13 @@ export default function LocationScreen() {
                 borderRadius: 10 
             }}
           >
-            <BottomSheetView>
               {initialLoad ? (
                 <View style={{ flex: 1, justifyContent: "center", alignItems: "center", height: 200 }}>
                   <ActivityIndicator size="medium" color={altTextColor} />
                 </View>
               ) : (
-              <SectionList
+              <BottomSheetSectionList
+                stickySectionHeadersEnabled={false} 
                 contentContainerStyle={{ paddingHorizontal: 24 }}
                 sections={[
                  {
@@ -910,6 +911,35 @@ export default function LocationScreen() {
                           )}
                         </View>
 
+                        {/* Jump-to-marker button */}
+                        {item.coords && (
+                          <TouchableOpacity
+                            onPress={() => {
+                              mapRef.current?.animateToRegion(
+                                {
+                                  latitude: item.coords.latitude,
+                                  longitude: item.coords.longitude,
+                                  latitudeDelta: 0.01,
+                                  longitudeDelta: 0.01,
+                                },
+                                500
+                              );
+                            }}
+                            style={{
+                              padding: 6,
+                              borderRadius: 20,
+                              backgroundColor: moduleBackground,
+                              marginLeft: 10,
+                            }}
+                          >
+                            <Ionicons
+                              name="location-outline"
+                              size={20}
+                              color={textColor}
+                            />
+                          </TouchableOpacity>
+                        )}
+
                       </View>
                     ),
                   },
@@ -933,6 +963,7 @@ export default function LocationScreen() {
                               backgroundColor: moduleBackground,
                               borderRadius: 8,
                               marginBottom: 8,
+                              minHeight: 70,
                             }}
                             onPress={() => {
                               setNewLocationName(item.name);
@@ -965,16 +996,16 @@ export default function LocationScreen() {
                   <Text style={[styles.title, { color: titleColor, marginTop: 10, marginBottom: 5 }]}>{groupName}</Text>
                 }
                 ListFooterComponent={
-                  <View style={{ marginTop: 20 }}>
+                  <View style={{ marginTop: 0 }}>
                     <TouchableOpacity
-                      style={[styles.button, { backgroundColor: buttonColor, marginTop: 10, width: "100%" }]}
+                      style={[styles.button, { backgroundColor: buttonColor, marginTop: 10, width: "100%", marginBottom: 40 }]}
                       onPress={openAddLocationSheet}
                     >
                       <Text style={styles.buttonText}>Add a Location</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.button, { backgroundColor: "#ff2929ff", width: "100%"  }]}
+                      style={[styles.button, { backgroundColor: "#ff2929ff", width: "100%", marginBottom: 20 }]}
                       onPress={confirmLeaveGroup}
                     >
                       <Text style={styles.buttonText}>Leave Group</Text>
@@ -984,7 +1015,6 @@ export default function LocationScreen() {
               />
               )}
 
-            </BottomSheetView>
           </BottomSheet>
           
         )}
