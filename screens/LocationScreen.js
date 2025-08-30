@@ -199,10 +199,10 @@ export default function LocationScreen() {
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
   const contentOpacity = useRef(new Animated.Value(0)).current;
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef(null);
 
   const bottomSheetRef = useRef(null);
-  const snapPoints = useMemo(() => ["10%", "40%", "90%"], []);
+  const snapPoints = useMemo(() => ["15%", "40%", "90%"], []);
 
   const { resolvedTheme } = useContext(ThemeContext);
   const isDark = resolvedTheme === "dark";
@@ -696,6 +696,7 @@ export default function LocationScreen() {
       <View style={styles.container}>
         {location && (
             <MapView
+              ref={mapRef}
                 style={styles.map}
                 initialRegion={{
                 latitude: location.latitude,
@@ -911,10 +912,10 @@ export default function LocationScreen() {
                           )}
                         </View>
 
-                        {/* Jump-to-marker button */}
                         {item.coords && (
                           <TouchableOpacity
                             onPress={() => {
+                              bottomSheetRef.current?.snapToIndex(0);
                               mapRef.current?.animateToRegion(
                                 {
                                   latitude: item.coords.latitude,
