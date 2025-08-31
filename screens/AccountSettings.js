@@ -159,6 +159,12 @@ export default function AccountSettings(route) {
     }
   };
 
+  useEffect(() => {
+    if (photoURL) {
+      setLoadingImage(true);
+    }
+  }, [photoURL]);
+
   if (loading) {
     return (
       <View style={styles.loading}>
@@ -173,26 +179,34 @@ export default function AccountSettings(route) {
       {/* Profile Picture */}
       <View style={styles.profileBox}>
         <TouchableOpacity onPress={pickImage}>
-          {photoURL ? (
-            <Image source={{ uri: photoURL }} style={styles.profileImage} />
-          ) : (
-            <View style={styles.profilePlaceholder}>
-              <Text style={styles.profileInitial}>
-                {username ? username[0].toUpperCase() : '?'}
-              </Text>
-            </View>
-          )}
-          {loadingImage && (
-            <View style={{
-              ...StyleSheet.absoluteFillObject,
-              backgroundColor: 'rgba(0,0,0,0.4)',
-              justifyContent: 'center',
-              alignItems: 'center',
-              borderRadius: 50
-            }}>
-              <ActivityIndicator size="medium" color="#fff" />
-            </View>
-          )}
+          <View>
+            {photoURL ? (
+              <Image
+                key={photoURL} 
+                source={{ uri: photoURL }}
+                style={styles.profileImage}
+                onLoadEnd={() => setLoadingImage(false)}
+              />
+            ) : (
+              <View style={styles.profilePlaceholder}>
+                <Text style={styles.profileInitial}>
+                  {username ? username[0].toUpperCase() : '?'}
+                </Text>
+              </View>
+            )}
+
+            {loadingImage && (
+              <View style={{
+                ...StyleSheet.absoluteFillObject,
+                backgroundColor: 'rgba(0,0,0,0.4)',
+                justifyContent: 'center',
+                alignItems: 'center',
+                borderRadius: 50
+              }}>
+                <ActivityIndicator size="medium" color="#fff" />
+              </View>
+            )}
+          </View>
         </TouchableOpacity>
         <Text style={[styles.infoLabel, {marginTop: 10, marginBottom: 0}]}>Tap to edit</Text>
       </View>

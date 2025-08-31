@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { getAuth } from 'firebase/auth';
+import { auth } from '../utils/firebase';
 
 import { ThemeContext } from '../context/ThemeContext';
 import { saveTrustedContacts, getTrustedContacts } from '../utils/firestore';
@@ -43,7 +43,7 @@ export default function GeneralSettings() {
   const inputTextColor = isDark ? '#fff' : '#000';
   const closeButtonColor = isDark? '#5e5e5eff' : '#c7c7c7ff';
 
-  const uid = getAuth().currentUser?.uid;
+  const uid = auth.currentUser?.uid;
 
   const formatPhoneNumber = (value) => {
   if (!value) return value;

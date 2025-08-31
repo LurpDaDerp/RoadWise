@@ -5,7 +5,7 @@
   },
   "build": {
     "development": {
-      "developmentClient": false,
+      "developmentClient": true,
       "distribution": "internal",
       "channel": "development"
     },
@@ -16,6 +16,11 @@
     "production": {
       "autoIncrement": true,
       "channel": "production"
+    },
+    "adhoc": {
+      "distribution": "internal",
+      "releaseChannel": "adhoc",
+      "autoIncrement": true
     }
   },
   "submit": {

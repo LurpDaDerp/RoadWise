@@ -16,17 +16,16 @@ import * as Location from 'expo-location';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAuth, signOut } from 'firebase/auth';
-import { getFirestore, doc, updateDoc, increment, setDoc } from 'firebase/firestore';
+import { auth } from '../utils/firebase';
+import { getFirestore, doc, updateDoc, increment, setDoc, getDoc } from 'firebase/firestore';
 import { saveTrustedContacts, getTrustedContacts, saveUserDrive, saveDriveMetrics, getHereKey, startDriving, stopDriving } from '../utils/firestore';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { useContext } from 'react';
 import { ThemeContext } from '../context/ThemeContext';
-import { useAudioPlayer } from 'expo-audio';
+import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import { scheduleDistractedNotification, scheduleFirstDistractedNotification, requestNotificationPermissions, scheduleBackgroundNotification } from '../utils/notifications';
 import { format } from 'date-fns';
-
 import { useDrive } from '../context/DriveContext';
 
 
@@ -85,7 +84,6 @@ function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
 
 
 export default function DriveScreen({ route }) {
-  const userRef = doc(db, "users", getAuth().currentUser.uid);
   const player = useAudioPlayer(audioSource);
   const navigation = useNavigation();
   const [pointsThisDrive, setPointsThisDrive] = useState(0);
@@ -107,7 +105,9 @@ export default function DriveScreen({ route }) {
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [trustedContacts, setTrustedContacts] = useState([]);
   const [HERE_API_KEY, setHereKey] = useState();
+  const hasStartedDriving = useRef(false);
 
+  const user = auth.currentUser;
 
   const speedRef = useRef(0);
   const speedingTimeoutRef = useRef(null);
@@ -126,7 +126,7 @@ export default function DriveScreen({ route }) {
 
   const DEFAULT_SPEED_LIMIT_MPH = 25;
   const DEFAULT_SPEED_LIMIT_KPH = DEFAULT_SPEED_LIMIT_MPH * 1.60934;
-  const DEFAULT_DELAY = 100;
+  const DEFAULT_DELAY = 1000;
   const speedThreshold = unit === 'kph' ? 16.0934 : 10;
 
   const { setDriveJustCompleted } = useDrive();
@@ -182,8 +182,6 @@ export default function DriveScreen({ route }) {
     if (driveFinalizedRef.current) return;
     driveFinalizedRef.current = true;
 
-    const user = getAuth().currentUser;
-
     stopDriving(user.uid);
     
     if (!user) return;
@@ -199,7 +197,6 @@ export default function DriveScreen({ route }) {
       points: pointsThisDrive,
       duration: Math.round(driveDurationMs / 1000),
       distracted: distractedCount,
-      points: pointsThisDrive,
       avgSpeed: speedSampleCount.current
         ? totalSpeedSum.current / speedSampleCount.current
         : 0,
@@ -222,16 +219,22 @@ export default function DriveScreen({ route }) {
       
 
     try {
-      const storedStreak = await AsyncStorage.getItem(`@drivingStreak_${user.uid}`);
-      const currentStreak = storedStreak ? parseInt(storedStreak) : 0;
-      
-      if (pointsThisDrive > 0/*  && droveLongEnough */) {
-        if (isDistracted.current) {
-          await AsyncStorage.setItem(`@drivingStreak_${user.uid}`, '0');
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      const currentStreak = userDocSnap.exists() && userDocSnap.data().drivingStreak
+        ? userDocSnap.data().drivingStreak
+        : 0;
+      if (pointsThisDrive > 0 /* && droveLongEnough */) {
+        let newStreak;
+        if (wasDistracted) {
+          newStreak = 0; 
         } else {
-          const newStreak = currentStreak + 1;
-          await AsyncStorage.setItem(`@drivingStreak_${user.uid}`, newStreak.toString());
+          newStreak = currentStreak + 1;
         }
+
+        await setDoc(userDocRef, { drivingStreak: newStreak }, { merge: true });
+        await AsyncStorage.setItem('@streakThisDrive', '1');
       }
     } catch (e) {
       console.warn('Failed to update drive streak:', e);
@@ -248,10 +251,16 @@ export default function DriveScreen({ route }) {
 
     await AsyncStorage.setItem('@pointsThisDrive', pointsThisDrive.toString());
     await AsyncStorage.setItem('@driveWasDistracted', isDistracted.current ? 'true' : 'false');
-    await AsyncStorage.setItem('@streakThisDrive', '1');
     
     setDriveJustCompleted(true);
   };
+
+  useEffect(() => {
+    if (!hasStartedDriving.current && speedRef.current >= speedThreshold) {
+      hasStartedDriving.current = true;
+      startDriving(user.uid);
+    }
+  }, [speedRef.current, user.uid]);
 
   //make calls within app 
   const callNumber = (phone) => {
@@ -275,9 +284,7 @@ export default function DriveScreen({ route }) {
   //load contacts
   useFocusEffect(
     React.useCallback(() => {
-      const uid = getAuth().currentUser?.uid;
-
-      startDriving(uid);
+      const uid = auth.currentUser?.uid;
 
       const loadContacts = async () => {
         const contacts = await getTrustedContacts(uid);
@@ -460,8 +467,8 @@ export default function DriveScreen({ route }) {
       locationSubscription.current = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
-          timeInterval: 2500,
-          distanceInterval: 25,
+          timeInterval: 1000,
+          distanceInterval: 10,
         },
         async (loc) => {
           if (!isAppActive.current) return;
@@ -551,7 +558,7 @@ export default function DriveScreen({ route }) {
     const effectiveSpeedLimit = Number(speedLimitRef.current ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));    
 
     if (currentSpeed > effectiveSpeedLimit * 1.5) {
-      pointTimer.current = null;
+      pointTimer.current = setTimeout(scheduleNextPoint, delay);
       return;
     }
 
@@ -564,7 +571,7 @@ export default function DriveScreen({ route }) {
       const latestEffectiveLimit = Number(speedLimitRef.current ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
 
       if (latestSpeed > latestEffectiveLimit * 1.5) {
-        pointTimer.current = null;
+        scheduleNextPoint();
         return;
       }
 
@@ -630,6 +637,13 @@ export default function DriveScreen({ route }) {
   const isSpeeding = Math.round(speed) > currentLimit * 1.25;
   const soundLoopIntervalRef = useRef(null);
 
+  useEffect(() => {
+    (async () => {
+      await setAudioModeAsync({
+        playsInSilentMode: true, 
+      });
+    })();
+  }, []);
 
   useEffect(() => {
     if (showSpeedingWarning && isSpeeding) {
@@ -644,7 +658,7 @@ export default function DriveScreen({ route }) {
             player.seekTo(0);
             player.play();
           }, 700); 
-        }, 5000);
+        }, 2500);
       }
     } else {
       clearTimeout(speedingTimeoutRef.current);
@@ -710,7 +724,7 @@ export default function DriveScreen({ route }) {
           <View style={[styles.modalContent, { backgroundColor: modalBackgroundColor }]} pointerEvents="auto">
             <Text style={[styles.modalTitle, { color: titleTextColor }]}>⚠️ You are Speeding!</Text>
             <Text style={[styles.modalText, { color: contentTextColor }]}>
-              Slow down to earn points.
+              Please slow down.
             </Text>
 
             <TouchableOpacity

@@ -1,7 +1,7 @@
 //LoginScreen.js
 import React, { useState, useEffect, useLayoutEffect, useContext } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Dimensions,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Dimensions, Keyboard, TouchableWithoutFeedback,
 } from 'react-native';
 import { auth } from '../utils/firebase';
 import {
@@ -84,6 +84,7 @@ export default function LoginScreen() {
   };
 
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
     <View style={styles.container}>
       <Text style={styles.title}>RoadCash Login</Text>
       <Text style={styles.subtitle}>Log in to access all features and redeem rewards!</Text>
@@ -127,6 +128,7 @@ export default function LoginScreen() {
         <Text style={styles.buttonText}>Sign Up</Text>
       </TouchableOpacity>
     </View>
+    </TouchableWithoutFeedback>
   );
 }
 

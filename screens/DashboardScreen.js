@@ -30,13 +30,15 @@ import { ThemeContext } from '../context/ThemeContext';
 import dashboardDark from '../assets/dashboard.png';
 import dashboardLight from '../assets/dashboardlight.png';
 
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 
 const firestore = getFirestore();
 
 const { width, height } = Dimensions.get('window');
 
 const getStorageKey = (uid) => `totalPoints_${uid}`;
+
+const db = getFirestore();
 
 const fireImages = {
   gray: require('../assets/streaks/gray.png'),
@@ -101,12 +103,15 @@ export default function DashboardScreen({ route }) {
   const [totalDrives, setTotalDrives] = React.useState(0);
 
   const [loading, setLoading] = useState(true);
+  const [loadingUserData, setLoadingUserData] = useState(true);
 
   const animatedPoints = useRef(new Animated.Value(0)).current;
   const [displayedPoints, setDisplayedPoints] = useState(0);
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const[snackbarColor, setSnackBarColor] = useState();
+
+  const [streak, setStreak] = useState(0);
   
   const backgroundColor = isDark ? '#161616ff' : '#fff';
   const titleColor = isDark ? '#fff' : '#000';
@@ -117,7 +122,6 @@ export default function DashboardScreen({ route }) {
   const buttonColor = isDark ? `rgba(108, 55, 255, 1)` : `rgba(99, 71, 255, 1)`;
   const snackbarBackgroundColor = isDark ? '#222' : '#fff';
   const snackbarTextColor = isDark ? '#fff' : '#555';
-  const [driveStreak, setDriveStreak] = useState(0);
 
   const confettiRef = useRef(null);
   const [confettiVisible, setConfettiVisible] = useState(false);
@@ -138,6 +142,7 @@ export default function DashboardScreen({ route }) {
 
       if (firebaseUser) {
         setUser(firebaseUser);
+        setLoadingUserData(true);
         const uid = firebaseUser.uid;
 
         try {
@@ -152,22 +157,20 @@ export default function DashboardScreen({ route }) {
             animatePoints(0, firestorePoints); 
           }
 
-          const docSnap = await getDoc(doc(firestore, 'users', uid));
-          setStreak(docSnap.exists() ? docSnap.data().drivingStreak || 0 : 0);
 
         } catch (e) {
           console.error('Error fetching data on auth change:', e);
           setTotalPoints(0);
           animatedPoints.setValue(0);
-          setStreak(0); 
         }
+
+        setLoadingUserData(false);
+
       } else {
         setUser(null);
         setTotalPoints(0);
         animatedPoints.setValue(0);
-
-        const stored = 0;
-        setStreak(stored);
+        setLoadingUserData(false);
       }
 
     });
@@ -359,52 +362,6 @@ export default function DashboardScreen({ route }) {
     }
   }, [route.params?.updatedPoints, user, animatePoints, displayedPoints, navigation]);
 
-  useFocusEffect(
-    useCallback(() => {
-      let isActive = true;
-
-      const syncStreak = async () => {
-        try {
-          const flag = await AsyncStorage.getItem('@streakThisDrive');
-          if (flag === '1' && isActive) {
-            let currentStreak = 0;
-
-            if (user) {
-              const userId = user?.uid;
-              const stored = await AsyncStorage.getItem(`@drivingStreak_${userId}`);
-              currentStreak = stored ? parseInt(stored, 10) : 0;
-
-              await saveUserStreak(user.uid, currentStreak);
-              setDriveStreak(currentStreak);
-
-            } else {
-              const stored = await AsyncStorage.getItem('drivingStreak');
-              currentStreak = stored ? parseInt(stored, 10) : 0;
-
-              const updatedStreak = currentStreak + 1;
-
-              await AsyncStorage.setItem('drivingStreak', updatedStreak.toString());
-              setDriveStreak(updatedStreak);
-            }
-
-            await AsyncStorage.removeItem('@streakThisDrive');
-          }
-        } catch (e) {
-          console.warn('Error syncing drive streak:', e);
-        }
-      };
-
-      syncStreak();
-
-      return () => {
-        isActive = false;
-      };
-    }, [user])
-  );
-
-
-
-  const [streak, setStreak] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -416,10 +373,10 @@ export default function DashboardScreen({ route }) {
           setStreak(0);
         }
       };
-      
       loadStreak();
     }, [user])
   );
+
 
   useEffect(() => {
     if (route.params?.showDriveCompleteSnackbar) {

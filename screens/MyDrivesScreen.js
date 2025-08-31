@@ -18,7 +18,7 @@ import { ThemeContext } from '../context/ThemeContext';
 
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { saveUserDrive, getUserDrives, clearUserDrives } from '../utils/firestore';
-import { getAuth } from 'firebase/auth';
+import { auth } from '../utils/firebase';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const firestore = getFirestore();
@@ -59,7 +59,7 @@ export default function MyDrivesScreen() {
   const [loading, setLoading] = useState(true);
 
   const loadDrives = async () => {
-    const user = getAuth().currentUser;
+    const user = auth.currentUser;
     const uid = user.uid;
     if (!user) return setDrives([]);
     const fetched = await getUserDrives(uid);
@@ -95,7 +95,7 @@ export default function MyDrivesScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const user = getAuth().currentUser;
+              const user = auth.currentUser;
               if (!user) {
                 console.warn('No user logged in, cannot clear drives.');
                 return;
@@ -164,7 +164,7 @@ export default function MyDrivesScreen() {
     <>
 
       <LinearGradient
-        colors={['#0d0c42ff', '#350847ff']}   // gray → black
+        colors={['#161616ff', '#0c0c0cff']}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={styles.background}
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    padding: width/25,
+    paddingVertical: width/25,
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   loading: {
@@ -231,8 +231,8 @@ const styles = StyleSheet.create({
   },
   list: {
     marginBottom: height/300,
-    padding: width/60,
-    backgroundColor: 'rgba(66, 66, 66, 0.5)',
+    padding: 24,
+    backgroundColor: 'rgba(66, 66, 66, 0)',
     borderRadius: 10,
   },
   title: {

@@ -14,6 +14,7 @@ import SegmentedControl from '@react-native-segmented-control/segmented-control'
 import { ThemeContext } from '../context/ThemeContext';
 import { getDriveMetrics, getAllDriveMetrics } from '../utils/firestore';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../utils/firebase';
 import { getAIFeedback } from '../utils/gptApi';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -154,6 +155,9 @@ export default function AIScreen({ route, navigation }) {
     totalDistance: 0,
   });
 
+  const [unit, setUnit] = useState('mph');
+  const metersToMiles = (m) => m * 0.000621371;
+
   const [feedbackLabel, setFeedbackLabel] = useState("✦");
 
   const [percentDistracted, setPercentDistracted] = useState(0);
@@ -172,6 +176,19 @@ export default function AIScreen({ route, navigation }) {
   const altTextColor = isDark ? '#aaa' : '#555';
   const chartLineColor = isDark ? `rgba(132, 87, 255, 0.5)` : `rgba(38, 0, 255, 0.5)`;
   const buttonColor = isDark ? `rgba(108, 55, 255, 1)` : `rgba(99, 71, 255, 1)`;
+
+  useFocusEffect(
+    React.useCallback(() => {
+      (async () => {
+        try {
+          const storedUnit = await AsyncStorage.getItem('@speedUnit');
+          if (storedUnit === 'mph' || storedUnit === 'kph') setUnit(storedUnit);
+        } catch (err) {
+          console.warn('⚠️ Failed to load settings:', err);
+        }
+      })();
+    }, [])
+  );
 
   useLayoutEffect(() => {
     navigation.getParent()?.setOptions({
@@ -227,9 +244,9 @@ export default function AIScreen({ route, navigation }) {
   };
 
 
+
   useEffect(() => {
-    const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, user => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) setUid(user.uid);
     });
     return () => unsubscribe();
@@ -290,6 +307,7 @@ export default function AIScreen({ route, navigation }) {
       const totalDrives = drivesToUse.length;
       const undistractedCountVal = totalDrives - distractedCountVal;
       const percent = totalDrives > 0 ? Math.round((distractedCountVal / totalDrives) * 10000) / 100 : 0;
+      totalDistance = metersToMiles(totalDistance);
 
       setStats({
         avgSpeedingMargin: totalDuration > 0 ? (totalSpeedingMargin / totalDuration).toFixed(1) : 0,

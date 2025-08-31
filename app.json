@@ -18,15 +18,32 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-chart-kit",
+          "react-native-confetti-cannon",
+          "cors",
+          "firebase",
+          "lodash.debounce",
+          "openai",
+          "prop-types"
+        ]
+      }
+    },
     "ios": {
       "supportsTablet": true,
+      "userInterfaceStyle": "automatic",
       "bundleIdentifier": "com.lurp.safedrive",
-      "config": {
-      },
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["location"]
+        "UIBackgroundModes": ["location"],
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": ["roadcash"]
+          }
+        ]
       }
     },
     "android": {
@@ -47,7 +64,10 @@
       "policy": "appVersion"
     },
     "plugins": [
-      "expo-audio"
+      "expo-audio",
+      "expo-apple-authentication",
+      "expo-location",
+      "expo-notifications"
     ]
   }
 }

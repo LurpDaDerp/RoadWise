@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useContext, useRef, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useContext, useRef, useMemo, useCallback, useLayoutEffect } from "react";
 import { StyleSheet, View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert, Dimensions, ScrollView, FlatList, Animated, Easing, SectionList, Keyboard, TouchableWithoutFeedback } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayRemove, arrayUnion } from "firebase/firestore";
 import { getHereKey } from "../utils/firestore";
-import { getAuth } from "firebase/auth";
+import { auth } from '../utils/firebase';
 import { ThemeContext } from "../context/ThemeContext";
 import BottomSheet, { BottomSheetView, BottomSheetSectionList } from "@gorhom/bottom-sheet";
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from "react-native";
+import { add } from "date-fns";
 
 const db = getFirestore();
 const { width, height } = Dimensions.get('window');
@@ -184,6 +185,21 @@ function compareAddresses(addr1, addr2, threshold = 0.7) {
 }
 
 export default function LocationScreen() {
+
+  useLayoutEffect(() => {
+    navigation.getParent()?.setOptions({
+      tabBarStyle: { display: 'none' },
+    });
+
+    return () => {
+      navigation.getParent()?.setOptions({
+        tabBarStyle: {
+          display: 'flex',
+        },
+      });
+    };
+  }, [navigation]);
+
   const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [groupId, setGroupId] = useState(null);
@@ -200,6 +216,7 @@ export default function LocationScreen() {
   const [initialLoad, setInitialLoad] = useState(true);
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const mapRef = useRef(null);
+  const lastFetchTimes = useRef({});
 
   const bottomSheetRef = useRef(null);
   const snapPoints = useMemo(() => ["15%", "40%", "90%"], []);
@@ -209,13 +226,14 @@ export default function LocationScreen() {
 
   const backgroundColor = isDark ? "#070707cc" : "#ffffffcc";
   const bottomSheetBackground = isDark ? "#131313ff" : "#ffffff"; 
-  const moduleBackground = isDark ? '#2c2c2cff' : '#eeeeeeff';
+  const moduleBackground = isDark ? '#2c2c2cff' : '#ddddddff';
   const titleColor = isDark ? "#fff" : "#000";
   const textColor = isDark ? "#fff" : "#000";
   const altTextColor = isDark ? '#aaa' : '#555';
   const buttonColor = isDark ? `rgba(92, 179, 238, 1)` : `rgba(69, 146, 235, 1)`;
+  const sheetGradientTop = isDark ? "#1f1f1fe1" : "#e7e7e7cc"; 
+  const sheetGradientBottom = isDark ? "#0d061be1" : "#d3b8ffd0"; 
 
-  const auth = getAuth();
   const user = auth.currentUser;
 
   const [newLocationName, setNewLocationName] = useState("");
@@ -366,72 +384,80 @@ export default function LocationScreen() {
         if (!userSnap.exists()) continue;
 
         const data = userSnap.data();
-        let address = "Unknown location";
-
-        const savedLocations = groupData.savedLocations || [];
-
+        let cached = await AsyncStorage.getItem(`addr_${uid}_${data.location?.latitude?.toFixed(4)}_${data.location?.longitude?.toFixed(4)}`);
+        let address = cached || "Unknown location";
         for (let loc of savedLocations) {
-          if (address.includes(loc.address.split(",")[0])) { 
-            addressLabel = loc.name;
+          if (compareAddresses(normalizeAddress(address), normalizeAddress(loc.address))) { 
+            address = loc.name;
             break;
           }
         }
 
         if (data.location) {
+          const speed = data.location.speed || 0;
           // Round coordinates to 4 decimal places (10 meter ish)
+          
           const lat = data.location.latitude.toFixed(4);
           const lon = data.location.longitude.toFixed(4);
           const cacheKey = `addr_${uid}_${lat}_${lon}`;
 
-          //check cache for address
-          const cached = await AsyncStorage.getItem(cacheKey);
-          if (cached) {
-            address = cached;
-          } else {
-            try {
-              const response = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
-                {
-                  headers: {
-                    "User-Agent": "RoadCash/1.0 (lurpdaderp@gmail.com)",
-                    "Accept": "application/json",
-                  },
-                }
-              );
+          const now = Date.now();
+          const lastFetch = lastFetchTimes.current[uid] || 0;
 
-              if (response.ok) {
-                const result = await response.json();
-                if (result && result.address) {
-                  const { road, house_number, city, town, village, state, country } = result.address;
-                  const addrParts = [
-                    house_number ? house_number + " " : "",
-                    road || "",
-                    city || town || village || state || "",
-                    country || "",
-                  ].filter(Boolean);
-                  address = addrParts.join(", ");
-                }
+          if (speed > 5 || now - lastFetch > 30000) {
 
-                // Save grid location and reverse geocode result to cache
-                await AsyncStorage.setItem(cacheKey, address);
-              } else {
-                console.warn("Nominatim error:", response.status, response.statusText);
+            lastFetchTimes.current[uid] = now;
+
+            //check cache for address
+            const cached = await AsyncStorage.getItem(cacheKey);
+            if (cached) {
+              address = cached;
+            } else {
+              try {
+                const response = await fetch(
+                  `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
+                  {
+                    headers: {
+                      "User-Agent": "RoadCash/1.0 (lurpdaderp@gmail.com)",
+                      "Accept": "application/json",
+                    },
+                  }
+                );
+
+                if (response.ok) {
+                  const result = await response.json();
+                  if (result && result.address) {
+                    const { road, house_number, city, town, village, state, country } = result.address;
+                    const addrParts = [
+                      house_number ? house_number + " " : "",
+                      road || "",
+                      city || town || village || state || "",
+                      country || "",
+                    ].filter(Boolean);
+                    address = addrParts.join(", ");
+                  }
+
+                  // Save grid location and reverse geocode result to cache
+                  await AsyncStorage.setItem(cacheKey, address);
+                } else {
+                  console.warn("Nominatim error:", response.status, response.statusText);
+                }
+              } catch (e) {
+                console.warn("Reverse geocode failed:", e);
               }
-            } catch (e) {
-              console.warn("Reverse geocode failed:", e);
+
+              await new Promise(res => setTimeout(res, 1000));
             }
 
-            await new Promise(res => setTimeout(res, 1000));
-          }
+            const normalizedMemberAddress = normalizeAddress(address);
 
-          const normalizedMemberAddress = normalizeAddress(address);
+            const matchingLocation = normalizedSavedLocations.find(loc =>
+              compareAddresses(normalizedMemberAddress, loc.normalizedAddress)
+            );
 
-          const matchingLocation = normalizedSavedLocations.find(loc =>
-            compareAddresses(normalizedMemberAddress, loc.normalizedAddress)
-          );
-
-          if (matchingLocation) {
-            address = matchingLocation.name;
+            if (matchingLocation) {
+              address = matchingLocation.name;
+            }
           }
         }
 
@@ -681,6 +707,18 @@ export default function LocationScreen() {
   const nameInputRef = useRef(null);
   const addressInputRef = useRef(null);
 
+  const background = (props) => {
+    return (
+      <LinearGradient
+        colors={[sheetGradientTop, sheetGradientBottom]}
+        style={[
+          { flex: 1, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+          props.style,
+        ]}
+      />
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -834,7 +872,7 @@ export default function LocationScreen() {
             ref={bottomSheetRef}
             index={1} 
             snapPoints={snapPoints}
-            backgroundStyle={{ backgroundColor }}
+            backgroundComponent={background}
             handleIndicatorStyle={{ backgroundColor: altTextColor }}
             handleStyle={{ 
                 height: 40, 

@@ -18,7 +18,7 @@ import {
   orderBy,
   limit,
 } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { auth } from '../utils/firebase';
 import { db } from '../utils/firebase';
 import { ImageBackground } from 'expo-image';
 import Svg, { Text as SvgText, TextPath, Defs, Path } from 'react-native-svg';
@@ -91,7 +91,6 @@ export default function LeaderboardScreen() {
   useEffect(() => {
     const fetchLeaderboard = async () => {
       try {
-        const auth = getAuth();
         const currentUser = auth.currentUser;
         const currentUid = currentUser?.uid || null;
         setCurrentUserId(currentUid);
