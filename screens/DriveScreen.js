@@ -27,6 +27,7 @@ import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import { scheduleDistractedNotification, scheduleFirstDistractedNotification, requestNotificationPermissions, scheduleBackgroundNotification } from '../utils/notifications';
 import { format } from 'date-fns';
 import { useDrive } from '../context/DriveContext';
+import * as Speech from 'expo-speech';
 
 
 const db = getFirestore();
@@ -97,6 +98,7 @@ export default function DriveScreen({ route }) {
   const [showCurrentSpeed, setShowCurrentSpeed] = useState(true);
   const [showSpeedLimit, setShowSpeedLimit] = useState(true);
   const speedLimitRef = useRef(speedLimit);
+  const prevLimitRef = useRef(null);
   const [displayTotalPoints, setDisplayTotalPoints] = useState(false);
   const [displayedPoints, setDisplayedPoints] = useState(0);
   const [startingPoints, setStartingPoints] = useState(route.params?.totalPoints ?? 0);
@@ -106,6 +108,7 @@ export default function DriveScreen({ route }) {
   const [trustedContacts, setTrustedContacts] = useState([]);
   const [HERE_API_KEY, setHereKey] = useState();
   const hasStartedDriving = useRef(false);
+  const [audioSpeedUpdatesEnabled, setAudioSpeedUpdatesEnabled] = useState(true);
 
   const user = auth.currentUser;
 
@@ -326,6 +329,7 @@ export default function DriveScreen({ route }) {
           const storedShowSpeedLimit = await AsyncStorage.getItem('@showSpeedLimit');
           const storedDisplayMode = await AsyncStorage.getItem('@displayTotalPoints');
           const storedDistracted = await AsyncStorage.getItem('@distractedNotificationsEnabled');
+          const storedAudioSpeedUpdates = await AsyncStorage.getItem('@audioSpeedUpdatesEnabled');
 
           if (storedUnit === 'mph' || storedUnit === 'kph') setUnit(storedUnit);
           if (storedWarnings !== null) setShowSpeedingWarning(storedWarnings === 'true');
@@ -333,6 +337,7 @@ export default function DriveScreen({ route }) {
           if (storedShowSpeedLimit !== null) setShowSpeedLimit(storedShowSpeedLimit === 'true');
           if (storedDisplayMode !== null) setDisplayTotalPoints(storedDisplayMode === 'true');
           if (storedDistracted !== null) setDistractedNotificationsEnabled(storedDistracted === 'true');
+          if (storedAudioSpeedUpdates !== null) setAudioSpeedUpdatesEnabled(storedAudioSpeedUpdates === 'true');
         } catch (err) {
           console.warn('⚠️ Failed to load settings:', err);
         }
@@ -551,6 +556,21 @@ export default function DriveScreen({ route }) {
       stopPointEarning();
     };
   }, [unit, HERE_API_KEY]);
+  
+  //audio update if changing speed limits
+  useEffect(() => {
+    if (!audioSpeedUpdatesEnabled) return;
+
+    if (speedLimit != null && speedLimit !== prevLimitRef.current) {
+      Speech.stop();
+      Speech.speak(`Speed limit is now ${speedLimit}`, {
+        language: "en",
+        pitch: 0.8,
+        rate: 0.8,
+      });
+      prevLimitRef.current = speedLimit;
+    }
+  }, [speedLimit, audioSpeedUpdatesEnabled]);
 
   //increment points based on speed
   const scheduleNextPoint = () => {

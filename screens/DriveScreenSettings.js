@@ -14,6 +14,7 @@ const STORAGE_KEYS = {
   showSpeedLimit: '@showSpeedLimit',
   displayTotalPoints: '@displayTotalPoints',
   distractedNotificationsEnabled: '@distractedNotificationsEnabled',
+  audioSpeedUpdatesEnabled: '@audioSpeedUpdatesEnabled',
 };
 
 export default function DriveScreenSettings() {
@@ -23,6 +24,7 @@ export default function DriveScreenSettings() {
   const [showSpeedLimit, setShowSpeedLimit] = useState(true);
   const [displayTotalPoints, setDisplayTotalPoints] = useState(false);
   const [distractedNotificationsEnabled, setDistractedNotificationsEnabled] = useState(true);
+  const [audioSpeedUpdatesEnabled, setAudioSpeedUpdatesEnabled] = useState(true);
   useEffect(() => {
     (async () => {
       try {
@@ -43,6 +45,9 @@ export default function DriveScreenSettings() {
 
         const storedDistracted = await AsyncStorage.getItem(STORAGE_KEYS.distractedNotificationsEnabled);
         if (storedDistracted !== null) setDistractedNotificationsEnabled(storedDistracted === 'true');
+
+        const storedAudioSpeedUpdates = await AsyncStorage.getItem(STORAGE_KEYS.audioSpeedUpdatesEnabled);
+        if (storedAudioSpeedUpdates !== null) setAudioSpeedUpdatesEnabled(storedAudioSpeedUpdates === 'true');
 
       } catch (e) {
         console.warn('⚠️ Failed to load settings:', e);
@@ -105,6 +110,19 @@ export default function DriveScreenSettings() {
             onValueChange={toggleShowSpeedLimit}
             trackColor={{ false: '#767577', true: '#86ff7d' }}
             thumbColor={showCurrentSpeed ? '#ffffff' : '#f4f3f4'}
+          />
+        </View>
+
+        <View style={styles.settingRowToggle}>
+          <Text style={styles.settingLabel}>Audio Speed Limit Updates</Text>
+          <Switch
+            value={audioSpeedUpdatesEnabled}
+            onValueChange={async (value) => {
+              setAudioSpeedUpdatesEnabled(value);
+              await AsyncStorage.setItem(STORAGE_KEYS.audioSpeedUpdatesEnabled, value.toString());
+            }}
+            trackColor={{ false: '#767577', true: '#86ff7d' }}
+            thumbColor={audioSpeedUpdatesEnabled ? '#ffffff' : '#f4f3f4'}
           />
         </View>
 
