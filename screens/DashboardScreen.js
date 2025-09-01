@@ -113,10 +113,10 @@ export default function DashboardScreen({ route }) {
 
   const [streak, setStreak] = useState(0);
   
-  const backgroundColor = isDark ? '#161616ff' : '#fff';
+  const backgroundColor = isDark ? '#131313ff' : '#fff';
   const titleColor = isDark ? '#fff' : '#000';
   const textColor = isDark ? '#fff' : '#000';
-  const moduleBackground = isDark ? '#333' : '#ebebebff';
+  const moduleBackground = isDark ? '#222' : '#ebebebff';
   const altTextColor = isDark ? '#aaa' : '#555';
   const textOutline = isDark? 'rgba(255, 255, 255, 0.47)' : '#0000008e';
   const buttonColor = isDark ? `rgba(108, 55, 255, 1)` : `rgba(99, 71, 255, 1)`;
@@ -791,7 +791,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     backgroundColor: 'rgba(255, 255, 255, 0)',
     position: 'relative',
-    height: 75, 
+    height: 65, 
   },
   heatBarContainer: {
     height: 50,
@@ -879,6 +879,9 @@ const styles = StyleSheet.create({
   driveButtonText: {
     fontSize: 24,
     fontWeight: 'bold',
+    textShadowColor: '#000',
+    textShadowRadius: 2,
+    textShadowOffset: { width: 0, height: 0 },
   },
   aiButtonText: {
     fontSize: 18,

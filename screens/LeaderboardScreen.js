@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useContext } from 'react';
 import {
   View,
   Text,
@@ -22,9 +22,10 @@ import { auth } from '../utils/firebase';
 import { db } from '../utils/firebase';
 import { ImageBackground } from 'expo-image';
 import Svg, { Text as SvgText, TextPath, Defs, Path } from 'react-native-svg';
-import { BlurView } from 'expo-blur';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { ThemeContext } from '../context/ThemeContext';
+import { LinearGradient } from 'expo-linear-gradient';
+
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const scale = screenWidth / 375;
@@ -69,6 +70,19 @@ export default function LeaderboardScreen() {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [currentUserPlacement, setCurrentUserPlacement] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const { resolvedTheme } = useContext(ThemeContext);
+  const isDark = resolvedTheme === "dark";
+
+  const backgroundColor = isDark ? "#070707cc" : "#ffffffcc";
+  const bottomSheetBackground = isDark ? "#131313ff" : "#ffffff"; 
+  const moduleBackground = isDark ? '#2c2c2cff' : '#ddddddff';
+  const titleColor = isDark ? "#fff" : "#000";
+  const textColor = isDark ? "#fff" : "#000";
+  const altTextColor = isDark ? '#aaa' : '#555';
+  const buttonColor = isDark ? `rgba(92, 179, 238, 1)` : `rgba(69, 146, 235, 1)`;
+  const sheetGradientTop = isDark ? "#380864ff" : "#cab6ffff"; 
+  const sheetGradientBottom = isDark ? "#070222ff" : "#fffccfff"; 
 
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
@@ -158,13 +172,11 @@ export default function LeaderboardScreen() {
 
   return (
     
-    <ImageBackground
-      source={require('../assets/leaderboardback.jpg')}
+    <LinearGradient
+      colors={[sheetGradientTop, sheetGradientBottom]}
       style={styles.background}
-      contentFit="cover"
     >
       <Animated.View style={[styles.fadeIn, { opacity: contentOpacity }]}>
-      <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
       <View style={styles.overlay}>
         <View style={styles.ribbonContainer}>
           <Image
@@ -208,19 +220,19 @@ export default function LeaderboardScreen() {
                   </View>
 
                   <View style={{ width: width/10, alignItems: 'flex-end', paddingRight: 5 }}>
-                    <Text style={[styles.name, isCurrentUser && styles.currentUserText]}>
+                    <Text style={[styles.name, {color: textColor}, isCurrentUser && styles.currentUserText]}>
                       {index + 1}.
                     </Text>
                   </View>
 
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.name, isCurrentUser && styles.currentUserText]}>
+                    <Text style={[styles.name, {color: textColor}, isCurrentUser && styles.currentUserText]}>
                       {user ? user.name : 'N/A'}
                     </Text>
                   </View>
 
                   <View style={{ minWidth: width/8, alignItems: 'flex-end' }}>
-                    <Text style={[styles.points, isCurrentUser && styles.currentUserText]}>
+                    <Text style={[styles.points, {color: textColor}, isCurrentUser && styles.currentUserText]}>
                       {user ? user.points : ''}
                     </Text>
                   </View>
@@ -250,7 +262,7 @@ export default function LeaderboardScreen() {
         )}
       </View>
       </Animated.View>
-    </ImageBackground>
+    </LinearGradient>
   );
 }
 
@@ -259,7 +271,7 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     padding: width/25,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0)',
     overflow: 'visible',
   },
   fadeIn: {
@@ -292,8 +304,8 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   leaderboardContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',  
-    borderColor: '#ffffffff',  
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',  
+    borderColor: 'rgba(255, 255, 255, 0)',  
     borderWidth: 2,
     borderRadius: width/20,
     paddingTop: height/12,
@@ -305,29 +317,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 12,
-    paddingRight: width/15,
+    paddingRight: width/20,
     paddingLeft: width/20,
     borderBottomWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-    width: '100%', 
+    width: '90%', 
+    alignSelf: "center"
   },
   name: {
     fontSize: 18,
-    color: 'white',
   },
   points: {
     fontSize: 18,
-    color: 'white',
     fontFamily: 'Arial Rounded MT Bold',
   },
   currentUserRow: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    borderColor: '#daa700ff',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderColor: '#00da12ff',
     borderWidth: 2,
     borderRadius: 20,
     paddingHorizontal: width/15,
   },
   currentUserText: {
-    color: '#ffe883ff',
+    color: '#00ff15ff',
   },
 });

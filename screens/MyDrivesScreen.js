@@ -47,12 +47,14 @@ export default function MyDrivesScreen() {
   const LOAD_BATCH = 10; 
   const [visibleCount, setVisibleCount] = useState(LOAD_BATCH);
 
-  const itemBackground = isDark ? '#222' : '#fff';
+  const titleColor = isDark ? "#fff" : "#000";
   const dateColor = isDark ? '#fff' : '#000';
   const detailColor = isDark ? '#aaa' : '#555';
   const distractedColor = '#cc0000';
   const focusedColor = isDark ? 'lightgreen' : 'green';
-  const closeButtonColor = isDark? '#5e5e5eff' : '#929292ff';
+  const moduleBackground = isDark ? '#2c2c2cff' : '#e6e6e6ff';
+  const sheetGradientTop = isDark ? "#380864ff" : "#cab6ffff"; 
+  const sheetGradientBottom = isDark ? "#070222ff" : "#f1f1f1ff"; 
 
   const customFadeAnim = useRef(new Animated.Value(0)).current;
   
@@ -126,7 +128,7 @@ export default function MyDrivesScreen() {
   }
 
   const renderItem = ({ item }) => (
-    <View style={[styles.item, { backgroundColor: itemBackground }]}>
+    <View style={[styles.item, { backgroundColor: moduleBackground }]}>
       <Text style={[styles.date, { color: dateColor }]}>
         {new Date(item.timestamp).toLocaleString(undefined, {
           year: 'numeric',
@@ -164,13 +166,13 @@ export default function MyDrivesScreen() {
     <>
 
       <LinearGradient
-        colors={['#161616ff', '#0c0c0cff']}
+        colors={[sheetGradientBottom, sheetGradientTop]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={styles.background}
       >
         <View style={styles.overlay}>
-          <Text style={styles.title}>My Drives</Text>
+          <Text style={[styles.title, {color: titleColor}]}>My Drives</Text>
 
           <FlatList
             style={styles.list}
@@ -184,7 +186,7 @@ export default function MyDrivesScreen() {
                   style={[
                     styles.loadMoreButton,
                     {
-                      backgroundColor: '#ffffff18',
+                      backgroundColor: '#d3d3d323',
                       marginBottom: 20,
                       marginTop: 10,
                       paddingHorizontal: 90,
@@ -215,14 +217,14 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    paddingVertical: width/25,
+    paddingTop: width/25,
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   loading: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#111',  
+    backgroundColor: '#111',
   },
   statsButton: {
     position: 'absolute',
@@ -232,13 +234,11 @@ const styles = StyleSheet.create({
   list: {
     marginBottom: height/300,
     padding: 24,
-    backgroundColor: 'rgba(66, 66, 66, 0)',
     borderRadius: 10,
   },
   title: {
     fontSize: width/12,
     fontWeight: 'bold',
-    color: '#fff',
     marginTop: height/25,
     marginBottom: height/24,
     alignSelf: 'center',
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   loadMoreButton: {
-    backgroundColor: '#cc3333',
+    width: "100%",
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -288,6 +288,7 @@ const styles = StyleSheet.create({
   },
   loadMoreButtonText: {
     color: '#fff',
-    fontSize: 16
+    fontSize: 16,
+    alignSelf: "center"
   }
 });

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
-  View, Text, StyleSheet, Dimensions, ImageBackground, TouchableOpacity, Switch,
+  View, Text, StyleSheet, Dimensions, Switch, ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
+import { ThemeContext } from '../context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -18,6 +19,15 @@ const STORAGE_KEYS = {
 };
 
 export default function DriveScreenSettings() {
+  const { resolvedTheme } = useContext(ThemeContext);
+  const isDark = resolvedTheme === 'dark';
+
+  const backgroundColor = isDark ? '#0e0e0eff' : '#fff';
+  const titleColor = isDark ? '#fff' : '#000';
+  const textColor = isDark ? '#fff' : '#000';
+  const moduleBackground = isDark ? '#222' : '#ebebebff';
+  const altTextColor = isDark ? '#aaa' : '#555';
+
   const [speedUnit, setSpeedUnit] = useState('mph');
   const [warningsEnabled, setWarningsEnabled] = useState(true);
   const [showCurrentSpeed, setShowCurrentSpeed] = useState(true);
@@ -25,6 +35,7 @@ export default function DriveScreenSettings() {
   const [displayTotalPoints, setDisplayTotalPoints] = useState(false);
   const [distractedNotificationsEnabled, setDistractedNotificationsEnabled] = useState(true);
   const [audioSpeedUpdatesEnabled, setAudioSpeedUpdatesEnabled] = useState(true);
+
   useEffect(() => {
     (async () => {
       try {
@@ -61,30 +72,13 @@ export default function DriveScreenSettings() {
     await AsyncStorage.setItem(STORAGE_KEYS.speedUnit, value);
   };
 
-  const onWarningsToggle = async (index) => {
-    const enabled = index === 0;
-    setWarningsEnabled(enabled);
-    await AsyncStorage.setItem(STORAGE_KEYS.warningsEnabled, enabled.toString());
-  };
-
-  const toggleShowCurrentSpeed = async (value) => {
-    setShowCurrentSpeed(value);
-    await AsyncStorage.setItem(STORAGE_KEYS.showCurrentSpeed, value.toString());
-  };
-
-  const toggleShowSpeedLimit = async (value) => {
-    setShowSpeedLimit(value);
-    await AsyncStorage.setItem(STORAGE_KEYS.showSpeedLimit, value.toString());
-  };
-
   return (
-    <ImageBackground source={require('../assets/settingsback.jpg')} style={styles.background} resizeMode="cover">
-      <View style={styles.overlay}>
-
-        <Text style={styles.title}>Drive Screen</Text>
+    <ScrollView style={[styles.background, { backgroundColor }]}>
+      <View style={[styles.overlay, { backgroundColor }]}>
+        <Text style={[styles.title, { color: titleColor }]}>Drive Settings</Text>
 
         <View style={styles.settingRow}>
-          <Text style={styles.settingLabel}>Speed Units</Text>
+          <Text style={[styles.settingLabel, { color: textColor }]}>Speed Units</Text>
           <SegmentedControl
             values={['MPH', 'KPH']}
             selectedIndex={speedUnit === 'mph' ? 0 : 1}
@@ -93,81 +87,30 @@ export default function DriveScreenSettings() {
           />
         </View>
 
-        <View style={styles.settingRowToggle}>
-          <Text style={styles.settingLabel}>Show Current Speed</Text>
-          <Switch
-            value={showCurrentSpeed}
-            onValueChange={toggleShowCurrentSpeed}
-            trackColor={{ false: '#767577', true: '#86ff7d' }}
-            thumbColor={showCurrentSpeed ? '#ffffff' : '#f4f3f4'}
-          />
-        </View>
-
-        <View style={styles.settingRowToggle}>
-          <Text style={styles.settingLabel}>Show Speed Limit</Text>
-          <Switch
-            value={showSpeedLimit}
-            onValueChange={toggleShowSpeedLimit}
-            trackColor={{ false: '#767577', true: '#86ff7d' }}
-            thumbColor={showCurrentSpeed ? '#ffffff' : '#f4f3f4'}
-          />
-        </View>
-
-        <View style={styles.settingRowToggle}>
-          <Text style={styles.settingLabel}>Audio Speed Limit Updates</Text>
-          <Switch
-            value={audioSpeedUpdatesEnabled}
-            onValueChange={async (value) => {
-              setAudioSpeedUpdatesEnabled(value);
-              await AsyncStorage.setItem(STORAGE_KEYS.audioSpeedUpdatesEnabled, value.toString());
-            }}
-            trackColor={{ false: '#767577', true: '#86ff7d' }}
-            thumbColor={audioSpeedUpdatesEnabled ? '#ffffff' : '#f4f3f4'}
-          />
-        </View>
-
-        <View style={styles.settingRowToggle}>
-            <Text style={styles.settingLabel}>Speeding Warnings</Text>
+        {[
+          { label: 'Show Current Speed', state: showCurrentSpeed, setter: (v) => setShowCurrentSpeed(v), key: STORAGE_KEYS.showCurrentSpeed },
+          { label: 'Show Speed Limit', state: showSpeedLimit, setter: (v) => setShowSpeedLimit(v), key: STORAGE_KEYS.showSpeedLimit },
+          { label: 'Audio Speed Limit Updates', state: audioSpeedUpdatesEnabled, setter: (v) => setAudioSpeedUpdatesEnabled(v), key: STORAGE_KEYS.audioSpeedUpdatesEnabled },
+          { label: 'Speeding Warnings', state: warningsEnabled, setter: (v) => setWarningsEnabled(v), key: STORAGE_KEYS.warningsEnabled },
+          { label: 'Distracted Notifications', state: distractedNotificationsEnabled, setter: (v) => setDistractedNotificationsEnabled(v), key: STORAGE_KEYS.distractedNotificationsEnabled },
+          { label: 'Show Total Points', state: displayTotalPoints, setter: (v) => setDisplayTotalPoints(v), key: STORAGE_KEYS.displayTotalPoints },
+        ].map(({ label, state, setter, key }) => (
+          <View key={label} style={styles.settingRowToggle}>
+            <Text style={[styles.settingLabel, { color: textColor }]}>{label}</Text>
             <Switch
-                value={warningsEnabled}
-                onValueChange={async (value) => {
-                setWarningsEnabled(value);
-                await AsyncStorage.setItem(STORAGE_KEYS.warningsEnabled, value.toString());
-                }}
-                trackColor={{ false: '#767577', true: '#86ff7d' }}
-                thumbColor={showCurrentSpeed ? '#ffffff' : '#f4f3f4'}
+              value={state}
+              onValueChange={async (value) => {
+                setter(value);
+                await AsyncStorage.setItem(key, value.toString());
+              }}
+              trackColor={{ false: '#767577', true: '#86ff7d' }}
+              thumbColor={state ? '#ffffff' : '#f4f3f4'}
             />
-        </View>
-
-        <View style={styles.settingRowToggle}>
-          <Text style={styles.settingLabel}>Distracted Notifications</Text>
-          <Switch
-            value={distractedNotificationsEnabled}
-            onValueChange={async (value) => {
-              setDistractedNotificationsEnabled(value);
-              await AsyncStorage.setItem(STORAGE_KEYS.distractedNotificationsEnabled, value.toString());
-            }}
-            trackColor={{ false: '#767577', true: '#86ff7d' }}
-            thumbColor={distractedNotificationsEnabled ? '#ffffff' : '#f4f3f4'}
-          />
-        </View>
-        
-        <View style={styles.settingRowToggle}>
-          <Text style={styles.settingLabel}>Show Total Points</Text>
-          <Switch
-            value={displayTotalPoints}
-            onValueChange={async (value) => {
-              setDisplayTotalPoints(value);
-              await AsyncStorage.setItem(STORAGE_KEYS.displayTotalPoints, value.toString());
-            }}
-            trackColor={{ false: '#767577', true: '#86ff7d' }}
-            thumbColor={displayTotalPoints ? '#ffffff' : '#f4f3f4'}
-          />
-        </View>
-
+          </View>
+        ))}
 
       </View>
-    </ImageBackground>
+    </ScrollView>
   );
 }
 
@@ -178,17 +121,10 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     padding: width / (375 / 24),
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-  },
-  menuButton: {
-    position: 'absolute',
-    top: height / (667 / 70),
-    left: width / (375 / 20),
   },
   title: {
     fontSize: width / (375 / 32),
     fontWeight: 'bold',
-    color: '#fff',
     marginTop: height / (667 / 60),
     marginBottom: height / (667 / 32),
     alignSelf: 'center',
@@ -205,7 +141,6 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: width / (375 / 16),
     marginBottom: 12,
-    color: '#fff',
   },
   segmentedControl: {
     height: 40,

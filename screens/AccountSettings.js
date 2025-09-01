@@ -20,7 +20,7 @@ import { getUserPoints, saveUserPoints } from '../utils/firestore';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { query, where, getDocs, collection } from 'firebase/firestore';
-import { ThemeContext } from '@react-navigation/native';
+import { ThemeContext } from '../context/ThemeContext';
 import { supabase } from '../utils/supabase';
 import { tabNavRef } from '../App';
 
@@ -44,15 +44,12 @@ export default function AccountSettings(route) {
   const { resolvedTheme } = useContext(ThemeContext);
   const isDark = resolvedTheme === 'dark';
   
-  const backgroundColor = isDark ? '#161616ff' : '#fff';
+  const backgroundColor = isDark ? '#0e0e0eff' : '#fff';
   const titleColor = isDark ? '#fff' : '#000';
   const textColor = isDark ? '#fff' : '#000';
-  const moduleBackground = isDark ? '#333' : '#ebebebff';
+  const moduleBackground = isDark ? '#222' : '#ebebebff';
   const altTextColor = isDark ? '#aaa' : '#555';
-  const textOutline = isDark? 'rgba(255, 255, 255, 0.47)' : '#0000008e';
-  const buttonColor = isDark ? `rgba(108, 55, 255, 1)` : `rgba(99, 71, 255, 1)`;
-  const snackbarBackgroundColor = isDark ? '#222' : '#fff';
-  const snackbarTextColor = isDark ? '#fff' : '#555';
+  const inputbackground = isDark? '#353535ff' : '#a7a7a78e';
 
   // Load user data
   useEffect(() => {
@@ -167,15 +164,15 @@ export default function AccountSettings(route) {
 
   if (loading) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="medium" color="#fff" />
+      <View style={[styles.loading, {backgroundColor: backgroundColor}]}>
+        <ActivityIndicator size="medium" color='#808080ff' />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Text style={styles.title}>Account Settings</Text>
+    <ScrollView style={[styles.container, {backgroundColor: backgroundColor}]} contentContainerStyle={{ paddingBottom: 40 }}>
+      <Text style={[styles.title, {color: titleColor}]}>Account Settings</Text>
       {/* Profile Picture */}
       <View style={styles.profileBox}>
         <TouchableOpacity onPress={pickImage}>
@@ -203,18 +200,18 @@ export default function AccountSettings(route) {
                 alignItems: 'center',
                 borderRadius: 50
               }}>
-                <ActivityIndicator size="medium" color="#fff" />
+                <ActivityIndicator size="small" color="#fff" />
               </View>
             )}
           </View>
         </TouchableOpacity>
-        <Text style={[styles.infoLabel, {marginTop: 10, marginBottom: 0}]}>Tap to edit</Text>
+        <Text style={[styles.infoLabel, {marginTop: 10, marginBottom: 0, color: altTextColor}]}>Tap to edit</Text>
       </View>
 
       {/* Username */}
-      <View style={styles.infoBox}>
+      <View style={[styles.infoBox, {backgroundColor: moduleBackground}]}>
         <View style={styles.usernameRow}>
-          <Text style={styles.infoLabel}>Username</Text>
+          <Text style={[styles.infoLabel, {color: altTextColor}]}>Username</Text>
           {!isEditing && (
             <TouchableOpacity onPress={() => {
               setEditedUsername(username === 'N/A' ? '' : username);
@@ -228,7 +225,7 @@ export default function AccountSettings(route) {
         {isEditing ? (
           <>
             <TextInput
-              style={[styles.infoValue, styles.input]}
+              style={[styles.infoValue, styles.input, {backgroundColor: inputbackground, fontWeight: 'normal', color: textColor}]}
               value={editedUsername}
               onChangeText={setEditedUsername}
               editable={!saving}
@@ -281,26 +278,26 @@ export default function AccountSettings(route) {
             </View>
           </>
         ) : (
-          <Text style={styles.infoValue}>{username ?? 'N/A'}</Text>
+          <Text style={[styles.infoValue, {color: textColor}]}>{username ?? 'N/A'}</Text>
         )}
       </View>
 
       {/* Email */}
-      <View style={styles.infoBox}>
-        <Text style={styles.infoLabel}>Email</Text>
-        <Text style={styles.infoValue}>{user?.email ?? 'Not logged in'}</Text>
+      <View style={[styles.infoBox, {backgroundColor: moduleBackground}]}>
+        <Text style={[styles.infoLabel, {color: altTextColor}]}>Email</Text>
+        <Text style={[styles.infoValue, {color: textColor}]}>{user?.email ?? 'Not logged in'}</Text>
       </View>
 
       {/* Current Group */}
-      <View style={styles.infoBox}>
-        <Text style={styles.infoLabel}>Current Group</Text>
-        <Text style={styles.infoValue}>{groupName}</Text>
+      <View style={[styles.infoBox, {backgroundColor: moduleBackground}]}>
+        <Text style={[styles.infoLabel, {color: altTextColor}]}>Current Group</Text>
+        <Text style={[styles.infoValue, {color: textColor}]}>{groupName}</Text>
       </View>
 
       {/* Total Points */}
-      <View style={styles.infoBox}>
-        <Text style={styles.infoLabel}>Total Points</Text>
-        <Text style={styles.infoValue}>{points ?? 0}</Text>
+      <View style={[styles.infoBox, {backgroundColor: moduleBackground}]}>
+        <Text style={[styles.infoLabel, {color: altTextColor}]}>Total Points</Text>
+        <Text style={[styles.infoValue, {color: textColor}]}>{points ?? 0}</Text>
       </View>
 
       {/* some buttons */}
@@ -334,25 +331,25 @@ export default function AccountSettings(route) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#111', padding: width / (375 / 16) },
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#111' },
-  title: { fontSize: 32, fontWeight: 'bold', color: '#fff', marginTop: height/10, marginBottom: height/25, alignSelf: 'center' },
+  container: { flex: 1, padding: width / (375 / 16) },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 32, fontWeight: 'bold', marginTop: height/10, marginBottom: height/25, alignSelf: 'center' },
   profileBox: { alignItems: 'center', marginBottom: 20 },
   profileImage: { width: 100, height: 100, borderRadius: 50 },
   profilePlaceholder: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#2c99ffff', justifyContent: 'center', alignItems: 'center' },
   profileInitial: { fontSize: 36, color: '#fff', fontWeight: 'bold' },
   infoBox: { marginBottom: 10, backgroundColor: '#222', padding: 16, borderRadius: 15 },
-  infoLabel: { color: '#bbb', fontSize: 12, marginBottom: 5},
-  infoValue: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  infoLabel: { fontSize: 12, marginBottom: 5},
+  infoValue: { fontSize: 16, fontWeight: 'bold' },
   usernameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  input: { backgroundColor: '#333', color: '#fff', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 18 },
+  input: {borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14 },
   editButtonsRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8, columnGap: 8 },
   editButton: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 },
   cancelButton: { backgroundColor: '#555' },
   saveButton: { backgroundColor: '#413effff' },
-  editButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-  switchButton: { backgroundColor: '#3b90ffff', padding: 15, borderRadius: 15, alignItems: 'center', marginBottom: 10 },
+  editButtonText: { color: '#fff', fontSize: 14, fontWeight: "bold" },
+  switchButton: { backgroundColor: '#7700ffff', padding: 12, borderRadius: 12, alignItems: 'center', marginBottom: 10 },
   switchButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  signOutButton: { backgroundColor: '#ff4631ff', padding: 15, borderRadius: 15, alignItems: 'center' },
+  signOutButton: { backgroundColor: '#ff4530ff', padding: 12, borderRadius: 12, alignItems: 'center' },
   signOutButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
 });

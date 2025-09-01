@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, Dimensions, ImageBackground, Switch,
+  View, Text, StyleSheet, Dimensions, ImageBackground, Switch, ScrollView
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
@@ -18,6 +18,16 @@ const STORAGE_KEYS = {
 export default function GeneralSettings() {
   const { theme, updateTheme } = useContext(ThemeContext);
   const [exampleToggle, setExampleToggle] = useState(false);
+
+  const { resolvedTheme } = useContext(ThemeContext);
+  const isDark = resolvedTheme === 'dark';
+
+  const backgroundColor = isDark ? '#0e0e0eff' : '#fff';
+  const titleColor = isDark ? '#fff' : '#000';
+  const textColor = isDark ? '#fff' : '#000';
+  const moduleBackground = isDark ? '#222' : '#ebebebff';
+  const altTextColor = isDark ? '#aaa' : '#555';
+  const inputbackground = isDark? '#353535ff' : '#a7a7a78e';
 
   const themeSegments = ['Light', 'Dark', 'System'];
 
@@ -50,12 +60,12 @@ export default function GeneralSettings() {
   };
 
   return (
-    <ImageBackground source={require('../assets/settingsback.jpg')} style={styles.background} resizeMode="cover">
+    <ScrollView style={[styles.background, {backgroundColor: backgroundColor}]}>
       <View style={styles.overlay}>
-        <Text style={styles.title}>General Settings</Text>
+        <Text style={[styles.title, {color: titleColor}]}>General Settings</Text>
 
         <View style={styles.settingRow}>
-          <Text style={styles.settingLabel}>Appearance</Text>
+          <Text style={[styles.settingLabel, {color: textColor}]}>Appearance</Text>
           <SegmentedControl
             values={themeSegments}
             selectedIndex={themeSegments.indexOf(theme.charAt(0).toUpperCase() + theme.slice(1))}
@@ -65,7 +75,7 @@ export default function GeneralSettings() {
         </View>
 
         <View style={styles.settingRowToggle}>
-          <Text style={styles.settingLabel}>Example Toggle</Text>
+          <Text style={[styles.settingLabel, {color: textColor}]}>Example Toggle</Text>
           <Switch
             value={exampleToggle}
             onValueChange={toggleExample}
@@ -76,17 +86,16 @@ export default function GeneralSettings() {
 
 
       </View>
-    </ImageBackground>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   background: { flex: 1 },
-  overlay: { flex: 1, padding: width / (375 / 24), backgroundColor: 'rgba(0, 0, 0, 0.4)' },
+  overlay: { flex: 1, padding: width / (375 / 24), backgroundColor: 'rgba(0, 0, 0, 0)' },
   title: {
     fontSize: width / (375 / 32),
     fontWeight: 'bold',
-    color: '#fff',
     marginTop: height / (667 / 60),
     marginBottom: height / (667 / 32),
     alignSelf: 'center',
@@ -103,7 +112,6 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: width / (375 / 16),
     marginBottom: 12,
-    color: '#fff',
   },
   segmentedControl: {
     height: 40,

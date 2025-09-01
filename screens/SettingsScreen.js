@@ -1,14 +1,15 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useContext } from 'react';
 import {
   View, Text, StyleSheet, ImageBackground, TouchableOpacity, FlatList, Dimensions, Animated, Easing,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { ThemeContext } from '../context/ThemeContext';
 
 const CATEGORIES = [
   { title: 'General', route: 'GeneralSettings' },
   { title: 'Safety', route: 'SafetySettings' },
-  { title: 'Drive Screen', route: 'DriveScreenSettings' },
+  { title: 'Driving', route: 'DriveScreenSettings' },
   { title: 'Account', route: 'AccountSettings' },
 ];
 
@@ -17,6 +18,16 @@ const { width, height } = Dimensions.get('window');
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const contentOpacity = useRef(new Animated.Value(0)).current;
+
+  const { resolvedTheme } = useContext(ThemeContext);
+  const isDark = resolvedTheme === 'dark';
+  
+  const backgroundColor = isDark ? '#0e0e0eff' : '#fff';
+  const titleColor = isDark ? '#fff' : '#000';
+  const textColor = isDark ? '#fff' : '#000';
+  const moduleBackground = isDark ? '#222' : '#ebebebff';
+  const altTextColor = isDark ? '#aaa' : '#555';
+  const inputbackground = isDark? '#353535ff' : '#a7a7a78e';
 
   const fadeInContent = useCallback(() => {
     Animated.timing(contentOpacity, {
@@ -35,29 +46,25 @@ export default function SettingsScreen() {
   );
 
   return (
-    <ImageBackground
-      source={require('../assets/settingsback.jpg')}
-      style={styles.background}
-      resizeMode="cover"
-    >
+    <View style={[styles.background, {backgroundColor: backgroundColor}]}>
       <Animated.View style={[styles.overlay, { opacity: contentOpacity }]}>
-        <Text style={styles.title}>Settings</Text>
+        <Text style={[styles.title, {color: titleColor}]}>Settings</Text>
 
         <FlatList
           data={CATEGORIES}
           keyExtractor={(item) => item.title}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={styles.optionRow}
+              style={[styles.optionRow, {backgroundColor: moduleBackground}]}
               onPress={() => navigation.navigate(item.route)}
             >
-              <Text style={styles.optionText}>{item.title}</Text>
+              <Text style={[styles.optionText, {color: textColor}]}>{item.title}</Text>
               <Ionicons name="chevron-forward" size={24} color="#fff" />
             </TouchableOpacity>
           )}
         />
       </Animated.View>
-    </ImageBackground>
+    </View>
   );
 }
 
@@ -66,7 +73,6 @@ const styles = StyleSheet.create({
   overlay: { 
     flex: 1, 
     padding: 0.07 * width, 
-    backgroundColor: 'rgba(0, 0, 0, 0.3)' 
   },
   title: {
     fontSize: width / (375 / 32),
@@ -87,7 +93,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   optionText: { 
-    fontSize: 18, 
+    fontSize: 16, 
     color: '#fff' 
   },
 });
