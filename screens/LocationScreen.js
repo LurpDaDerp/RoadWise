@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext, useRef, useMemo, useCallback, u
 import { StyleSheet, View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert, Dimensions, ScrollView, FlatList, Animated, Easing, SectionList, Keyboard, TouchableWithoutFeedback } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayRemove, arrayUnion } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayRemove, arrayUnion, onSnapshot, collection, getDocs, query, where } from "firebase/firestore";
 import { getHereKey } from "../utils/firestore";
 import { auth } from '../utils/firebase';
 import { ThemeContext } from "../context/ThemeContext";
@@ -184,7 +184,25 @@ function compareAddresses(addr1, addr2, threshold = 0.7) {
   return fractionMatched >= threshold;
 }
 
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3; // meters
+  const toRad = x => (x * Math.PI) / 180;
+
+  const φ1 = toRad(lat1);
+  const φ2 = toRad(lat2);
+  const Δφ = toRad(lat2 - lat1);
+  const Δλ = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(Δφ / 2) ** 2 +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export default function LocationScreen() {
+
+  const navigation = useNavigation();
 
   useLayoutEffect(() => {
     navigation.getParent()?.setOptions({
@@ -200,7 +218,6 @@ export default function LocationScreen() {
     };
   }, [navigation]);
 
-  const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [groupId, setGroupId] = useState(null);
   const [location, setLocation] = useState(null);
@@ -217,6 +234,9 @@ export default function LocationScreen() {
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const mapRef = useRef(null);
   const lastFetchTimes = useRef({});
+  const memberUnsubs = useRef({});
+  const lastLocations = useRef({});
+
 
   const bottomSheetRef = useRef(null);
   const snapPoints = useMemo(() => ["15%", "40%", "90%"], []);
@@ -356,127 +376,80 @@ export default function LocationScreen() {
     }
   };
 
-  //get group member locations
-  const fetchMembers = useCallback(async () => {
-    if (!groupId) return;
-    try {
-      const groupRef = doc(db, "groups", groupId);
-      const groupSnap = await getDoc(groupRef);
+  const getAddressForUser = async (uid, data, savedLocations, normalizedSavedLocations) => {
+    let address = "Unknown location";
 
-      if (!groupSnap.exists()) return;
+    if (!data.location) return address;
 
-      const groupData = groupSnap.data();
-      const memberIds = groupData.members || [];
-      const savedLocations = groupData.savedLocations || [];
+    const speed = data.location.speed || 0;
+    const lat = data.location.latitude.toFixed(4);
+    const lon = data.location.longitude.toFixed(4);
+    const cacheKey = `addr_${lat}_${lon}`;
 
-      const normalizedSavedLocations = savedLocations.map(loc => ({
-        ...loc,
-        normalizedAddress: normalizeAddress(loc.address),
-      }));
+    // Check cache
+    let cached = await AsyncStorage.getItem(cacheKey);
+    if (cached) {
+      address = cached;
+    }
 
-      const memberData = [];
+    const now = Date.now();
+    const lastFetch = lastFetchTimes.current[uid] || 0;
 
-      for (let i = 0; i < memberIds.length; i++) {
-        const uid = memberIds[i];
-        const userRef = doc(db, "users", uid);
-        const userSnap = await getDoc(userRef);
+    lastFetchTimes.current[uid] = now;
 
-        if (!userSnap.exists()) continue;
-
-        const data = userSnap.data();
-        let cached = await AsyncStorage.getItem(`addr_${uid}_${data.location?.latitude?.toFixed(4)}_${data.location?.longitude?.toFixed(4)}`);
-        let address = cached || "Unknown location";
-        for (let loc of savedLocations) {
-          if (compareAddresses(normalizeAddress(address), normalizeAddress(loc.address))) { 
-            address = loc.name;
-            break;
+    if (!cached) {
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
+          {
+            headers: {
+              "User-Agent": "RoadCash/1.0 (lurpdaderp@gmail.com)",
+              "Accept": "application/json",
+            },
           }
-        }
+        );
 
-        if (data.location) {
-          const speed = data.location.speed || 0;
-          // Round coordinates to 4 decimal places (10 meter ish)
-          
-          const lat = data.location.latitude.toFixed(4);
-          const lon = data.location.longitude.toFixed(4);
-          const cacheKey = `addr_${uid}_${lat}_${lon}`;
-
-          const now = Date.now();
-          const lastFetch = lastFetchTimes.current[uid] || 0;
-
-          if (speed > 5 || now - lastFetch > 30000) {
-
-            lastFetchTimes.current[uid] = now;
-
-            //check cache for address
-            const cached = await AsyncStorage.getItem(cacheKey);
-            if (cached) {
-              address = cached;
-            } else {
-              try {
-                const response = await fetch(
-                  `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
-                  {
-                    headers: {
-                      "User-Agent": "RoadCash/1.0 (lurpdaderp@gmail.com)",
-                      "Accept": "application/json",
-                    },
-                  }
-                );
-
-                if (response.ok) {
-                  const result = await response.json();
-                  if (result && result.address) {
-                    const { road, house_number, city, town, village, state, country } = result.address;
-                    const addrParts = [
-                      house_number ? house_number + " " : "",
-                      road || "",
-                      city || town || village || state || "",
-                      country || "",
-                    ].filter(Boolean);
-                    address = addrParts.join(", ");
-                  }
-
-                  // Save grid location and reverse geocode result to cache
-                  await AsyncStorage.setItem(cacheKey, address);
-                } else {
-                  console.warn("Nominatim error:", response.status, response.statusText);
-                }
-              } catch (e) {
-                console.warn("Reverse geocode failed:", e);
-              }
-
-              await new Promise(res => setTimeout(res, 1000));
-            }
-
-            const normalizedMemberAddress = normalizeAddress(address);
-
-            const matchingLocation = normalizedSavedLocations.find(loc =>
-              compareAddresses(normalizedMemberAddress, loc.normalizedAddress)
-            );
-
-            if (matchingLocation) {
-              address = matchingLocation.name;
-            }
+        if (response.ok) {
+          const result = await response.json();
+          if (result && result.address) {
+            const { road, house_number, city, town, village, state, country } = result.address;
+            const addrParts = [
+              house_number ? house_number + " " : "",
+              road || "",
+              city || town || village || state || "",
+              country || "",
+            ].filter(Boolean);
+            address = addrParts.join(", ");
           }
+          await AsyncStorage.setItem(cacheKey, address);
         }
-
-        memberData.push({
-          uid,
-          name: data.username || "Member",
-          coords: data.location || null,
-          address,
-          photoURL: data.photoURL || null,
-          isDriving: data.isDriving || false,
-        });
+      } catch (e) {
+        console.warn("Reverse geocode failed:", e);
       }
-      setMembers(memberData);
-      if (initialLoad) setInitialLoad(false);
-      
-    } catch (error) {
-      console.error("Error fetching members:", error);
-    } 
-  }, [groupId]);
+      await new Promise(res => setTimeout(res, 1000));
+
+      // Check if matches saved location
+      const normalized = normalizeAddress(address);
+      const match = normalizedSavedLocations.find(loc =>
+        compareAddresses(normalized, loc.normalizedAddress)
+      );
+      if (match) {
+        address = match.name;
+      }
+    }
+
+    // Check if matches saved location
+    const normalized = normalizeAddress(address);
+    const match = normalizedSavedLocations.find(loc =>
+      compareAddresses(normalized, loc.normalizedAddress)
+    );
+    if (match) {
+      address = match.name;
+    }
+
+    return address;
+  };
+
 
   const fadeInContent = useCallback(() => { 
     contentOpacity.setValue(0);
@@ -526,30 +499,102 @@ export default function LocationScreen() {
     fetchLocations();
   }, [groupId]);
 
-  //get group members and start location tracking
+  // get group members and start location tracking
   useFocusEffect(
     useCallback(() => {
-      let isActive = true;
-      let interval;
+      if (!groupId) return;
 
-      const fetchAndSetMembers = async () => {
-        if (!isActive) return;
-        await fetchMembers();
-        
-      };
+      const groupRef = doc(db, "groups", groupId);
 
-      fetchAndSetMembers();
+      const unsubGroup = onSnapshot(groupRef, (groupSnap) => {
+        if (!groupSnap.exists()) return;
 
-      interval = setInterval(() => {
-        fetchAndSetMembers();
-      }, 10000);
+        const groupData = groupSnap.data();
+        const memberIds = groupData.members || [];
+        const savedLocations = groupData.savedLocations || [];
+
+        const normalizedSavedLocations = savedLocations.map(loc => ({
+          ...loc,
+          normalizedAddress: normalizeAddress(loc.address),
+        }));
+
+        // cleanup listeners for removed members
+        for (const uid in memberUnsubs.current) {
+          if (!memberIds.includes(uid)) {
+            memberUnsubs.current[uid]();
+            delete memberUnsubs.current[uid];
+            delete lastLocations.current[uid];
+          }
+        }
+
+        // add listeners for new members
+        memberIds.forEach((uid) => {
+          if (memberUnsubs.current[uid]) return;
+
+          const userRef = doc(db, "users", uid);
+          const unsubUser = onSnapshot(userRef, async (userSnap) => {
+            if (!userSnap.exists()) return;
+            const data = userSnap.data();
+
+            let address = "Unknown location";
+
+            if (data.location) {
+              const { latitude, longitude } = data.location;
+              const lastLoc = lastLocations.current[uid];
+
+              let shouldFetch = false;
+              if (!lastLoc) {
+                shouldFetch = true;
+              } else {
+                const dist = getDistance(
+                  lastLoc.latitude,
+                  lastLoc.longitude,
+                  latitude,
+                  longitude
+                );
+                if (dist >= 50) {
+                  shouldFetch = true;
+                }
+              }
+
+              if (shouldFetch) {
+                lastLocations.current[uid] = { latitude, longitude };
+                address = await getAddressForUser(uid, data, savedLocations, normalizedSavedLocations);
+              }
+            }
+
+            // update member state
+            setMembers((prev) => {
+              const updated = prev.filter((m) => m.uid !== uid);
+              updated.push({
+                uid,
+                name: data.username || "Member",
+                coords: data.location || null,
+                address,
+                photoURL: data.photoURL || null,
+                isDriving: data.isDriving || false,
+              });
+              return updated;
+            });
+
+            if (initialLoad) setInitialLoad(false);
+          });
+
+          memberUnsubs.current[uid] = unsubUser;
+        });
+      });
 
       return () => {
-        isActive = false; 
-        clearInterval(interval);
+        unsubGroup();
+        for (const uid in memberUnsubs.current) {
+          memberUnsubs.current[uid]();
+        }
+        memberUnsubs.current = {};
       };
-    }, [fetchMembers])
+    }, [groupId])
   );
+
+
 
   //group management logic
   useEffect(() => {
@@ -561,7 +606,6 @@ export default function LocationScreen() {
 
       if (snapshot.exists() && snapshot.data().groupId) {
         setGroupId(snapshot.data().groupId);
-        startLocation();
       }
       setLoading(false);
 
@@ -574,21 +618,6 @@ export default function LocationScreen() {
 
   }, []);
 
-  const startLocation = async () => {
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") {
-        alert("Permission to access location was denied");
-        return;
-    }
-
-    let currentLocation = await Location.getCurrentPositionAsync({});
-    setLocation(currentLocation.coords);
-
-    if (user) {
-        const userRef = doc(db, "users", user.uid);
-        await setDoc(userRef, { location: currentLocation.coords }, { merge: true });
-    }
-  };
 
   const fetchAddressSuggestions = useCallback(async (query) => {
     if (!query.trim() || !HERE_API_KEY) {
@@ -646,7 +675,6 @@ export default function LocationScreen() {
 
     setGroupId(newGroupId);
     setIsCreating(false);
-    startLocation();
   };
 
   const handleJoinGroup = async () => {
@@ -670,7 +698,6 @@ export default function LocationScreen() {
     });
 
     setGroupId(gid);
-    startLocation();
   };
 
   const confirmLeaveGroup = () => {
@@ -722,7 +749,7 @@ export default function LocationScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="medium" />
+        <ActivityIndicator size="small" />
       </View>
     );
   }
@@ -882,7 +909,7 @@ export default function LocationScreen() {
           >
               {initialLoad ? (
                 <View style={{ flex: 1, justifyContent: "center", alignItems: "center", height: 200 }}>
-                  <ActivityIndicator size="medium" color={altTextColor} />
+                  <ActivityIndicator size="small" color={altTextColor} />
                 </View>
               ) : (
               <BottomSheetSectionList
@@ -926,7 +953,7 @@ export default function LocationScreen() {
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
                             <Text style={{ color: textColor, marginRight: 6 }}>
-                              {item.name} {item.uid === user.uid ? "(You)" : ""}
+                              {item.name} {item.uid === user.uid ? "(You)" : ""} 
                             </Text>
 
                             {item.isDriving && (
@@ -938,9 +965,10 @@ export default function LocationScreen() {
                                   borderRadius: 10,
                                 }}
                               >
-                                <Text style={{ color: "white", fontSize: 12 }}>Driving</Text>
+                                <Text style={{ color: "white", fontSize: 12 }}>Driving ({((item.coords?.speed ?? 0) * 2.23694).toFixed(1)} mph)</Text>
                               </View>
                             )}
+                            
                           </View>
 
                           {item.coords && (
@@ -1025,7 +1053,7 @@ export default function LocationScreen() {
                         ),
                     },
                   ]}
-                keyExtractor={(item, index) => index.toString()}
+                keyExtractor={(item) => item.uid || item.address || Math.random().toString()}
                 renderSectionHeader={({ section: { title } }) => (
                   <Text style={[styles.subtitle, { color: titleColor, marginTop: 20 }]}>
                     {title}
