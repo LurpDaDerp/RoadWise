@@ -8,47 +8,53 @@ import { auth } from '../utils/firebase';
 const db = getFirestore();
 const LOCATION_TASK_NAME = 'BACKGROUND_LOCATION_TASK';
 
-let lastUpdateTime = 0;
+function getDistance(loc1, loc2) {
+  const R = 6371e3; // Earth radius in meters
+  const φ1 = loc1.latitude * Math.PI / 180;
+  const φ2 = loc2.latitude * Math.PI / 180;
+  const Δφ = (loc2.latitude - loc1.latitude) * Math.PI / 180;
+  const Δλ = (loc2.longitude - loc1.longitude) * Math.PI / 180;
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  return R * c; // distance in meters
+}
+
+let lastLocation = null; 
 
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
-  if (error) {
-    console.error('Location task error:', error);
-    return;
+  if (error) return console.error(error);
+  if (!data?.locations?.length) return;
+
+  const location = data.locations[0].coords;
+
+  if (lastLocation) {
+    const distanceMoved = getDistance(lastLocation, location);
+    if (distanceMoved < 10) return; 
   }
 
-  if (data?.locations?.length) {
-    const location = data.locations[0];
-    const { latitude, longitude, speed } = location.coords;
+  lastLocation = location;
 
-    const interval = speed != null && speed > 5 ? 10000 : 30000;
-    const now = Date.now();
-
-    if (now - lastUpdateTime < interval) return;
-    lastUpdateTime = now;
-
-    try {
-      const user = auth.currentUser;
-      if (user) {
-        const userRef = doc(db, 'users', user.uid);
-        await setDoc(
-          userRef,
-          {
-            location: {
-              latitude,
-              longitude,
-              speed: speed != null ? speed : 0,
-              updatedAt: new Date(),
-            },
-          },
-          { merge: true }
-        );
-      }
-    } catch (err) {
-      console.error('Error updating location:', err);
+  try {
+    const user = auth.currentUser;
+    if (user) {
+      const userRef = doc(db, 'users', user.uid);
+      await setDoc(userRef, {
+        location: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          speed: location.speed ?? 0,
+          updatedAt: new Date(),
+        },
+      }, { merge: true });
     }
+  } catch (err) {
+    console.error('Error updating location:', err);
   }
 });
-
 
 export async function startLocationUpdates() {
   const { status } = await Location.requestForegroundPermissionsAsync();
@@ -71,8 +77,7 @@ export async function startLocationUpdates() {
     try {
       await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
         accuracy: Location.Accuracy.High,
-        timeInterval: 10000,
-        distanceInterval: 0,
+        distanceInterval: 10, 
         foregroundService: {
           notificationTitle: 'Tracking location',
           notificationBody: 'Your location is being tracked in the background',

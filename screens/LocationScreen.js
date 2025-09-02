@@ -261,6 +261,32 @@ export default function LocationScreen() {
   const addLocationSheetRef = useRef(null);
   const addLocationSnapPoints = useMemo(() => ["90%"], []);
 
+  useEffect(() => {
+    const subscription = Location.watchPositionAsync(
+      { accuracy: Location.Accuracy.Highest, distanceInterval: 1 },
+      (loc) => {
+        setLocation(loc.coords);
+      }
+    );
+
+    return () => subscription.then(sub => sub.remove());
+  }, []);
+
+  const [userData, setUserData] = useState(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const userRef = doc(db, "users", auth.currentUser.uid);
+      const docSnap = await getDoc(userRef);
+      if (docSnap.exists()) {
+        setUserData(docSnap.data());
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+
   const openAddLocationSheet = () => {
     addLocationSheetRef.current?.expand();
   };
@@ -382,8 +408,8 @@ export default function LocationScreen() {
     if (!data.location) return address;
 
     const speed = data.location.speed || 0;
-    const lat = data.location.latitude.toFixed(4);
-    const lon = data.location.longitude.toFixed(4);
+    const lat = data.location.latitude.toFixed(5);
+    const lon = data.location.longitude.toFixed(5);
     const cacheKey = `addr_${lat}_${lon}`;
 
     // Check cache
@@ -393,11 +419,10 @@ export default function LocationScreen() {
     }
 
     const now = Date.now();
-    const lastFetch = lastFetchTimes.current[uid] || 0;
-
-    lastFetchTimes.current[uid] = now;
 
     if (!cached) {
+    const lastFetch = lastFetchTimes.current[uid] || 0;
+    lastFetchTimes.current[uid] = now;
       try {
         const response = await fetch(
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
@@ -421,21 +446,14 @@ export default function LocationScreen() {
             ].filter(Boolean);
             address = addrParts.join(", ");
           }
-          await AsyncStorage.setItem(cacheKey, address);
+          if (address !== "Unknown location") {
+            await AsyncStorage.setItem(cacheKey, address);
+          }
         }
       } catch (e) {
         console.warn("Reverse geocode failed:", e);
       }
       await new Promise(res => setTimeout(res, 1000));
-
-      // Check if matches saved location
-      const normalized = normalizeAddress(address);
-      const match = normalizedSavedLocations.find(loc =>
-        compareAddresses(normalized, loc.normalizedAddress)
-      );
-      if (match) {
-        address = match.name;
-      }
     }
 
     // Check if matches saved location
@@ -552,7 +570,7 @@ export default function LocationScreen() {
                   latitude,
                   longitude
                 );
-                if (dist >= 50) {
+                if (dist >= 10) {
                   shouldFetch = true;
                 }
               }
@@ -769,10 +787,13 @@ export default function LocationScreen() {
                 latitudeDelta: 0.01,
                 longitudeDelta: 0.01,
                 }}
-                showsUserLocation={true}
+              showsUserLocation={true}
             >
-                {members.map(member => 
-                member.coords && (
+              
+
+              {members
+                .filter(member => member.uid !== user.uid)
+                .map(member => (
                     <Marker
                       key={member.uid}
                       coordinate={member.coords}
@@ -818,7 +839,49 @@ export default function LocationScreen() {
                       </View>
                     </Marker>
                 )
-                )}
+              )}
+
+              {location && (
+                <Marker coordinate={location} title="You">
+                  <View style={{ width: 50, height: 50, alignItems: 'center', marginBottom: 50 }}>
+                    <Image
+                      source={require('../assets/marker.png')}
+                      style={{ width: 50, height: 50 }}
+                      resizeMode="contain"
+                    />
+
+                    {userData?.photoURL ? (
+                      <Image
+                        source={{ uri: userData.photoURL }}
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 15,
+                          position: 'absolute',
+                          top: 3,
+                        }}
+                      />
+                    ) : (
+                      <View
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 15,
+                          backgroundColor: '#666',
+                          position: 'absolute',
+                          top: 3,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Text style={{ color: 'white', fontWeight: 'bold' }}>
+                          {user.displayName?.[0]?.toUpperCase() ?? 'Me'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </Marker>
+              )}
             </MapView>
         )}
 

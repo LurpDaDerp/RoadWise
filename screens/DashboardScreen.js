@@ -775,7 +775,7 @@ const styles = StyleSheet.create({
     height: 100
   },
   safetyButton: {
-    width: '80%',
+    width: '100%',
     paddingVertical: 12,
     borderRadius: 15,
     alignItems: 'center',
