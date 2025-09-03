@@ -242,16 +242,11 @@ export default function DriveScreen({ route }) {
     } catch (e) {
       console.warn('Failed to update drive streak:', e);
     }
-
     
-    try {
-      if (pointsThisDrive > 0/*  && droveLongEnough */) {
-        await AsyncStorage.setItem('@driveCompleteSnackbar', 'true');
-      }
-    } catch (e) {
-      console.warn('Failed to set snackbar flag:', e);
+    if (pointsThisDrive > 0) {
+      await AsyncStorage.setItem('@driveCompleteSnackbar', 'true');
     }
-
+    
     await AsyncStorage.setItem('@pointsThisDrive', pointsThisDrive.toString());
     await AsyncStorage.setItem('@driveWasDistracted', isDistracted.current ? 'true' : 'false');
     

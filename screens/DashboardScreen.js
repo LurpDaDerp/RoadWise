@@ -233,7 +233,8 @@ export default function DashboardScreen({ route }) {
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
-      (async () => {
+
+      const loadPoints = async () => {
         if (!user) {
           if (isActive) {
             setTotalPoints(0);
@@ -244,26 +245,35 @@ export default function DashboardScreen({ route }) {
 
         try {
           const key = getStorageKey(user.uid);
-          const [storedStr, drivePointsStr] = await Promise.all([
+
+          const [storedStr, driveStr] = await Promise.all([
             AsyncStorage.getItem(key),
             AsyncStorage.getItem('@pointsThisDrive'),
           ]);
 
-          const storedPoints = storedStr ? parseFloat(storedStr) : 0;
-          const drivePoints = drivePointsStr ? parseFloat(drivePointsStr) : 0;
-          const newTotal = storedPoints + drivePoints;
-
-          if (!isActive) return;
-
-          setTotalPoints(newTotal);
-          animatePoints(0, newTotal);
-
-          await AsyncStorage.setItem(key, newTotal.toString());
+          let total = storedStr ? parseInt(storedStr, 10) : 0;
+          const drivePoints = driveStr ? parseInt(driveStr, 10) : 0;
 
           if (drivePoints > 0) {
-            await AsyncStorage.setItem(key, newTotal.toString());
+            total += drivePoints;
+
+            await AsyncStorage.setItem(key, total.toString());
             await AsyncStorage.removeItem('@pointsThisDrive');
-            await saveUserPoints(user.uid, newTotal);
+            await saveUserPoints(user.uid, total);
+          } else {
+            const snap = await getDoc(doc(firestore, 'users', user.uid));
+            if (snap.exists() && snap.data().points != null) {
+              const remote = snap.data().points;
+              if (remote > total) {
+                total = remote;
+                await AsyncStorage.setItem(key, total.toString());
+              }
+            }
+          }
+
+          if (isActive) {
+            setTotalPoints(total);
+            animatePoints(0, total);
           }
         } catch (e) {
           console.error('Error loading points on focus:', e);
@@ -272,14 +282,14 @@ export default function DashboardScreen({ route }) {
             animatedPoints.setValue(0);
           }
         }
-        
-      })();
+      };
+
+      loadPoints();
 
       return () => {
         isActive = false;
-        updatedPointsHandled.current = false;
       };
-    }, [user, displayedPoints, animatedPoints])
+    }, [user])
   );
 
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -304,7 +314,7 @@ export default function DashboardScreen({ route }) {
               setSnackbarMessage('Drive complete. You were undistracted!');
               setSnackBarColor('#00ff15ff');
             }
-            setSnackbarVisible(true);
+            //setSnackbarVisible(true);
             setConfettiVisible(false);
             setTimeout(() => {
               if (!isActive) return;
@@ -340,27 +350,6 @@ export default function DashboardScreen({ route }) {
       useNativeDriver: false,
     }).start();
   };
-
-  useEffect(() => {
-    const updated = route.params?.updatedPoints;
-    if (updated != null && !updatedPointsHandled.current) {
-      animatePoints(0, updated);
-      setTotalPoints(updated);
-
-      (async () => {
-        if (user) {
-          const key = getStorageKey(user.uid);
-          await AsyncStorage.setItem(key, updated.toString());
-          await saveUserPoints(user.uid, updated);
-        } else {
-          await AsyncStorage.setItem('totalPoints', updated.toString());
-        }
-      })();
-
-      updatedPointsHandled.current = true;
-      navigation.setParams({ updatedPoints: null });
-    }
-  }, [route.params?.updatedPoints, user, animatePoints, displayedPoints, navigation]);
 
 
   useFocusEffect(
@@ -776,8 +765,8 @@ const styles = StyleSheet.create({
   },
   safetyButton: {
     width: '100%',
-    paddingVertical: 12,
-    borderRadius: 15,
+    paddingVertical: 10,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
