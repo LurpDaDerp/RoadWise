@@ -40,6 +40,12 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
 
   const timeElapsed = (now - lastUpdateTime) / 1000; 
 
+  const isFirstUpdate = !lastLocation;
+  if (isFirstUpdate || (distanceMoved >= 10 && timeElapsed >= 10)) {
+    lastLocation = location;
+    lastUpdateTime = now;
+  }
+
   if (distanceMoved >= 10 && timeElapsed >= 10) {
     lastLocation = location;
     lastUpdateTime = now;
@@ -87,9 +93,8 @@ export async function startLocationUpdates() {
 
   if (!hasStarted && isTaskDefined) {
     try {
-      await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+      Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
         accuracy: Location.Accuracy.High,
-        distanceInterval: 10, 
         foregroundService: {
           notificationTitle: 'Tracking location',
           notificationBody: 'Your location is being tracked in the background',
@@ -100,6 +105,7 @@ export async function startLocationUpdates() {
       console.error('Error starting location updates:', err);
     }
   }
+  
 }
 
 export async function stopLocationUpdates() {

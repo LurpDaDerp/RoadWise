@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext, useRef, useMemo, useCallback, useLayoutEffect } from "react";
 import { StyleSheet, View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert, Dimensions, ScrollView, FlatList, Animated, Easing, SectionList, Keyboard, TouchableWithoutFeedback } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, AnimatedRegion } from "react-native-maps";
 import * as Location from "expo-location";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayRemove, arrayUnion, onSnapshot, collection, getDocs, query, where } from "firebase/firestore";
 import { getHereKey } from "../utils/firestore";
@@ -237,6 +237,14 @@ export default function LocationScreen() {
   const memberUnsubs = useRef({});
   const lastLocations = useRef({});
 
+  const myAnimatedCoord = useRef(
+    new AnimatedRegion({
+      latitude: 0,
+      longitude: 0,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    })
+  ).current;
 
   const bottomSheetRef = useRef(null);
   const snapPoints = useMemo(() => ["15%", "40%", "90%"], []);
@@ -263,14 +271,26 @@ export default function LocationScreen() {
 
   useEffect(() => {
     const subscription = Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.Highest, distanceInterval: 1 },
+      {
+        accuracy: Location.Accuracy.Highest,
+        distanceInterval: 1,
+      },
       (loc) => {
-        setLocation(loc.coords);
+        const { latitude, longitude } = loc.coords;
+        setLocation({ latitude, longitude });
+
+        myAnimatedCoord.timing({
+          latitude,
+          longitude,
+          duration: 1000,
+          useNativeDriver: false,
+        }).start();
       }
     );
 
-    return () => subscription.then(sub => sub.remove());
+    return () => subscription.then((sub) => sub.remove());
   }, []);
+
 
   const [userData, setUserData] = useState(null);
 
@@ -842,7 +862,7 @@ export default function LocationScreen() {
               )}
 
               {location && (
-                <Marker coordinate={location} title="You">
+                <Marker.Animated coordinate={myAnimatedCoord} title="You" tracksViewChanges={false}>
                   <View style={{ width: 50, height: 50, alignItems: 'center', marginBottom: 50 }}>
                     <Image
                       source={require('../assets/marker.png')}
@@ -880,7 +900,7 @@ export default function LocationScreen() {
                       </View>
                     )}
                   </View>
-                </Marker>
+                </Marker.Animated>
               )}
             </MapView>
         )}
