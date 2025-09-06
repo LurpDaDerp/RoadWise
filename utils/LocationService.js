@@ -2,29 +2,34 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import { Platform } from 'react-native';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth } from '../utils/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const db = getFirestore();
 const LOCATION_TASK_NAME = 'BACKGROUND_LOCATION_TASK';
 
 function getDistance(loc1, loc2) {
-  const R = 6371e3; 
+  const R = 6371e3;
   const φ1 = loc1.latitude * Math.PI / 180;
   const φ2 = loc2.latitude * Math.PI / 180;
   const Δφ = (loc2.latitude - loc1.latitude) * Math.PI / 180;
   const Δλ = (loc2.longitude - loc1.longitude) * Math.PI / 180;
 
-  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ/2) * Math.sin(Δλ/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) *
+    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-  return R * c; 
+  return R * c;
 }
 
 let lastLocation = null;
-let lastUpdateTime = 0; 
+let lastUpdateTime = 0;
+
+let groupIdCache = { value: null, ts: 0 };
+const GROUP_CACHE_TTL_MS = 60_000; 
 
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
   if (error) return console.error(error);
@@ -38,34 +43,41 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
     distanceMoved = getDistance(lastLocation, location);
   }
 
-  const timeElapsed = (now - lastUpdateTime) / 1000; 
-
+  const timeElapsed = (now - lastUpdateTime) / 1000;
   const isFirstUpdate = !lastLocation;
+
   if (isFirstUpdate || (distanceMoved >= 10 && timeElapsed >= 10)) {
     lastLocation = location;
     lastUpdateTime = now;
-  }
-
-  if (distanceMoved >= 10 && timeElapsed >= 10) {
-    lastLocation = location;
-    lastUpdateTime = now;
-
     try {
       const user = auth.currentUser;
       if (user) {
-        const userRef = doc(db, 'users', user.uid);
-        await setDoc(
-          userRef,
-          {
-            location: {
-              latitude: location.latitude,
-              longitude: location.longitude,
-              speed: location.speed ?? 0,
-              updatedAt: new Date(),
-            },
-          },
-          { merge: true }
-        );
+        let groupId = groupIdCache.value;
+        const stale = !groupId || (now - groupIdCache.ts) > GROUP_CACHE_TTL_MS;
+
+        if (stale) {
+          const userSnap = await getDoc(doc(db, 'users', user.uid));
+          groupId = userSnap.exists() ? userSnap.data().groupId : null;
+          groupIdCache = { value: groupId, ts: now };
+        }
+
+        if (groupId) {
+          const groupRef = doc(db, 'groups', groupId);
+            await setDoc(
+              groupRef,
+              {
+                memberLocations: {
+                  [user.uid]: {
+                    latitude: location.latitude,
+                    longitude: location.longitude,
+                    speed: location.speed ?? 0,
+                    updatedAt: new Date(),
+                  },
+                },
+              },
+              { merge: true }
+            );
+        }
       }
     } catch (err) {
       console.error('Error updating location:', err);
@@ -73,8 +85,41 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
   }
 });
 
+export function waitForSignedInUser(timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    if (auth.currentUser) return resolve(auth.currentUser);
+
+    const unsub = onAuthStateChanged(
+      auth,
+      (u) => {
+        if (u) {
+          unsub();
+          resolve(u);
+        }
+      },
+      (err) => {
+        unsub();
+        reject(err);
+      }
+    );
+
+    if (timeoutMs) {
+      setTimeout(() => {
+        unsub();
+        resolve(null); 
+      }, timeoutMs);
+    }
+  });
+}
+
 
 export async function startLocationUpdates() {
+  const user = await waitForSignedInUser(15000);
+  if (!user) {
+    console.warn('No signed-in user; skipping startLocationUpdates.');
+    return;
+  }
+
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== 'granted') {
     console.warn('Foreground location permission denied');
@@ -93,7 +138,7 @@ export async function startLocationUpdates() {
 
   if (!hasStarted && isTaskDefined) {
     try {
-      Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+      await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
         accuracy: Location.Accuracy.High,
         foregroundService: {
           notificationTitle: 'Tracking location',
@@ -105,7 +150,6 @@ export async function startLocationUpdates() {
       console.error('Error starting location updates:', err);
     }
   }
-  
 }
 
 export async function stopLocationUpdates() {

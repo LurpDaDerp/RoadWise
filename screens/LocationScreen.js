@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext, useRef, useMemo, useCallback, u
 import { StyleSheet, View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert, Dimensions, ScrollView, FlatList, Animated, Easing, SectionList, Keyboard, TouchableWithoutFeedback } from "react-native";
 import MapView, { Marker, AnimatedRegion } from "react-native-maps";
 import * as Location from "expo-location";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayRemove, arrayUnion, onSnapshot, collection, getDocs, query, where } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayRemove, arrayUnion, onSnapshot, deleteField, collection, getDocs, query, where } from "firebase/firestore";
 import { getHereKey } from "../utils/firestore";
 import { auth } from '../utils/firebase';
 import { ThemeContext } from "../context/ThemeContext";
@@ -12,6 +12,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import debounce from "lodash.debounce";
 import { Ionicons } from "@expo/vector-icons";
+import { waitForSignedInUser, startLocationUpdates, stopLocationUpdates } from "../utils/LocationService";
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from "react-native";
@@ -225,6 +226,8 @@ export default function LocationScreen() {
   const [isCreating, setIsCreating] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [members, setMembers] = useState([]);
+  const memberProfilesRef = useRef({});
+  const fetchedProfilesOnce = useRef(false);
   const [locations, setLocations] = useState([]);
   const [editingLocation, setEditingLocation] = useState(null);
   const [HERE_API_KEY, setHereKey] = useState();
@@ -268,6 +271,38 @@ export default function LocationScreen() {
   const [newLocationAddress, setNewLocationAddress] = useState("");
   const addLocationSheetRef = useRef(null);
   const addLocationSnapPoints = useMemo(() => ["90%"], []);
+
+  async function fetchProfilesOnce(uids) {
+    
+    const chunks = [];
+    for (let i = 0; i < uids.length; i += 10) chunks.push(uids.slice(i, i + 10));
+
+    for (const ids of chunks) {
+      try {
+        const q = query(collection(db, "users"), where("__name__", "in", ids));
+        const qs = await getDocs(q);
+        qs.forEach(snap => {
+          const u = snap.data();
+          memberProfilesRef.current[snap.id] = {
+            name: u.username || "Member",
+            photoURL: u.photoURL || null,
+          };
+        });
+        ids.forEach(id => {
+          if (!memberProfilesRef.current[id]) {
+            memberProfilesRef.current[id] = { name: "Member", photoURL: null };
+          }
+        });
+      } catch (e) {
+        console.error("fetchProfilesOnce failed for", ids, e);
+        ids.forEach(id => {
+          if (!memberProfilesRef.current[id]) {
+            memberProfilesRef.current[id] = { name: "Member", photoURL: null };
+          }
+        });
+      }
+    }
+  }
 
   useEffect(() => {
     const subscription = Location.watchPositionAsync(
@@ -510,125 +545,103 @@ export default function LocationScreen() {
     }, [])
   );
 
-  useEffect(() => {
-    const fetchGroupName = async () => {
-        if (!groupId) return;
-        const groupRef = doc(db, "groups", groupId);
-        const groupSnap = await getDoc(groupRef);
-        if (groupSnap.exists()) {
-        setGroupName(groupSnap.data().groupName);
-        }
-    };
-    fetchGroupName();
-  }, [groupId]);
 
-  useEffect(() => {
-    if (!groupId) return;
-
-    const fetchLocations = async () => {
-      const groupRef = doc(db, "groups", groupId);
-      const groupSnap = await getDoc(groupRef);
-      if (groupSnap.exists()) {
-        const data = groupSnap.data();
-        setLocations(data.savedLocations || []);
-      }
-    };
-
-    fetchLocations();
-  }, [groupId]);
-
-  // get group members and start location tracking
   useFocusEffect(
     useCallback(() => {
       if (!groupId) return;
 
       const groupRef = doc(db, "groups", groupId);
 
-      const unsubGroup = onSnapshot(groupRef, (groupSnap) => {
+      const unsubGroup = onSnapshot(groupRef, async (groupSnap) => {
         if (!groupSnap.exists()) return;
 
         const groupData = groupSnap.data();
-        const memberIds = groupData.members || [];
+        const memberLocations = groupData.memberLocations || {};
         const savedLocations = groupData.savedLocations || [];
+        const memberIds = Object.keys(memberLocations);
+        setGroupName(groupData.groupName || "");
+        setLocations(groupData.savedLocations || []);
 
-        const normalizedSavedLocations = savedLocations.map(loc => ({
+        if (!fetchedProfilesOnce.current) {
+          fetchedProfilesOnce.current = true;
+          await fetchProfilesOnce(memberIds);
+        }
+
+        const normalizedSavedLocations = savedLocations.map((loc) => ({
           ...loc,
           normalizedAddress: normalizeAddress(loc.address),
         }));
 
-        // cleanup listeners for removed members
-        for (const uid in memberUnsubs.current) {
-          if (!memberIds.includes(uid)) {
-            memberUnsubs.current[uid]();
-            delete memberUnsubs.current[uid];
-            delete lastLocations.current[uid];
-          }
-        }
 
-        // add listeners for new members
-        memberIds.forEach((uid) => {
-          if (memberUnsubs.current[uid]) return;
+        const updates = await Promise.all(
+          Object.entries(memberLocations).map(async ([uid, coords]) => {
+            let address;
 
-          const userRef = doc(db, "users", uid);
-          const unsubUser = onSnapshot(userRef, async (userSnap) => {
-            if (!userSnap.exists()) return;
-            const data = userSnap.data();
-
-            let address = "Unknown location";
-
-            if (data.location) {
-              const { latitude, longitude } = data.location;
-              const lastLoc = lastLocations.current[uid];
-
+            if (coords?.latitude != null && coords?.longitude != null) {
+              const last = lastLocations.current?.[uid];
               let shouldFetch = false;
-              if (!lastLoc) {
-                shouldFetch = true;
-              } else {
+
+              if (!last) shouldFetch = true;
+              else {
                 const dist = getDistance(
-                  lastLoc.latitude,
-                  lastLoc.longitude,
-                  latitude,
-                  longitude
+                  last.latitude,
+                  last.longitude,
+                  coords.latitude,
+                  coords.longitude
                 );
-                if (dist >= 10) {
-                  shouldFetch = true;
-                }
+                if (dist >= 10) shouldFetch = true;
               }
 
               if (shouldFetch) {
-                lastLocations.current[uid] = { latitude, longitude };
-                address = await getAddressForUser(uid, data, savedLocations, normalizedSavedLocations);
+                (lastLocations.current || (lastLocations.current = {}))[uid] = {
+                  latitude: coords.latitude,
+                  longitude: coords.longitude,
+                };
+                address = await getAddressForUser(
+                  uid,
+                  { location: coords },
+                  savedLocations,
+                  normalizedSavedLocations
+                );
               }
             }
 
-            // update member state
-            setMembers((prev) => {
-              const updated = prev.filter((m) => m.uid !== uid);
-              updated.push({
-                uid,
-                name: data.username || "Member",
-                coords: data.location || null,
-                address,
-                photoURL: data.photoURL || null,
-                isDriving: data.isDriving || false,
-              });
-              return updated;
-            });
+            return { uid, coords, address };
+          })
+        );
 
-            if (initialLoad) setInitialLoad(false);
+
+        setMembers((prev) => {
+          const prevMap = new Map(prev.map((m) => [m.uid, m]));
+          updates.forEach(({ uid, coords, address }) => {
+            const profile = memberProfilesRef.current?.[uid];
+            const name = profile?.name ?? coords?.username ?? "Member";
+            const photoURL = profile?.photoURL ?? coords?.photoURL ?? null;
+
+            const prevItem = prevMap.get(uid);
+            prevMap.set(uid, {
+              uid,
+              name,
+              photoURL,
+              coords: coords || null,
+              isDriving: (coords?.speed ?? 0) > 2,
+              address: address ?? prevItem?.address ?? null,
+            });
           });
 
-          memberUnsubs.current[uid] = unsubUser;
+          for (const oldUid of Array.from(prevMap.keys())) {
+            if (!memberIds.includes(oldUid)) prevMap.delete(oldUid);
+          }
+          return Array.from(prevMap.values());
         });
+
+        if (initialLoad) setInitialLoad(false);
       });
 
       return () => {
-        unsubGroup();
-        for (const uid in memberUnsubs.current) {
-          memberUnsubs.current[uid]();
-        }
-        memberUnsubs.current = {};
+        return unsubGroup();
       };
+      
     }, [groupId])
   );
 
@@ -644,7 +657,7 @@ export default function LocationScreen() {
 
       if (snapshot.exists() && snapshot.data().groupId) {
         setGroupId(snapshot.data().groupId);
-      }
+      } 
       setLoading(false);
 
     };
@@ -705,7 +718,6 @@ export default function LocationScreen() {
     await setDoc(groupRef, {
       createdAt: new Date(),
       createdBy: user.uid,
-      members: [user.uid],
       groupName: groupName.trim(),
     });
 
@@ -731,11 +743,26 @@ export default function LocationScreen() {
 
     await setDoc(userRef, { groupId: gid }, { merge: true });
 
-    await updateDoc(groupRef, {
-        members: arrayUnion(user.uid)
-    });
+    const { coords } = await Location.getCurrentPositionAsync({});
+
+    await setDoc(
+      groupRef,
+      {
+        memberLocations: {
+          [user.uid]: {
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            speed: coords.speed,
+            updatedAt: new Date(),
+          },
+        },
+      },
+      { merge: true }
+    );
 
     setGroupId(gid);
+
+    startLocationUpdates();
   };
 
   const confirmLeaveGroup = () => {
@@ -764,9 +791,14 @@ export default function LocationScreen() {
     const groupRef = doc(db, "groups", groupId);
 
     await setDoc(userRef, { groupId: null }, { merge: true });
-    await updateDoc(groupRef, { members: arrayRemove(user.uid) });
+
+    await updateDoc(groupRef, {
+      [`memberLocations.${user.uid}`]: deleteField(),
+    });
 
     setGroupId(null);
+
+    stopLocationUpdates(); 
   };
 
   const nameInputRef = useRef(null);
@@ -812,7 +844,7 @@ export default function LocationScreen() {
               
 
               {members
-                .filter(member => member.uid !== user.uid)
+                .filter(member => member.uid !== user.uid && member.coords)
                 .map(member => (
                     <Marker
                       key={member.uid}
@@ -895,7 +927,7 @@ export default function LocationScreen() {
                         }}
                       >
                         <Text style={{ color: 'white', fontWeight: 'bold' }}>
-                          {user.displayName?.[0]?.toUpperCase() ?? 'Me'}
+                          {user.username?.[0]?.toUpperCase() ?? 'Me'}
                         </Text>
                       </View>
                     )}

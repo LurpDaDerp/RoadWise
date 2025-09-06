@@ -26,6 +26,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '../utils/firebase';
 import { getUserPoints, saveUserPoints, saveUserStreak, getUsername, getTotalDrivesNumber } from '../utils/firestore';
 
+
 import { ThemeContext } from '../context/ThemeContext'; 
 import dashboardDark from '../assets/dashboard.png';
 import dashboardLight from '../assets/dashboardlight.png';
