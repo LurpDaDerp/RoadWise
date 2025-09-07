@@ -329,18 +329,6 @@ export default function LocationScreen() {
 
   const [userData, setUserData] = useState(null);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      const userRef = doc(db, "users", auth.currentUser.uid);
-      const docSnap = await getDoc(userRef);
-      if (docSnap.exists()) {
-        setUserData(docSnap.data());
-      }
-    };
-
-    fetchUser();
-  }, []);
-
 
   const openAddLocationSheet = () => {
     addLocationSheetRef.current?.expand();
@@ -667,6 +655,18 @@ export default function LocationScreen() {
     contentOpacity.setValue(0); 
     fadeInContent();
 
+  }, []);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const userRef = doc(db, "users", user.uid);
+      const docSnap = await getDoc(userRef);
+      if (docSnap.exists()) {
+        setUserData(docSnap.data());
+      }
+    };
+
+    fetchUser();
   }, []);
 
 
