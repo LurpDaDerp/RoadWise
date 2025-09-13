@@ -103,8 +103,10 @@ export default function DashboardScreen({ route }) {
 
   const [totalDrives, setTotalDrives] = React.useState(0);
 
+  const animatedDrives = useRef(new Animated.Value(0)).current;
+  const [displayedDrives, setDisplayedDrives] = useState(0);
+
   const [loading, setLoading] = useState(true);
-  const [loadingUserData, setLoadingUserData] = useState(true);
 
   const animatedPoints = useRef(new Animated.Value(0)).current;
   const [displayedPoints, setDisplayedPoints] = useState(0);
@@ -135,11 +137,33 @@ export default function DashboardScreen({ route }) {
   }, [animatedPoints]);
 
   useEffect(() => {
+    const sub = animatedDrives.addListener(({ value }) => {
+      setDisplayedDrives(Math.floor(value));
+    });
+    return () => animatedDrives.removeListener(sub);
+  }, [animatedDrives]);
+
+  useEffect(() => {
+    if (totalDrives != null) {
+      animatedDrives.stopAnimation((current = 0) => {
+        Animated.timing(animatedDrives, {
+          toValue: totalDrives,
+          duration: 250,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: false, 
+        }).start();
+      });
+    }
+  }, [totalDrives, animatedDrives]);
+
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       updatedPointsHandled.current = false;
       setTotalPoints(null);
       animatedPoints.setValue(0);
       setDisplayedPoints(0);
+      animatedDrives.setValue(0);
+      setDisplayedDrives(0);
 
       if (firebaseUser) {
         setUser(firebaseUser);
@@ -151,6 +175,8 @@ export default function DashboardScreen({ route }) {
           if (firestorePoints == null || isNaN(firestorePoints)) {
             setTotalPoints(0);
             animatedPoints.setValue(0);
+            animatedDrives.setValue(0);
+            setDisplayedDrives(0);
             await AsyncStorage.removeItem(getStorageKey(uid));
           } else {
             await AsyncStorage.setItem(getStorageKey(uid), firestorePoints.toString());
@@ -163,6 +189,8 @@ export default function DashboardScreen({ route }) {
           console.error('Error fetching data on auth change:', e);
           setTotalPoints(0);
           animatedPoints.setValue(0);
+          animatedDrives.setValue(0);
+          setDisplayedDrives(0);
         }
 
         setLoadingUserData(false);
@@ -171,6 +199,8 @@ export default function DashboardScreen({ route }) {
         setUser(null);
         setTotalPoints(0);
         animatedPoints.setValue(0);
+        animatedDrives.setValue(0);
+        setDisplayedDrives(0);
         setLoadingUserData(false);
       }
 
@@ -240,6 +270,8 @@ export default function DashboardScreen({ route }) {
           if (isActive) {
             setTotalPoints(0);
             animatedPoints.setValue(0);
+            animatedDrives.setValue(0);
+            setDisplayedDrives(0);
           }
           return;
         }
@@ -281,6 +313,8 @@ export default function DashboardScreen({ route }) {
           if (isActive) {
             setTotalPoints(0);
             animatedPoints.setValue(0);
+            animatedDrives.setValue(0);
+            setDisplayedDrives(0);
           }
         }
       };
@@ -371,7 +405,7 @@ export default function DashboardScreen({ route }) {
 
   const animatePoints = (from, to) => {
     
-    const duration = 40;
+    const duration = 250;
 
     Animated.timing(animatedPoints, {
       toValue: to,
@@ -587,7 +621,7 @@ export default function DashboardScreen({ route }) {
                 fontWeight: 'bold',
                 color: textColor,
               }}>
-                {totalDrives !== null ? totalDrives : '...'}
+                {totalDrives !== null ? displayedDrives : '...'}
               </Text>
               <Text style={{ fontSize: 14, color: altTextColor, marginTop: 4 }}>Drives</Text>
             </View>
