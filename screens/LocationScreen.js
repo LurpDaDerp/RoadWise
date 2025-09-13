@@ -550,9 +550,9 @@ export default function LocationScreen() {
         setGroupName(groupData.groupName || "");
         setLocations(groupData.savedLocations || []);
 
-        if (!fetchedProfilesOnce.current) {
-          fetchedProfilesOnce.current = true;
-          await fetchProfilesOnce(memberIds);
+        const missing = memberIds.filter(id => !memberProfilesRef.current[id]);
+        if (missing.length > 0) {
+          await fetchProfilesOnce(missing);
         }
 
         const normalizedSavedLocations = savedLocations.map((loc) => ({
@@ -612,7 +612,7 @@ export default function LocationScreen() {
               name,
               photoURL,
               coords: coords || null,
-              isDriving: (coords?.speed ?? 0) > 2,
+              isDriving: (coords?.speed ?? 0) > 10,
               address: address ?? prevItem?.address ?? null,
             });
           });

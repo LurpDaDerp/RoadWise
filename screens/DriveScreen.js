@@ -17,7 +17,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../utils/firebase';
-import { getFirestore, doc, updateDoc, increment, setDoc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, updateDoc, increment, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { saveTrustedContacts, getTrustedContacts, saveUserDrive, saveDriveMetrics, getHereKey, startDriving, stopDriving } from '../utils/firestore';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
@@ -731,6 +731,35 @@ export default function DriveScreen({ route }) {
     return maxFontSize - scaleFactor * (maxFontSize - minFontSize);
   };
 
+  const notifyGroupEmergency = async () => {
+    try {
+      const uid = auth.currentUser?.uid;
+      if (!uid) return;
+
+      const userDocRef = doc(db, 'users', uid);
+      const userSnap = await getDoc(userDocRef);
+      const groupId = userSnap.exists() ? userSnap.data().groupId : null;
+
+      if (groupId) {
+        const groupRef = doc(db, 'groups', groupId);
+
+        await updateDoc(groupRef, {
+          memberLocations: {
+            [uid]: { emergency: true }
+          }
+        }, { merge: true });
+
+        Alert.alert("Group Notified", "Emergency alert has been sent to your group.");
+      } else {
+        Alert.alert("⚠️ Not in a group", "You must join a group to notify them.");
+      }
+    } catch (err) {
+      console.error("Error notifying group:", err);
+      Alert.alert("Error", "Failed to notify your group. Please try again.");
+    }
+  };
+
+
   //UI element rendering
   return (
     <>
@@ -774,14 +803,17 @@ export default function DriveScreen({ route }) {
             >
               <Text style={styles.modalOptionText}>Call Emergency Services</Text>
             </TouchableOpacity>
+
             <TouchableOpacity
               style={[styles.modalOption, { backgroundColor: '#8528ffff' }]}
-              onPress={() => 
-                setShowEmergencyModal(false)
-              }
+              onPress={() => {
+                setShowEmergencyModal(false);
+                notifyGroupEmergency();
+              }}
             >
               <Text style={[styles.modalOptionText, { color: '#ffffffff' }]}>Notify Group</Text>
             </TouchableOpacity>
+
             {trustedContacts.map((contact, index) => (
               <TouchableOpacity
                 key={index}
