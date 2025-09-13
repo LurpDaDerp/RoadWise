@@ -774,6 +774,14 @@ export default function DriveScreen({ route }) {
             >
               <Text style={styles.modalOptionText}>Call Emergency Services</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalOption, { backgroundColor: '#8528ffff' }]}
+              onPress={() => 
+                setShowEmergencyModal(false)
+              }
+            >
+              <Text style={[styles.modalOptionText, { color: '#ffffffff' }]}>Notify Group</Text>
+            </TouchableOpacity>
             {trustedContacts.map((contact, index) => (
               <TouchableOpacity
                 key={index}
@@ -792,6 +800,7 @@ export default function DriveScreen({ route }) {
             >
               <Text style={[styles.modalOptionText, { color: '#333' }]}>Cancel</Text>
             </TouchableOpacity>
+            
           </View>
         </View>
       )}

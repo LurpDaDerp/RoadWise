@@ -94,14 +94,16 @@ export default function DashboardScreen({ route }) {
 
   const [username, setUsername] = React.useState("Guest");
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (user?.uid) {
       getUsername(user.uid).then((name) => setUsername(name));
-      getTotalDrivesNumber(user.uid).then(setTotalDrives);
+      getTotalDrivesNumber(user.uid).then((n) => setTotalDrives(Number(n) || 0));
+    } else {
+      setTotalDrives(null); 
     }
   }, [user]);
 
-  const [totalDrives, setTotalDrives] = React.useState(0);
+  const [totalDrives, setTotalDrives] = useState(null);
 
   const animatedDrives = useRef(new Animated.Value(0)).current;
   const [displayedDrives, setDisplayedDrives] = useState(0);
@@ -143,18 +145,40 @@ export default function DashboardScreen({ route }) {
     return () => animatedDrives.removeListener(sub);
   }, [animatedDrives]);
 
-  useEffect(() => {
-    if (totalDrives != null) {
-      animatedDrives.stopAnimation((current = 0) => {
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      const run = async () => {
+        if (!user?.uid) return;
+
+        const raw = await getTotalDrivesNumber(user.uid);
+        const to = Number.isFinite(raw) ? raw : parseInt(raw, 10);
+        const drives = Number.isFinite(to) ? to : 0;
+
+        if (!active) return;
+
+        setTotalDrives(drives);
+
+        animatedDrives.stopAnimation();
+        animatedDrives.setValue(0);
         Animated.timing(animatedDrives, {
-          toValue: totalDrives,
-          duration: 250,
+          toValue: drives,
+          duration: 350,
           easing: Easing.out(Easing.cubic),
-          useNativeDriver: false, 
+          useNativeDriver: false,
         }).start();
-      });
-    }
-  }, [totalDrives, animatedDrives]);
+      };
+
+      run();
+
+      return () => {
+        active = false;
+        animatedDrives.stopAnimation();
+      };
+    }, [user?.uid])
+  );
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -403,16 +427,16 @@ export default function DashboardScreen({ route }) {
     }
   }, [confettiVisible]);
 
-  const animatePoints = (from, to) => {
-    
-    const duration = 250;
-
+  const animatePoints = useCallback((from, to) => {
+    animatedPoints.stopAnimation();
+    animatedPoints.setValue(from ?? 0);  
     Animated.timing(animatedPoints, {
-      toValue: to,
-      duration,
+      toValue: to ?? 0,
+      duration: 350,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
     }).start();
-  };
+  }, [animatedPoints]);
 
 
   useFocusEffect(
@@ -621,7 +645,7 @@ export default function DashboardScreen({ route }) {
                 fontWeight: 'bold',
                 color: textColor,
               }}>
-                {totalDrives !== null ? displayedDrives : '...'}
+                {totalDrives == null ? '...' : displayedDrives}
               </Text>
               <Text style={{ fontSize: 14, color: altTextColor, marginTop: 4 }}>Drives</Text>
             </View>
