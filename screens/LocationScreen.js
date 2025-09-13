@@ -613,6 +613,7 @@ export default function LocationScreen() {
               photoURL,
               coords: coords || null,
               isDriving: (coords?.speed ?? 0) > 10,
+              emergency: !!coords?.emergency,
               address: address ?? prevItem?.address ?? null,
             });
           });
@@ -1071,6 +1072,21 @@ export default function LocationScreen() {
                               {item.name} {item.uid === user.uid ? "(You)" : ""} 
                             </Text>
 
+                            {item.emergency && (
+                              <View
+                                style={{
+                                  backgroundColor: "#ff3b30",
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 2,
+                                  borderRadius: 10,
+                                  marginLeft: 6,
+                                }}
+                              >
+                                <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 12 }}>
+                                  Emergency
+                                </Text>
+                              </View>
+                            )}
                             {item.isDriving && (
                               <View
                                 style={{

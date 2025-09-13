@@ -110,6 +110,8 @@ export default function DriveScreen({ route }) {
   const hasStartedDriving = useRef(false);
   const [audioSpeedUpdatesEnabled, setAudioSpeedUpdatesEnabled] = useState(true);
 
+  const [isEmergencyActive, setIsEmergencyActive] = useState(false);
+
   const user = auth.currentUser;
 
   const speedRef = useRef(0);
@@ -742,19 +744,28 @@ export default function DriveScreen({ route }) {
 
       if (groupId) {
         const groupRef = doc(db, "groups", groupId);
+        const groupSnap = await getDoc(groupRef);
 
-        const userLoc = userSnap.data().lastKnownLocation || {};
+        let userLoc = {};
+        if (groupSnap.exists()) {
+          const data = groupSnap.data();
+          userLoc = data.memberLocations?.[uid] || {};
+        }
 
         const loc = await Location.getCurrentPositionAsync({});
         const { latitude, longitude, speed } = loc.coords;
 
-        await updateDoc(groupRef, {
-          [`memberLocations.${uid}.latitude`]: latitude ?? null,
-          [`memberLocations.${uid}.longitude`]: longitude ?? null,
-          [`memberLocations.${uid}.speed`]: speed ?? 0,
-          [`memberLocations.${uid}.updatedAt`]: new Date(),
-          [`memberLocations.${uid}.emergency`]: true,
-        });
+        if (!userLoc.emergency) {
+          await updateDoc(groupRef, {
+            [`memberLocations.${uid}.latitude`]: latitude ?? null,
+            [`memberLocations.${uid}.longitude`]: longitude ?? null,
+            [`memberLocations.${uid}.speed`]: speed ?? 0,
+            [`memberLocations.${uid}.updatedAt`]: new Date(),
+            [`memberLocations.${uid}.emergency`]: true,
+          });
+        }
+
+        setIsEmergencyActive(true);
 
         Alert.alert("Group Notified", "Emergency alert has been sent to your group.");
       } else {
@@ -766,7 +777,33 @@ export default function DriveScreen({ route }) {
     }
   };
 
+  const cancelGroupEmergency = async () => {
+    try {
+      const uid = auth.currentUser?.uid;
+      if (!uid) return;
 
+      const userDocRef = doc(db, "users", uid);
+      const userSnap = await getDoc(userDocRef);
+      const groupId = userSnap.exists() ? userSnap.data().groupId : null;
+
+      if (groupId) {
+        const groupRef = doc(db, "groups", groupId);
+
+        await updateDoc(groupRef, {
+          [`memberLocations.${uid}.emergency`]: false,
+        });
+
+        setIsEmergencyActive(false);
+
+        Alert.alert("Emergency Cancelled", "Your group has been notified that you are safe.");
+      } else {
+        Alert.alert("⚠️ Not in a group", "You must join a group to cancel emergency.");
+      }
+    } catch (err) {
+      console.error("Error cancelling emergency:", err);
+      Alert.alert("Error", "Failed to cancel emergency. Please try again.");
+    }
+  };
 
   //UI element rendering
   return (
@@ -863,7 +900,7 @@ export default function DriveScreen({ route }) {
           <Text style={styles.emergencyButtonText}>Emergency</Text>
         </TouchableOpacity>
 
-        {showSpeedLimit && (
+        {showSpeedLimit  && !isEmergencyActive && (
           <View style={styles.speedLimitContainer}>
             <ImageBackground
               source={require('../assets/speedlimit.png')}
@@ -872,6 +909,18 @@ export default function DriveScreen({ route }) {
             >
               <Text style={styles.speedLimitText}>{Math.round(currentLimit)}</Text>
             </ImageBackground>
+          </View>
+        )}
+
+        {isEmergencyActive && (
+          <View style={styles.emergencyBanner}>
+            <Text style={styles.emergencyBannerText}>Emergency Activated</Text>
+            <TouchableOpacity
+              style={styles.emergencyBannerButton}
+              onPress={cancelGroupEmergency}
+            >
+              <Text style={styles.emergencyBannerButtonText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -927,9 +976,9 @@ const styles = StyleSheet.create({
     top: (height / 667) * 45,
     left: (width / 375) * 20,
     backgroundColor: '#ff3b30',
-    paddingVertical: (height / 667) * 15,
-    paddingHorizontal: (width / 375) * 20,
-    borderRadius: (width / 375) * 12,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 12,
     zIndex: 1000,
     elevation: 10,
   },
@@ -937,7 +986,7 @@ const styles = StyleSheet.create({
   emergencyButtonText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: (width / 375) * 16,
+    fontSize: 16,
     textAlign: 'center',
   },
 
@@ -1010,6 +1059,37 @@ const styles = StyleSheet.create({
     color: '#000',
     textAlign: 'center',
   },
+  emergencyBanner: {
+    position: 'absolute',
+    top: (height / 667) * 45,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#ff3b30',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    zIndex: 2000,
+    elevation: 20,
+  },
+  emergencyBannerText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  emergencyBannerButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  emergencyBannerButtonText: {
+    color: '#ff3b30',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+
   container: {
     flex: 1,
     justifyContent: 'space-between',
