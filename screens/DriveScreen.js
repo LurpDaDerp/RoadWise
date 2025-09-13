@@ -736,18 +736,25 @@ export default function DriveScreen({ route }) {
       const uid = auth.currentUser?.uid;
       if (!uid) return;
 
-      const userDocRef = doc(db, 'users', uid);
+      const userDocRef = doc(db, "users", uid);
       const userSnap = await getDoc(userDocRef);
       const groupId = userSnap.exists() ? userSnap.data().groupId : null;
 
       if (groupId) {
-        const groupRef = doc(db, 'groups', groupId);
+        const groupRef = doc(db, "groups", groupId);
+
+        const userLoc = userSnap.data().lastKnownLocation || {};
+
+        const loc = await Location.getCurrentPositionAsync({});
+        const { latitude, longitude, speed } = loc.coords;
 
         await updateDoc(groupRef, {
-          memberLocations: {
-            [uid]: { emergency: true }
-          }
-        }, { merge: true });
+          [`memberLocations.${uid}.latitude`]: latitude ?? null,
+          [`memberLocations.${uid}.longitude`]: longitude ?? null,
+          [`memberLocations.${uid}.speed`]: speed ?? 0,
+          [`memberLocations.${uid}.updatedAt`]: new Date(),
+          [`memberLocations.${uid}.emergency`]: true,
+        });
 
         Alert.alert("Group Notified", "Emergency alert has been sent to your group.");
       } else {
@@ -758,6 +765,7 @@ export default function DriveScreen({ route }) {
       Alert.alert("Error", "Failed to notify your group. Please try again.");
     }
   };
+
 
 
   //UI element rendering
