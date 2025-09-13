@@ -248,7 +248,7 @@ export default function DashboardScreen({ route }) {
           const key = getStorageKey(user.uid);
 
           const [storedStr, driveStr] = await Promise.all([
-            AsyncStorage.getItem(key),
+            AsyncStorage.getItem(key), 
             AsyncStorage.getItem('@pointsThisDrive'),
           ]);
 
@@ -292,6 +292,34 @@ export default function DashboardScreen({ route }) {
       };
     }, [user])
   );
+
+  useEffect(() => {
+    const loadDisplayedPoints = async () => {
+      try {
+        const stored = await AsyncStorage.getItem("displayedPoints");
+        if (stored !== null) {
+          setDisplayedPoints(parseInt(stored, 10));
+        }
+      } catch (err) {
+        console.error("Error loading displayedPoints:", err);
+      }
+    };
+
+    loadDisplayedPoints();
+
+    return () => {
+      (async () => {
+        try {
+          if (totalPoints !== null) {
+            await AsyncStorage.setItem("displayedPoints", totalPoints.toString());
+          }
+        } catch (err) {
+          console.error("Error saving displayedPoints:", err);
+        }
+      })();
+    };
+  }, [totalPoints]);
+
 
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
@@ -402,7 +430,7 @@ export default function DashboardScreen({ route }) {
 
   const renderHeatBar = (score) => {
     const markerSize = 28;
-    const barWidth = width * 0.8; // use ~90% of screen width
+    const barWidth = width * 0.8; 
     const margin = 14;
     const usableWidth = barWidth - 2 * margin;
     const clampedScore = Math.min(Math.max(score, 0), 100);

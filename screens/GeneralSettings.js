@@ -74,7 +74,7 @@ export default function GeneralSettings() {
           />
         </View>
 
-        <View style={styles.settingRowToggle}>
+        {/* <View style={styles.settingRowToggle}>
           <Text style={[styles.settingLabel, {color: textColor}]}>Example Toggle</Text>
           <Switch
             value={exampleToggle}
@@ -82,7 +82,7 @@ export default function GeneralSettings() {
             trackColor={{ false: '#767577', true: '#86ff7d' }}
             thumbColor={exampleToggle ? '#ffffff' : '#f4f3f4'}
           />
-        </View>
+        </View> */}
 
 
       </View>

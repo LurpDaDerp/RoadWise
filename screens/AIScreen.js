@@ -213,7 +213,17 @@ export default function AIScreen({ route, navigation }) {
     let totalDuration = 0;
     let distractedCountVal = 0;
 
-    drives.forEach(drive => {
+    const now = new Date();
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(now.getDate() - 29); 
+
+    const drivesToUse = drives.filter(drive => {
+      const dt = drive.timestamp?.toDate ? drive.timestamp.toDate() : new Date(drive.timestamp);
+      return dt >= start && dt <= now;
+    });
+
+    drivesToUse.forEach(drive => {
       const duration = drive.duration || 0;
       totalWeightedSpeed += (drive.avgSpeed || 0) * duration;
       totalSpeedingMargin += (drive.avgSpeedingMargin || 0) * duration;
@@ -224,12 +234,12 @@ export default function AIScreen({ route, navigation }) {
       if (drive.distracted > 0) distractedCountVal += 1;
     });
 
-    const totalDrives = drives.length;
+    const totalDrives = drivesToUse.length;
     const undistractedCountVal = totalDrives - distractedCountVal;
     const percent = totalDrives > 0 ? Math.round((distractedCountVal / totalDrives) * 10000) / 100 : 0;
 
     return {
-      totalPhoneDistractions: distractedCountVal, 
+      totalPhoneDistractions: distractedCountVal,
       numberOfDistractedDrives: distractedCountVal,
       numberOfUndistractedDrives: undistractedCountVal,
       percentDistracted: percent,
@@ -237,11 +247,10 @@ export default function AIScreen({ route, navigation }) {
       averageSpeed: totalDuration > 0 ? (totalWeightedSpeed / totalDuration).toFixed(1) : 0,
       suddenStops: totalSuddenStops,
       suddenAccelerations: totalSuddenAccels,
-      totalDurationDriving: formatTotalDuration(totalDuration),
-      totalDistanceTraveled: totalDistance.toFixed(1),
       generatedAt: new Date().toISOString(),
     };
   };
+
 
 
 

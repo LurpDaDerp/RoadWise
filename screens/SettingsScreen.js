@@ -26,8 +26,7 @@ export default function SettingsScreen() {
   const titleColor = isDark ? '#fff' : '#000';
   const textColor = isDark ? '#fff' : '#000';
   const moduleBackground = isDark ? '#222' : '#ebebebff';
-  const altTextColor = isDark ? '#aaa' : '#555';
-  const inputbackground = isDark? '#353535ff' : '#a7a7a78e';
+  const arrowColor = isDark ? '#ffffffff' : '#444444ff';
 
   const fadeInContent = useCallback(() => {
     Animated.timing(contentOpacity, {
@@ -59,7 +58,7 @@ export default function SettingsScreen() {
               onPress={() => navigation.navigate(item.route)}
             >
               <Text style={[styles.optionText, {color: textColor}]}>{item.title}</Text>
-              <Ionicons name="chevron-forward" size={24} color="#fff" />
+              <Ionicons name="chevron-forward" size={24} color={arrowColor} />
             </TouchableOpacity>
           )}
         />

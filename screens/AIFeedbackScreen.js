@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Dimensions } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Dimensions, Animated } from "react-native";
 import { getAIFeedback } from "../utils/gptApi";
 import { getAuth } from "firebase/auth";
 import { LinearGradient } from 'expo-linear-gradient';
@@ -40,11 +40,42 @@ function normalizeInput(stats) {
 export default function AIFeedbackScreen({ route }) {
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState(null);
+  const [loadingMessage, setLoadingMessage] = useState("Analyzing data...");
+
+  const fadeAnim = useState(new Animated.Value(0))[0];
 
   useEffect(() => {
     if (feedback !== null) return;
 
     const controller = new AbortController();
+
+    const messages = [
+      "Processing Data...",
+      "Analyzing Distractions...",
+      "Analyzing Speed Data...",
+      "Analyzing Braking Behavior...",
+      "Analyzing Acceleration Behavior...",
+      "Generating Response..."
+    ];
+
+    let index = 0;
+    setLoadingMessage(messages[index]);
+
+    let timeoutId;
+
+    const showNextMessage = () => {
+      index++;
+      if (index < messages.length) {
+        const randomDelay = Math.floor(Math.random() * 1800) + 750;
+
+        timeoutId = setTimeout(() => {
+          setLoadingMessage(messages[index]);
+          showNextMessage(); 
+        }, randomDelay);
+      } 
+    };
+
+    showNextMessage();
 
     const fetchFeedback = async () => {
         try {
@@ -109,6 +140,13 @@ export default function AIFeedbackScreen({ route }) {
         } finally {
             if (!controller.signal.aborted) {
                 setLoading(false);
+                clearTimeout(timeoutId);
+
+                Animated.timing(fadeAnim, {
+                  toValue: 1,
+                  duration: 1500, 
+                  useNativeDriver: true,
+                }).start();
             }
         }
         };
@@ -117,6 +155,7 @@ export default function AIFeedbackScreen({ route }) {
 
     return () => {
         controller.abort();
+        clearTimeout(timeoutId);
     };
   }, []);
 
@@ -175,15 +214,19 @@ const renderHeatBar = (score) => {
     >
     <View style={styles.container}>
       {loading ? (
-        <View style={styles.loadingContainer}>
+        <View style={[styles.loadingContainer, {marginBottom: height/14}]}>
             <LottieView
             source={require("../assets/loader.json")} 
             autoPlay
             loop
-            style={{ width: width, height: width }}
+            style={{ width: 1.3*width, height: 1.3*width }}
             />
+            <Text style={{ color: "#fff", marginTop: height/7, fontSize: 18, position: "absolute", fontFamily: "Arial Rounded MT Bold"}}>
+              {loadingMessage}
+            </Text>
         </View>
       ) : (
+        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
         <ScrollView style = {{paddingHorizontal: width/15}}>
           {feedback && (
             <>
@@ -203,6 +246,7 @@ const renderHeatBar = (score) => {
             </>
           )}
         </ScrollView>
+        </Animated.View>
       )}
     </View>
     </LinearGradient>

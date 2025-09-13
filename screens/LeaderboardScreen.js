@@ -81,8 +81,8 @@ export default function LeaderboardScreen() {
   const textColor = isDark ? "#fff" : "#000";
   const altTextColor = isDark ? '#aaa' : '#555';
   const buttonColor = isDark ? `rgba(92, 179, 238, 1)` : `rgba(69, 146, 235, 1)`;
-  const sheetGradientTop = isDark ? "#380864ff" : "#cab6ffff"; 
-  const sheetGradientBottom = isDark ? "#070222ff" : "#fffccfff"; 
+  const sheetGradientTop = isDark ? "#131313ff" : "#ffffffff"; 
+  const sheetGradientBottom = isDark ? "#131313ff" : "#ffffffff"; 
 
   const contentOpacity = useRef(new Animated.Value(0)).current;
 
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   leaderboardContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',  
+    backgroundColor: 'rgba(117, 117, 117, 0.1)',  
     borderColor: 'rgba(255, 255, 255, 0)',  
     borderWidth: 2,
     borderRadius: width/20,

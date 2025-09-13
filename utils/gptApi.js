@@ -15,25 +15,22 @@ export const getAIFeedback = async (statsJSON) => {
       },
       body: JSON.stringify({
         model: "gpt-5-mini",
-        input: `You are an expert driving safety coach.
-Here is a JSON of my driving statistics: ${JSON.stringify(statsJSON)}
+        input: `Act as a driving safety coach.
+          The following driving stats summarize the user's driving behavior over the past 30 days:
+          Stats: ${JSON.stringify(statsJSON)}
 
-Please respond ONLY in valid JSON with the following format:
+          Return ONLY valid JSON in this schema:
+          {
+            "score": 0-100,
+            "summary": "1-2 sentences on strengths and weaknesses (make clear this is based on the past 30 days)",
+            "tips": ["5-10 short, specific improvement tips referencing the given stats"]
+          }
 
-{
-  "score": 0-100,
-  "summary": "A brief sentence or two describing what the user does well and what needs improvement",
-  "tips": [
-    "Tip 1",
-    "Tip 2",
-    "Tip 3",
-    "Tip 4",
-    "Tip 5"
-  ]
-}
-
-for the tips section, there should be 5-10 tips, and each tip should be a brief sentence or two describing actions the user can take or things to take note of to improve their driving safety. 
-Be concise, casual, and constructive. Do not include any extra text outside the JSON.`,
+          Guidelines:
+          - DO NOT use the raw variable names in your output (e.g. don't say "avgSpeedingMargin").
+          - Mention the relevant statistic(s) in the summary/tips (e.g. "Your braking is above average at X"). 
+          - Keep tips concise, casual, constructive.
+          - No text outside JSON.`
       }),
     });
 
