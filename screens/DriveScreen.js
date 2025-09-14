@@ -395,6 +395,9 @@ export default function DriveScreen({ route }) {
           }
           
           await finalizeDrive();
+          if (isEmergencyActive) {
+            cancelGroupEmergency();
+          }
           navigation.goBack();
         }, 2 * 60 * 1000);
 
@@ -900,7 +903,7 @@ export default function DriveScreen({ route }) {
           <Text style={styles.emergencyButtonText}>Emergency</Text>
         </TouchableOpacity>
 
-        {showSpeedLimit  && !isEmergencyActive && (
+        {showSpeedLimit && (
           <View style={styles.speedLimitContainer}>
             <ImageBackground
               source={require('../assets/speedlimit.png')}
@@ -922,6 +925,10 @@ export default function DriveScreen({ route }) {
               <Text style={styles.emergencyBannerButtonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
+        )}
+
+        {isEmergencyActive && (
+          <View style={{...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)',zIndex: 1500,}} pointerEvents="auto" />
         )}
 
         <View style={styles.container}>
@@ -1005,24 +1012,23 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '80%',
     backgroundColor: '#fff',
-    borderRadius: (width / 375) * 20,
+    borderRadius: 20,
     padding: (width / 375) * 20,
     alignItems: 'center',
     elevation: 10,
   },
 
   modalTitle: {
-    fontSize: (width / 375) * 20,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: (height / 667) * 20,
+    marginBottom: 20,
     textAlign: 'center',
   },
 
   modalOption: {
-    borderRadius: (width / 375) * 12,
+    borderRadius: 12,
     paddingVertical: 12,
-    paddingHorizontal: (width / 375) * 20,
-    marginTop: (height / 667) * 10,
+    marginTop: 10,
     width: '100%',
   },
 
@@ -1053,15 +1059,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   speedLimitText: {
-    paddingTop: (height / 667) * 40,
-    fontSize: (width / 375) * 36,
+    paddingTop: (height / 667) * 35,
+    fontSize: 36,
     fontWeight: 'bold',
     color: '#000',
     textAlign: 'center',
   },
   emergencyBanner: {
     position: 'absolute',
-    top: (height / 667) * 45,
+    top: (height / 667) * 60,
     left: 0,
     right: 0,
     flexDirection: 'row',

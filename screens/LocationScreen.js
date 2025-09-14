@@ -249,6 +249,59 @@ export default function LocationScreen() {
     })
   ).current;
 
+  const PulseRing = () => {
+    const scale = useRef(new Animated.Value(0.2)).current;
+    const opacity = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+      const loop = Animated.loop(
+        Animated.parallel([
+          Animated.sequence([
+            Animated.timing(scale, {
+              toValue: 2.5,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(scale, {
+              toValue: 0.2,
+              duration: 0,
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.sequence([
+            Animated.timing(opacity, {
+              toValue: 0,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(opacity, {
+              toValue: 1,
+              duration: 0,
+              useNativeDriver: true,
+            }),
+          ]),
+        ])
+      );
+      loop.start();
+      return () => loop.stop();
+    }, [scale, opacity]);
+
+    return (
+      <Animated.View
+        style={{
+          position: "absolute",
+          width: 80,
+          height: 80,
+          borderRadius: 40,
+          backgroundColor: "rgba(255, 58, 48, 0.77)",
+          transform: [{ scale }],
+          opacity,
+        }}
+      />
+    );
+  };
+
+
   const bottomSheetRef = useRef(null);
   const snapPoints = useMemo(() => ["15%", "40%", "90%"], []);
 
@@ -262,8 +315,8 @@ export default function LocationScreen() {
   const textColor = isDark ? "#fff" : "#000";
   const altTextColor = isDark ? '#aaa' : '#555';
   const buttonColor = isDark ? `rgba(92, 179, 238, 1)` : `rgba(69, 146, 235, 1)`;
-  const sheetGradientTop = isDark ? "#1f1f1fe1" : "#e7e7e7cc"; 
-  const sheetGradientBottom = isDark ? "#0d061be1" : "#d3b8ffd0"; 
+  const sheetGradientTop = isDark ? "#1f1f1fe1" : "#ffffffcc"; 
+  const sheetGradientBottom = isDark ? "#0d061be1" : "#c0c0c0d0"; 
 
   const user = auth.currentUser;
 
@@ -853,6 +906,7 @@ export default function LocationScreen() {
                       title={member.name}
                     >
                       <View style={{ width: 50, height: 50, alignItems: 'center', marginBottom: 50 }}>
+                        {member.emergency && <PulseRing />}
                         <Image
                           source={require('../assets/marker.png')}
                           style={{ width: 50, height: 50 }}
@@ -1079,7 +1133,6 @@ export default function LocationScreen() {
                                   paddingHorizontal: 8,
                                   paddingVertical: 2,
                                   borderRadius: 10,
-                                  marginLeft: 6,
                                 }}
                               >
                                 <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 12 }}>
@@ -1126,14 +1179,14 @@ export default function LocationScreen() {
                             style={{
                               padding: 6,
                               borderRadius: 20,
-                              backgroundColor: moduleBackground,
+                              backgroundColor: item.coords?.emergency ? '#ff3b30' : moduleBackground,
                               marginLeft: 10,
                             }}
                           >
                             <Ionicons
-                              name="location-outline"
+                              name={item.coords?.emergency ? 'location-sharp' : 'location-outline'}
                               size={20}
-                              color={textColor}
+                              color={item.coords?.emergency ? '#ffffff' : textColor}
                             />
                           </TouchableOpacity>
                         )}
