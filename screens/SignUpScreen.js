@@ -55,8 +55,9 @@ export default function SignUpScreen() {
         username: username.trim(),
         email,
         points: 0,
-        streakCount: 0,
+        drivingStreak: 0,
         lastDriveDate: null,
+        photoURL: null,
       });
 
 

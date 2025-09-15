@@ -15,26 +15,8 @@ Notifications.setNotificationHandler({
 });
 
 export async function requestNotificationPermissions() {
-  return new Promise((resolve) => {
-    Alert.alert(
-      "Enable Notifications",
-      "We use notifications to alert you if a group member signals an emergency. Do you want to allow them?",
-      [
-        {
-          text: "Not Now",
-          style: "cancel",
-          onPress: () => resolve(false),
-        },
-        {
-          text: "Allow",
-          onPress: async () => {
-            const { status } = await Notifications.requestPermissionsAsync();
-            resolve(status === "granted");
-          },
-        },
-      ]
-    );
-  });
+  const { status } = await Notifications.requestPermissionsAsync();
+  return status === "granted";
 }
 
 //Push Notifs
@@ -61,7 +43,7 @@ export async function registerForPushNotificationsAsync() {
   const uid = auth.currentUser?.uid;
   if (uid && token) {
     try {
-      await setDoc(doc(db, "users", uid), { pushToken: token });
+      await updateDoc(doc(db, "users", uid), { pushToken: token });
     } catch (err) {
       console.error("Error saving push token:", err);
     }

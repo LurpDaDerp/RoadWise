@@ -660,15 +660,29 @@ export default function LocationScreen() {
             const photoURL = profile?.photoURL ?? coords?.photoURL ?? null;
 
             const prevItem = prevMap.get(uid);
+
+            let renderCoord = prevItem?.renderCoord;
+            if (
+              coords?.latitude != null &&
+              coords?.longitude != null &&
+              (!renderCoord ||
+                renderCoord.latitude !== coords.latitude ||
+                renderCoord.longitude !== coords.longitude)
+            ) {
+              renderCoord = { latitude: coords.latitude, longitude: coords.longitude };
+            }
+
             prevMap.set(uid, {
               uid,
               name,
               photoURL,
-              coords: coords || null,
+              coords: coords || prevItem?.coords || null,  
+              renderCoord,   
               isDriving: (coords?.speed ?? 0) > 10,
               emergency: !!coords?.emergency,
               address: address ?? prevItem?.address ?? null,
             });
+
           });
 
           for (const oldUid of Array.from(prevMap.keys())) {
