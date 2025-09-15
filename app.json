@@ -36,6 +36,10 @@
       "userInterfaceStyle": "automatic",
       "bundleIdentifier": "com.lurp.safedrive",
       "googleServicesFile": "./GoogleService-Info.plist",
+      "usesAppleSignIn": false,
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": ["location"],
