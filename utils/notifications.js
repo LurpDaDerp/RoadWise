@@ -3,7 +3,7 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { db, auth } from "./firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, setDoc } from "firebase/firestore";
 import { Alert } from "react-native";
 
 Notifications.setNotificationHandler({
@@ -61,7 +61,7 @@ export async function registerForPushNotificationsAsync() {
   const uid = auth.currentUser?.uid;
   if (uid && token) {
     try {
-      await updateDoc(doc(db, "users", uid), { pushToken: token });
+      await setDoc(doc(db, "users", uid), { pushToken: token });
     } catch (err) {
       console.error("Error saving push token:", err);
     }
