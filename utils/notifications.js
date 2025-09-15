@@ -4,6 +4,7 @@ import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { db, auth } from "./firebase";
 import { doc, updateDoc } from "firebase/firestore";
+import { Alert } from "react-native";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -13,16 +14,30 @@ Notifications.setNotificationHandler({
   }),
 });
 
-//Push Notifs
-
 export async function requestNotificationPermissions() {
-  const { status } = await Notifications.requestPermissionsAsync();
-  if (status !== "granted") {
-    alert("Notification permissions not granted!");
-    return false;
-  }
-  return true;
+  return new Promise((resolve) => {
+    Alert.alert(
+      "Enable Notifications",
+      "We use notifications to alert you if a group member signals an emergency. Do you want to allow them?",
+      [
+        {
+          text: "Not Now",
+          style: "cancel",
+          onPress: () => resolve(false),
+        },
+        {
+          text: "Allow",
+          onPress: async () => {
+            const { status } = await Notifications.requestPermissionsAsync();
+            resolve(status === "granted");
+          },
+        },
+      ]
+    );
+  });
 }
+
+//Push Notifs
 
 export async function registerForPushNotificationsAsync() {
   const { status } = await Notifications.getPermissionsAsync();
@@ -56,15 +71,6 @@ export async function registerForPushNotificationsAsync() {
 }
 
 //Local notifications 
-
-export async function requestNotificationPermissions() {
-  const { status } = await Notifications.requestPermissionsAsync();
-  if (status !== 'granted') {
-    alert('Notification permissions not granted!');
-    return false;
-  }
-  return true;
-}
 
 export async function scheduleDistractedNotification() {
   await Notifications.scheduleNotificationAsync({

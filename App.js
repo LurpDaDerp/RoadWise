@@ -33,6 +33,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { startLocationUpdates } from './utils/LocationService';
 
+import { 
+  requestNotificationPermissions, 
+  registerForPushNotificationsAsync 
+} from "./utils/notifications";
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true, 
@@ -56,13 +61,34 @@ function AppNavigation() {
   const isDark = resolvedTheme === 'dark';
 
   React.useEffect(() => {
-    (async () => {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== 'granted') {
-        alert('Notification permissions not granted!');
+    const setupNotifications = async () => {
+      const granted = await requestNotificationPermissions();
+      if (granted) {
+        await registerForPushNotificationsAsync();
       }
-    })();
+    };
+    setupNotifications();
   }, []);
+
+  React.useEffect(() => {
+    const subReceived = Notifications.addNotificationReceivedListener((notification) => {
+      console.log("📩 Notification received:", notification);
+    });
+
+    const subResponse = Notifications.addNotificationResponseReceivedListener((response) => {
+      console.log("Notification tapped:", response);
+      if (navigationRef.isReady()) {
+        navigationRef.navigate("Dashboard");
+      }
+    });
+
+    return () => {
+      subReceived.remove();
+      subResponse.remove();
+    };
+  }, []);
+
+
 
   React.useEffect(() => {
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
