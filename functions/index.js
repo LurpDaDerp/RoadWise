@@ -6,7 +6,7 @@ const fetch = require("node-fetch");
 admin.initializeApp();
 setGlobalOptions({ maxInstances: 10 });
 
-// Helper to send Expo notifications
+//send Expo notifications
 async function sendExpoPush(tokens, title, body) {
   const messages = tokens.map(token => ({
     to: token,
@@ -27,9 +27,7 @@ async function sendExpoPush(tokens, title, body) {
     });
 
     const data = await response.json();
-    console.log("📩 Expo push response:", data);
   } catch (err) {
-    console.error("❌ Error sending Expo push:", err);
   }
 }
 
@@ -49,6 +47,10 @@ exports.notifyOnEmergency = onDocumentUpdated("groups/{groupId}", async (event) 
     if (!wasEmergency && isEmergency) {
       console.log(`🚨 Emergency detected for user ${uid} in group ${event.params.groupId}`);
 
+      const userSnap = await admin.firestore().collection("users").doc(uid).get();
+      const userData = userSnap.exists ? userSnap.data() : {};
+      const username = userData.username || "member"; 
+
       const userDocs = await admin.firestore()
         .collection("users")
         .where("groupId", "==", event.params.groupId)
@@ -63,7 +65,11 @@ exports.notifyOnEmergency = onDocumentUpdated("groups/{groupId}", async (event) 
       });
 
       if (tokens.length > 0) {
-        await sendExpoPush(tokens, "🚨 Emergency Alert", `${uid} signaled an emergency!`);
+        await sendExpoPush(
+          tokens,
+          "🚨 Emergency Alert",
+          `${username} signaled an emergency!` 
+        );
       }
     }
   }

@@ -40,7 +40,7 @@ import {
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,  
+    shouldShowBanner: true,  
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -71,11 +71,9 @@ function AppNavigation() {
 
   React.useEffect(() => {
     const subReceived = Notifications.addNotificationReceivedListener((notification) => {
-      console.log("📩 Notification received:", notification);
     });
 
     const subResponse = Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log("Notification tapped:", response);
       if (navigationRef.isReady()) {
         navigationRef.navigate("Dashboard");
       }
