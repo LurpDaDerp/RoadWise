@@ -89,6 +89,7 @@ export default function AccountSettings(route) {
         } catch (err) {
           console.error(err);
           setPoints(0);
+          
           setUsername('N/A');
           setGroupName('None');
         }

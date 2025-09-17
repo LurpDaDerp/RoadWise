@@ -37,7 +37,6 @@ export async function getTotalDrivesNumber(uid) {
     const snapshot = await getDocs(metricsRef);
     return snapshot.size;
   } catch (error) {
-    console.error("Error fetching drive metrics:", error);
     return 0;
   }
 }
@@ -78,19 +77,6 @@ export async function getTrustedContacts(uid) {
   }
 }
 
-export async function saveUserDrive(uid, driveData) {
-  if (!uid) return;
-  try {
-    const drivesRef = collection(db, "users", uid, "drives");
-    await addDoc(drivesRef, {
-      ...driveData,
-      timestamp: serverTimestamp()
-    });
-  } catch (err) {
-    console.error("Failed to save user drive:", err);
-  }
-}
-
 export async function getUserDrives(uid) {
   if (!uid) return [];
   try {
@@ -110,13 +96,30 @@ export async function getUserDrives(uid) {
 }
 
 export async function saveDriveMetrics(uid, metrics) {
-  try {
-    await addDoc(collection(db, "users", uid, "drivemetrics"), {
+  if (!uid) return;
+
+  const writeOnce = async () => {
+    const metricsRef = collection(db, "users", uid, "drivemetrics");
+    await addDoc(metricsRef, {
       ...metrics,
-      timestamp: serverTimestamp(), 
+      timestamp: serverTimestamp(),
     });
+  };
+
+  try {
+    await writeOnce();
   } catch (err) {
-    console.error("Failed to save drive metrics:", err);
+    try {
+      const userDocRef = doc(db, "users", uid);
+      const userSnap = await getDoc(userDocRef);
+      if (!userSnap.exists()) {
+        await setDoc(userDocRef, { createdAt: serverTimestamp() }, { merge: true });
+      }
+
+      await writeOnce();
+    } catch (retryErr) {
+      console.error("Failed to save drive metrics (after init):", retryErr);
+    }
   }
 }
 

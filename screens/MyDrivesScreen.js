@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemeContext } from '../context/ThemeContext';
 
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
-import { saveUserDrive, getUserDrives, clearUserDrives } from '../utils/firestore';
+import { getUserDrives, clearUserDrives } from '../utils/firestore';
 import { auth } from '../utils/firebase';
 import { LinearGradient } from 'expo-linear-gradient';
 

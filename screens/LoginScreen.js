@@ -115,7 +115,7 @@ export default function LoginScreen() {
       <TouchableOpacity
         disabled={!request}
         onPress={() => promptAsync()}
-        style={[styles.button, { backgroundColor: '#8f42f4ff', marginTop: 12 }]}
+        style={[styles.button, { backgroundColor: '#00cea1ff', marginTop: 12 }]}
       >
         <Text style={styles.buttonText}>Sign In with Google</Text>
       </TouchableOpacity>
@@ -140,35 +140,36 @@ const styles = StyleSheet.create({
     padding: width / (375 / 24),
   },
   title: {
-    fontSize: width / (375 / 32),
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#fff',
     marginTop: height / (667 / 60),
-    marginBottom: height / (667 / 32),
+    marginBottom: 32,
     alignSelf: 'center',
   },
   subtitle: {
-    fontSize: width / (375 / 16),
+    fontSize: 16,
     color: '#fff',
     marginBottom: height / (667 / 24),
     textAlign: 'center',
   },
   input: {
     backgroundColor: '#222',
-    padding: width / (375 / 12),
-    borderRadius: width / (375 / 8),
+    padding: 12,
+    borderRadius: 8,
     color: '#fff',
-    marginBottom: height / (667 / 16),
+    marginBottom: 16,
   },
   button: {
-    backgroundColor: '#5600e0ff',
-    padding: 15,
-    borderRadius: 8,
+    backgroundColor: '#8c00ffff',
+    padding: 12,
+    borderRadius: 12,
     marginTop: 8,
     alignItems: 'center',
   },
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 15
   },
 });

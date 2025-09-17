@@ -787,6 +787,14 @@ export default function LocationScreen() {
       createdAt: new Date(),
       createdBy: user.uid,
       groupName: groupName.trim(),
+      memberLocations: {
+        [user.uid]: {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          speed: coords.speed,
+          updatedAt: new Date(),
+        },
+      },
     });
 
     await setDoc(userRef, { groupId: newGroupId }, { merge: true });

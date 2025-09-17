@@ -18,7 +18,7 @@ import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth } from '../utils/firebase';
 import { getFirestore, doc, updateDoc, increment, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { saveTrustedContacts, getTrustedContacts, saveUserDrive, saveDriveMetrics, getHereKey, startDriving, stopDriving } from '../utils/firestore';
+import { saveTrustedContacts, getTrustedContacts, saveDriveMetrics, getHereKey, startDriving, stopDriving } from '../utils/firestore';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { useContext } from 'react';

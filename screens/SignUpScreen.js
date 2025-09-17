@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { auth, db } from '../utils/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { useNavigation } from '@react-navigation/native';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { saveUserPoints } from '../utils/firestore';
 import { query, where, getDocs, collection } from 'firebase/firestore';
 
@@ -38,18 +38,26 @@ export default function SignUpScreen() {
       Alert.alert('Validation Error', 'Please enter a valid email address.');
       return;
     }
-
+    
     try {
-      const q = query(collection(db, 'users'), where('username', '==', username.trim()));
-      const querySnapshot = await getDocs(q);
+      const usernameDoc = await getDoc(doc(db, 'usernames', username.trim().toLowerCase()));
 
-      if (!querySnapshot.empty) {
+      if (usernameDoc.exists()) {
         Alert.alert('Username Taken', 'This username is already in use. Please choose another.');
         return;
       }
 
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
+
+      await new Promise((resolve) => {
+        const unsub = auth.onAuthStateChanged((currentUser) => {
+          if (currentUser) {
+            unsub();
+            resolve();
+          }
+        });
+      });
 
       await setDoc(doc(db, 'users', uid), {
         username: username.trim(),
@@ -60,6 +68,9 @@ export default function SignUpScreen() {
         photoURL: null,
       });
 
+      await setDoc(doc(db, 'usernames', username.trim().toLowerCase()), {
+        uid: uid,
+      });
 
       await saveUserPoints(uid, 0);
       await AsyncStorage.setItem('totalPoints', '0');
@@ -120,7 +131,7 @@ const styles = StyleSheet.create({
   },
   title: {
     paddingTop: height / (667 / 75),
-    fontSize: width / (375 / 32),
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: height / (667 / 24),
@@ -128,20 +139,21 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: '#222',
-    padding: height / (667 / 12),
-    borderRadius: width / (375 / 8),
+    padding: 12,
+    borderRadius: 8,
     color: '#fff',
-    marginBottom: height / (667 / 16),
+    marginBottom: 16,
   },
   button: {
-    backgroundColor: '#00b894',
-    padding: 15,
-    borderRadius: 8,
+    backgroundColor: '#8c00ffff',
+    padding: 12,
+    borderRadius: 12,
     marginTop: 8,
     alignItems: 'center',
   },
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 15
   },
 });
