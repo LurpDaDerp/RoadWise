@@ -75,7 +75,7 @@ function AppNavigation() {
 
     const subResponse = Notifications.addNotificationResponseReceivedListener((response) => {
       if (navigationRef.isReady()) {
-        navigationRef.navigate("Dashboard");
+        navigationRef.navigate("LocationScreen");
       }
     });
 
