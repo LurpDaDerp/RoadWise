@@ -36,7 +36,7 @@ export default function AccountSettings(route) {
   const [loadingImage, setLoadingImage] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [photoURL, setPhotoURL] = useState(null);
+  const [photoURL, setPhotoURL] = useState("noImage");
   const [groupName, setGroupName] = useState('None');
 
   const rootNav = route.params?.rootNavigation;
@@ -71,7 +71,7 @@ export default function AccountSettings(route) {
           if (userDocSnap.exists()) {
             const data = userDocSnap.data();
             setUsername(data.username || 'N/A');
-            setPhotoURL(data.photoURL || null);
+            setPhotoURL(data.photoURL || "noImage");
 
             if (data.groupId) {
               const groupDocRef = doc(db, 'groups', data.groupId);
@@ -89,7 +89,7 @@ export default function AccountSettings(route) {
         } catch (err) {
           console.error(err);
           setPoints(0);
-          
+
           setUsername('N/A');
           setGroupName('None');
         }
@@ -157,12 +157,6 @@ export default function AccountSettings(route) {
     }
   };
 
-  useEffect(() => {
-    if (photoURL) {
-      setLoadingImage(true);
-    }
-  }, [photoURL]);
-
   if (loading) {
     return (
       <View style={[styles.loading, {backgroundColor: backgroundColor}]}>
@@ -178,9 +172,9 @@ export default function AccountSettings(route) {
       <View style={styles.profileBox}>
         <TouchableOpacity onPress={pickImage}>
           <View>
-            {photoURL ? (
+            {photoURL !== "noImage" ? (
               <Image
-                key={photoURL} 
+                key={photoURL}
                 source={{ uri: photoURL }}
                 style={styles.profileImage}
                 onLoadEnd={() => setLoadingImage(false)}
@@ -193,18 +187,19 @@ export default function AccountSettings(route) {
               </View>
             )}
 
-            {loadingImage && (
+            {loadingImage && photoURL !== "noImage" && (
               <View style={{
                 ...StyleSheet.absoluteFillObject,
                 backgroundColor: 'rgba(0,0,0,0.4)',
                 justifyContent: 'center',
                 alignItems: 'center',
-                borderRadius: 50
+                borderRadius: 50,
               }}>
                 <ActivityIndicator size="small" color="#fff" />
               </View>
             )}
           </View>
+
         </TouchableOpacity>
         <Text style={[styles.infoLabel, {marginTop: 10, marginBottom: 0, color: altTextColor}]}>Tap to edit</Text>
       </View>
