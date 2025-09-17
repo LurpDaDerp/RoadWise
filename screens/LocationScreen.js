@@ -314,7 +314,7 @@ export default function LocationScreen() {
   const titleColor = isDark ? "#fff" : "#000";
   const textColor = isDark ? "#fff" : "#000";
   const altTextColor = isDark ? '#aaa' : '#555';
-  const buttonColor = isDark ? `rgba(92, 179, 238, 1)` : `rgba(69, 146, 235, 1)`;
+  const buttonColor = isDark ? `rgba(56, 118, 252, 1)` : `rgba(69, 146, 235, 1)`;
   const sheetGradientTop = isDark ? "#1f1f1fe1" : "#ffffffcc"; 
   const sheetGradientBottom = isDark ? "#0d061be1" : "#c0c0c0d0"; 
 
@@ -1021,7 +1021,7 @@ export default function LocationScreen() {
 
         {!groupId && !isCreating && (
           <LinearGradient
-            colors={['#5b89ecff', '#37128fff', '#140536ff']} 
+            colors={['#140536ff', '#37128fff', '#450074ff']} 
             style={styles.joinPanel}
           >
             <Text style={[styles.starttitle, { color: "#fff" }]}>
@@ -1060,7 +1060,7 @@ export default function LocationScreen() {
 
         {!groupId && isCreating && (
           <LinearGradient
-            colors={['#5b89ecff', '#37128fff', '#140536ff']}
+            colors={['#140536ff', '#37128fff', '#450074ff']} 
             style={styles.joinPanel}
           >
             <Text style={[styles.title, { color: "#fff" }]}>

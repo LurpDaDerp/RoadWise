@@ -160,7 +160,6 @@ export async function getAllDriveMetrics(uid) {
     const metrics = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     return metrics;
   } catch (err) {
-    console.error("Failed to fetch drive metrics:", err);
     return [];
   }
 }

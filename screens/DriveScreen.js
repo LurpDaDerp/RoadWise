@@ -136,7 +136,7 @@ export default function DriveScreen({ route }) {
 
   const { setDriveJustCompleted } = useDrive();
 
-  const { resolvedTheme, theme, updateTheme } = useContext(ThemeContext);
+  const { resolvedTheme } = useContext(ThemeContext);
 
   const isDarkMode = resolvedTheme === 'dark';
 
