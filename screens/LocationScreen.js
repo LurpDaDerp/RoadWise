@@ -805,6 +805,7 @@ export default function LocationScreen() {
 
     setGroupId(newGroupId);
     setIsCreating(false);
+    startLocationUpdates();
   };
 
   const handleJoinGroup = async () => {
@@ -839,6 +840,33 @@ export default function LocationScreen() {
       },
       { merge: true }
     );
+
+    const savedLocations = groupSnap.data().savedLocations || [];
+    const normalizedSavedLocations = savedLocations.map((loc) => ({
+      ...loc,
+      normalizedAddress: normalizeAddress(loc.address),
+    }));
+
+    const myAddress = await getAddressForUser(
+      user.uid,
+      { location: { latitude: coords.latitude, longitude: coords.longitude, speed: coords.speed ?? 0 } },
+      savedLocations,
+      normalizedSavedLocations
+    );
+
+    setMembers((prev) => [
+      ...prev.filter((m) => m.uid !== user.uid),
+      {
+        uid: user.uid,
+        name: user.displayName || "You",
+        photoURL: user.photoURL || null,
+        coords: { latitude: coords.latitude, longitude: coords.longitude, speed: coords.speed ?? 0 },
+        renderCoord: { latitude: coords.latitude, longitude: coords.longitude },
+        isDriving: (coords.speed ?? 0) > 10,
+        emergency: false,
+        address: myAddress,
+      },
+    ]);
 
     setGroupId(gid);
 

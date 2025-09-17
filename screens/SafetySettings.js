@@ -188,7 +188,7 @@ export default function SafetySettings() {
           </Modal>
         </View>
 
-        <View style={styles.settingRowToggle}>
+        {/* <View style={styles.settingRowToggle}>
           <Text style={[styles.settingLabel, { color: textColor }]}>Notify Contacts</Text>
           <Switch
             value={exampleToggle}
@@ -196,7 +196,7 @@ export default function SafetySettings() {
             trackColor={{ false: '#767577', true: '#86ff7d' }}
             thumbColor={exampleToggle ? '#ffffff' : '#f4f3f4'}
           />
-        </View>
+        </View> */}
       </View>
     </ScrollView>
   );

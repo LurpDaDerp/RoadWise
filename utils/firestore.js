@@ -90,7 +90,6 @@ export async function getUserDrives(uid) {
     }));
     return drives;
   } catch (error) {
-    console.error("Error loading user drives:", error);
     return [];
   }
 }

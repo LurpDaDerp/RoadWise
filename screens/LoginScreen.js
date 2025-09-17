@@ -63,20 +63,32 @@ export default function LoginScreen() {
   }, [response]);
 
   const handleLogin = async () => {
+    const emailTrimmed = email.trim();
+    if (!emailTrimmed || !password) {
+      Alert.alert('Missing info', 'Please enter email and password.');
+      return;
+    }
+
     try {
-      navigation.navigate('Dashboard');
-      const tabNav = navigation.getParent();
-      if (tabNav) {
-        tabNav.navigate('Settings', {
-          screen: 'SettingsMain', 
-          params: { reset: true }, 
-        });
+      await signInWithEmailAndPassword(auth, emailTrimmed, password);
+
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Dashboard' }], 
+      });
+    } catch (err) {
+      let message = 'Login failed. Please try again.';
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+        message = 'Incorrect email or password.';
+      } else if (err.code === 'auth/user-not-found') {
+        message = 'No account found for that email.';
+      } else if (err.code === 'auth/too-many-requests') {
+        message = 'Too many attempts. Please wait and try again.';
       }
-      navigation.navigate('Dashboard');
-    } catch (error) {
-      Alert.alert('Incorrect email or password');
+      Alert.alert('Couldn’t log in', message);
     }
   };
+
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
