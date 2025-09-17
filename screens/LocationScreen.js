@@ -540,7 +540,7 @@ export default function LocationScreen() {
               city || town || village || state || "",
               country || "",
             ].filter(Boolean);
-            address = addrParts.join(", ");
+            address = addrParts.join(" ");
           }
           if (address !== "Unknown location") {
             await AsyncStorage.setItem(cacheKey, address);
@@ -782,6 +782,10 @@ export default function LocationScreen() {
     const newGroupId = Math.random().toString(36).substring(2, 8).toUpperCase();
     const userRef = doc(db, "users", user.uid);
     const groupRef = doc(db, "groups", newGroupId);
+
+    await setDoc(userRef, { groupId: newGroupId }, { merge: true });
+
+    const { coords } = await Location.getCurrentPositionAsync({});
 
     await setDoc(groupRef, {
       createdAt: new Date(),
