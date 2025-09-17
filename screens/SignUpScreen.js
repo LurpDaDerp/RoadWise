@@ -70,7 +70,6 @@ export default function SignUpScreen() {
         username,
         points: 0,
         drivingStreak: 0,
-        lastDriveDate: null,
         photoURL: null,
         groupId: null,
       });
