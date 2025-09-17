@@ -40,10 +40,17 @@ export default function SignUpScreen() {
     }
     
     try {
-      const usernameDoc = await getDoc(doc(db, 'usernames', username.trim().toLowerCase()));
+      console.log("test1");
+      const q = query(
+        collection(db, "users"),
+        where("username", "==", username.trim().toLowerCase())
+      );
 
-      if (usernameDoc.exists()) {
-        Alert.alert('Username Taken', 'This username is already in use. Please choose another.');
+      const querySnapshot = await getDocs(q);
+      console.log("test2");
+
+      if (!querySnapshot.empty) {
+        Alert.alert("Username Taken", "This username is already in use. Please choose another.");
         return;
       }
 
@@ -59,17 +66,18 @@ export default function SignUpScreen() {
         });
       });
 
-      await setDoc(doc(db, 'users', uid), {
-        username: username.trim(),
-        email,
+      await setDoc(doc(db, "users", uid), {
+        username,
         points: 0,
         drivingStreak: 0,
         lastDriveDate: null,
         photoURL: null,
+        groupId: null,
       });
 
-      await setDoc(doc(db, 'usernames', username.trim().toLowerCase()), {
-        uid: uid,
+      await setDoc(doc(db, "userinfo", uid), {
+        email,
+        createdAt: new Date(),
       });
 
       await saveUserPoints(uid, 0);
