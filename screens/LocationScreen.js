@@ -336,6 +336,12 @@ export default function LocationScreen() {
   const addLocationSheetRef = useRef(null);
   const addLocationSnapPoints = useMemo(() => ["90%"], []);
 
+  const copyToClipboard = async (text) => {
+    if (!text) return;
+    await Clipboard.setStringAsync(text);
+    Alert.alert("Copied", "Address copied to clipboard!");
+  };
+
   async function fetchProfilesOnce(uids) {
     
     const chunks = [];
@@ -1372,9 +1378,16 @@ export default function LocationScreen() {
 
                       {selectedMember.coords && (
                         <>
-                          <Text style={{ color: textColor, marginTop: 12, marginBottom: 8, fontSize: 14 }}>
-                            Location: {selectedMember.address || "Unknown"}
-                          </Text>
+                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 12, marginBottom: 8, fontSize: 14 }}>
+                            <Text style={{ color: textColor, flex: 1 }}>
+                              Location: {selectedMember.address || "Unknown"}
+                            </Text>
+                            {selectedMember.address && (
+                              <TouchableOpacity onPress={() => copyToClipboard(selectedMember.address)}>
+                                <Ionicons name="copy-outline" size={20} color={textColor} marginLeft={12} />
+                              </TouchableOpacity>
+                            )}
+                          </View>
                           <Text style={{ color: textColor, marginBottom: 8, fontSize: 14 }}>
                             Last Updated:{" "}
                             {selectedMember.coords.updatedAt
@@ -1382,7 +1395,7 @@ export default function LocationScreen() {
                               : "N/A"}
                           </Text>
                           <Text style={{ color: textColor, marginBottom: 8, fontSize: 14 }}>
-                            Speed: {((selectedMember.coords.speed ?? 0) * 2.23694).toFixed(1)} mph
+                            Speed: {((selectedMember.coords.speed ?? 0) * 2.23694).toFixed(0)} mph
                           </Text>
                         </>
                       )}
