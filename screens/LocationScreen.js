@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext, useRef, useMemo, useCallback, useLayoutEffect } from "react";
-import { StyleSheet, View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert, Dimensions, ScrollView, FlatList, Animated, Easing, SectionList, Keyboard, TouchableWithoutFeedback } from "react-native";
+import { StyleSheet, View, Text, TouchableOpacity, TextInput, ActivityIndicator, Alert, Dimensions, ScrollView, Animated, Easing, Keyboard, TouchableWithoutFeedback } from "react-native";
 import MapView, { Marker, AnimatedRegion } from "react-native-maps";
 import * as Location from "expo-location";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayRemove, arrayUnion, onSnapshot, deleteField, collection, getDocs, query, where } from "firebase/firestore";
@@ -12,11 +12,11 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import debounce from "lodash.debounce";
 import { Ionicons } from "@expo/vector-icons";
-import { waitForSignedInUser, startLocationUpdates, stopLocationUpdates } from "../utils/LocationService";
+import { startLocationUpdates, stopLocationUpdates } from "../utils/LocationService";
+import * as Clipboard from "expo-clipboard"; 
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Image } from "react-native";
-import { add } from "date-fns";
+import { Image, Modal } from "react-native";
 
 const db = getFirestore();
 const { width, height } = Dimensions.get('window');
@@ -227,7 +227,8 @@ export default function LocationScreen() {
   const [groupName, setGroupName] = useState("");
   const [members, setMembers] = useState([]);
   const memberProfilesRef = useRef({});
-  const fetchedProfilesOnce = useRef(false);
+  const [selectedMember, setSelectedMember] = useState(null);
+  const [isMemberModalVisible, setMemberModalVisible] = useState(false);
   const [locations, setLocations] = useState([]);
   const [editingLocation, setEditingLocation] = useState(null);
   const [HERE_API_KEY, setHereKey] = useState();
@@ -239,6 +240,16 @@ export default function LocationScreen() {
   const lastFetchTimes = useRef({});
   const memberUnsubs = useRef({});
   const lastLocations = useRef({});
+
+  
+  const openMemberModal = (member) => {
+    setSelectedMember(member);
+    setMemberModalVisible(true);
+  };
+
+  const closeMemberModal = () => {
+    setMemberModalVisible(false);
+  };
 
   const myAnimatedCoord = useRef(
     new AnimatedRegion({
@@ -672,14 +683,22 @@ export default function LocationScreen() {
               renderCoord = { latitude: coords.latitude, longitude: coords.longitude };
             }
 
+            const mergedCoords = {
+              latitude: coords?.latitude ?? prevItem?.coords?.latitude ?? null,
+              longitude: coords?.longitude ?? prevItem?.coords?.longitude ?? null,
+              speed: coords?.speed ?? prevItem?.coords?.speed ?? 0,
+              updatedAt: coords?.updatedAt ?? prevItem?.coords?.updatedAt ?? null,
+              emergency: coords?.emergency ?? prevItem?.coords?.emergency ?? false,
+            };
+
             prevMap.set(uid, {
               uid,
               name,
               photoURL,
-              coords: coords || prevItem?.coords || null,  
-              renderCoord,   
-              isDriving: (coords?.speed ?? 0) > 10,
-              emergency: !!coords?.emergency,
+              coords: mergedCoords, 
+              renderCoord,
+              isDriving: (mergedCoords.speed ?? 0) > 10,
+              emergency: mergedCoords.emergency,
               address: address ?? prevItem?.address ?? null,
             });
 
@@ -956,8 +975,12 @@ export default function LocationScreen() {
                 .map(member => (
                     <Marker
                       key={member.uid}
-                      coordinate={member.coords}
+                      coordinate={{
+                        latitude: member.coords.latitude,
+                        longitude: member.coords.longitude,
+                      }}
                       title={member.name}
+                      tracksViewChanges={false} 
                     >
                       <View style={{ width: 50, height: 50, alignItems: 'center', marginBottom: 50 }}>
                         {member.emergency && <PulseRing />}
@@ -1144,7 +1167,10 @@ export default function LocationScreen() {
                     title: "Members",
                     data: members,
                     renderItem: ({ item }) => (
-                      <View style={{ marginBottom: 10, flexDirection: "row", alignItems: "center" }}>
+                      <TouchableOpacity
+                        style={{ marginBottom: 10, flexDirection: "row", alignItems: "center" }}
+                        onPress={() => openMemberModal(item)}
+                      >
                         
                         {item.photoURL ? (
                           <Image
@@ -1245,7 +1271,7 @@ export default function LocationScreen() {
                           </TouchableOpacity>
                         )}
 
-                      </View>
+                      </TouchableOpacity>
                     ),
                   },
 
@@ -1318,6 +1344,64 @@ export default function LocationScreen() {
                   </View>
                 }
               />
+              )}
+
+              {selectedMember && (
+                <Modal
+                  visible={isMemberModalVisible}
+                  transparent={true}
+                  animationType="fade"
+                  onRequestClose={closeMemberModal}
+                  onDismiss={() => setSelectedMember(null)}
+                >
+                  <View style={{
+                    flex: 1,
+                    backgroundColor: "rgba(0,0,0,0.4)",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}>
+                    <View style={{
+                      backgroundColor: bottomSheetBackground,
+                      padding: 20,
+                      borderRadius: 12,
+                      width: "85%"
+                    }}>
+                      <Text style={{ fontSize: 20, fontWeight: "bold", color: titleColor }}>
+                        {selectedMember.name}
+                      </Text>
+
+                      {selectedMember.coords && (
+                        <>
+                          <Text style={{ color: textColor, marginTop: 12, marginBottom: 8, fontSize: 14 }}>
+                            Location: {selectedMember.address || "Unknown"}
+                          </Text>
+                          <Text style={{ color: textColor, marginBottom: 8, fontSize: 14 }}>
+                            Last Updated:{" "}
+                            {selectedMember.coords.updatedAt
+                              ? new Date(selectedMember.coords.updatedAt.seconds * 1000).toLocaleString()
+                              : "N/A"}
+                          </Text>
+                          <Text style={{ color: textColor, marginBottom: 8, fontSize: 14 }}>
+                            Speed: {((selectedMember.coords.speed ?? 0) * 2.23694).toFixed(1)} mph
+                          </Text>
+                        </>
+                      )}
+
+                      <TouchableOpacity
+                        onPress={closeMemberModal}
+                        style={{
+                          marginTop: 20,
+                          backgroundColor: buttonColor,
+                          paddingVertical: 10,
+                          borderRadius: 8,
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text style={{ color: "white", fontWeight: "bold" }}>Close</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </Modal>
               )}
 
           </BottomSheet>
