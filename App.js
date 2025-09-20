@@ -75,7 +75,12 @@ function AppNavigation() {
 
     const subResponse = Notifications.addNotificationResponseReceivedListener((response) => {
       if (navigationRef.isReady()) {
-        navigationRef.navigate("LocationScreen");
+        const route = navigationRef.current?.getCurrentRoute();
+        if (route?.name != "Drive" && route?.name != "SettingsMain") {
+          navigationRef.navigate("LocationScreen");
+        } else if (route?.name == "Drive") {
+          
+        }
       }
     });
 

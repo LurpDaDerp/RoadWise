@@ -502,8 +502,6 @@ export default function LocationScreen() {
         savedLocations: arrayUnion(newLoc)
       });
 
-      setLocations(prev => [...prev, newLoc]);
-
       setNewLocationName("");
       setNewLocationAddress("");
       setEditingLocation(null);
@@ -574,11 +572,10 @@ export default function LocationScreen() {
     const match = normalizedSavedLocations.find(loc =>
       compareAddresses(normalized, loc.normalizedAddress)
     );
-    if (match) {
-      address = match.name;
-    }
-
-    return address;
+    return {
+      displayName: match ? match.name : null,
+      address: address 
+    };
   };
 
 
@@ -705,7 +702,8 @@ export default function LocationScreen() {
               renderCoord,
               isDriving: (mergedCoords.speed ?? 0) > 10,
               emergency: mergedCoords.emergency,
-              address: address ?? prevItem?.address ?? null,
+              displayName: address?.displayName ?? prevItem?.displayName ?? null,
+              address: address?.address ?? prevItem?.address ?? null,
             });
 
           });
@@ -1179,32 +1177,45 @@ export default function LocationScreen() {
                       >
                         
                         {item.photoURL ? (
-                          <Image
-                            source={{ uri: item.photoURL }}
+                          <LinearGradient
+                            colors={["#838383ff", "#252525ff"]}
                             style={{
                               width: 40,
                               height: 40,
                               borderRadius: 20,
                               marginRight: 8,
-                            }}
-                          />
-                        ) : (
-                          <View
-                            style={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: 20,
-                              backgroundColor: "#666",
                               justifyContent: "center",
                               alignItems: "center",
+                              overflow: "hidden", // clip child image
+                            }}
+                          >
+                            <Image
+                              source={{ uri: item.photoURL }}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                borderRadius: 20,
+                              }}
+                            />
+                          </LinearGradient>
+                        ) : (
+                          <LinearGradient
+                            colors={["#838383ff", "#252525ff"]}
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 20,
                               marginRight: 8,
+                              justifyContent: "center",
+                              alignItems: "center",
                             }}
                           >
                             <Text style={{ color: "white", fontWeight: "bold" }}>
-                              {item.name[0].toUpperCase()}
+                              {item.name[0]?.toUpperCase()}
                             </Text>
-                          </View>
+                          </LinearGradient>
                         )}
+
 
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
@@ -1243,7 +1254,9 @@ export default function LocationScreen() {
 
                           {item.coords && (
                             <Text style={{ color: altTextColor, fontSize: 12, marginTop: 3 }}>
-                              {item.address}
+                              {item.displayName 
+                                ? `${item.displayName}` 
+                                : item.address || "Unknown"}
                             </Text>
                           )}
                         </View>
@@ -1291,7 +1304,6 @@ export default function LocationScreen() {
                           </Text>
                         ) : (
                           <TouchableOpacity
-                            key={item.address}
                             style={{
                               flexDirection: "row",
                               alignItems: "center",
@@ -1323,7 +1335,11 @@ export default function LocationScreen() {
                         ),
                     },
                   ]}
-                keyExtractor={(item) => item.uid || item.address || Math.random().toString()}
+                keyExtractor={(item, index) => {
+                  if (item.uid) return `member-${item.uid}`;
+                  if (item.address) return `loc-${item.name}-${item.address}`;
+                  return `idx-${index}`;
+                }}
                 renderSectionHeader={({ section: { title } }) => (
                   <Text style={[styles.subtitle, { color: titleColor, marginTop: 20 }]}>
                     {title}
@@ -1362,7 +1378,7 @@ export default function LocationScreen() {
                 >
                   <View style={{
                     flex: 1,
-                    backgroundColor: "rgba(0,0,0,0.4)",
+                    backgroundColor: "rgba(0,0,0,0.5)",
                     justifyContent: "center",
                     alignItems: "center",
                   }}>
@@ -1378,23 +1394,23 @@ export default function LocationScreen() {
 
                       {selectedMember.coords && (
                         <>
-                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 12, marginBottom: 8, fontSize: 14 }}>
-                            <Text style={{ color: textColor, flex: 1 }}>
-                              Location: {selectedMember.address || "Unknown"}
+                          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 12, marginBottom: 8 }}>
+                            <Text style={{ color: textColor, flex: 1, fontSize: 15 }}>
+                              Location: {selectedMember.address}
                             </Text>
                             {selectedMember.address && (
                               <TouchableOpacity onPress={() => copyToClipboard(selectedMember.address)}>
-                                <Ionicons name="copy-outline" size={20} color={textColor} marginLeft={12} />
+                                <Ionicons name="copy-outline" size={22} color={textColor} style={{ marginLeft: 8, marginRight: 12 }} />
                               </TouchableOpacity>
                             )}
                           </View>
-                          <Text style={{ color: textColor, marginBottom: 8, fontSize: 14 }}>
+                          <Text style={{ color: textColor, marginBottom: 8, fontSize: 15 }}>
                             Last Updated:{" "}
                             {selectedMember.coords.updatedAt
                               ? new Date(selectedMember.coords.updatedAt.seconds * 1000).toLocaleString()
                               : "N/A"}
                           </Text>
-                          <Text style={{ color: textColor, marginBottom: 8, fontSize: 14 }}>
+                          <Text style={{ color: textColor, marginBottom: 8, fontSize: 15 }}>
                             Speed: {((selectedMember.coords.speed ?? 0) * 2.23694).toFixed(0)} mph
                           </Text>
                         </>

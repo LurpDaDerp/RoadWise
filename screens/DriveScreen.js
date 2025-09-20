@@ -131,7 +131,7 @@ export default function DriveScreen({ route }) {
 
   const DEFAULT_SPEED_LIMIT_MPH = 25;
   const DEFAULT_SPEED_LIMIT_KPH = DEFAULT_SPEED_LIMIT_MPH * 1.60934;
-  const DEFAULT_DELAY = 1000;
+  const DEFAULT_DELAY = 2500;
   const speedThreshold = unit === 'kph' ? 16.0934 : 10;
 
   const { setDriveJustCompleted } = useDrive();

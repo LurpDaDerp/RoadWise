@@ -409,15 +409,17 @@ export default function AIScreen({ route, navigation }) {
 
           const { generatedAt, ...values } = statsJSON;
 
-          const numericValues = Object.values(values)
-            .map(val => Number(val))
-            .filter(val => !isNaN(val));
+          const totalDistance = Number(values?.distance || values?.totalDistance || 0);
+          const duration = Number(values?.duration || 0);
 
-          const allZero = numericValues.length > 0 && numericValues.every(val => val === 0);
-          if (allZero) {
-            Alert.alert("Not enough data", "Please complete at least one drive in within this timeframe to get feedback.");
+          if (totalDistance < 10 || duration < 500) {
+            Alert.alert(
+              "Not enough data",
+              "Please complete a few more drives to get feedback."
+            );
             return;
           }
+
           navigation.navigate("AIFeedback", { statsJSON });
         }}
         style={{

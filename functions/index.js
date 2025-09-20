@@ -45,7 +45,7 @@ exports.notifyOnEmergency = onDocumentUpdated("groups/{groupId}", async (event) 
     const isEmergency = member?.emergency || false;
 
     if (!wasEmergency && isEmergency) {
-      console.log(`🚨 Emergency detected for user ${uid} in group ${event.params.groupId}`);
+      console.log(`Emergency detected for user ${uid} in group ${event.params.groupId}`);
 
       const userSnap = await admin.firestore().collection("users").doc(uid).get();
       const userData = userSnap.exists ? userSnap.data() : {};
@@ -67,8 +67,37 @@ exports.notifyOnEmergency = onDocumentUpdated("groups/{groupId}", async (event) 
       if (tokens.length > 0) {
         await sendExpoPush(
           tokens,
-          "🚨 Emergency Alert",
-          `${username} signaled an emergency!` 
+          "⚠️ Emergency Alert",
+          `${username} signaled an emergency! Click here to view location.` 
+        );
+      }
+    }
+
+    if (wasEmergency && !isEmergency) {
+      console.log(`Emergency cleared for user ${uid} in group ${event.params.groupId}`);
+
+      const userSnap = await admin.firestore().collection("users").doc(uid).get();
+      const userData = userSnap.exists ? userSnap.data() : {};
+      const username = userData.username || "member"; 
+
+      const userDocs = await admin.firestore()
+        .collection("users")
+        .where("groupId", "==", event.params.groupId)
+        .get();
+
+      const tokens = [];
+      userDocs.forEach(doc => {
+        const data = doc.data();
+        if (data.pushToken && doc.id !== uid) {
+          tokens.push(data.pushToken);
+        }
+      });
+
+      if (tokens.length > 0) {
+        await sendExpoPush(
+          tokens,
+          "Emergency Cleared",
+          `${username} is no longer in an emergency.` 
         );
       }
     }
