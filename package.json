@@ -66,7 +66,8 @@
     "react-native-svg": "15.11.2",
     "expo-system-ui": "~5.0.11",
     "expo-speech": "~13.1.7",
-    "expo-clipboard": "~7.1.5"
+    "expo-clipboard": "~7.1.5",
+    "@expo/vector-icons": "^14.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
