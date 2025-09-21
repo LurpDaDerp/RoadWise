@@ -11,6 +11,7 @@ import {
   Dimensions,
   TouchableOpacity,
   Linking,
+  Image
 } from 'react-native';
 import * as Location from 'expo-location';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -28,16 +29,36 @@ import { scheduleDistractedNotification, scheduleFirstDistractedNotification, re
 import { format } from 'date-fns';
 import { useDrive } from '../context/DriveContext';
 import * as Speech from 'expo-speech';
+import { LinearGradient } from "expo-linear-gradient";
 
 
 const db = getFirestore();
 
 const { width, height } = Dimensions.get('window');
 
+const fireImages = {
+  gray: require('../assets/streaks/gray.png'),
+  orange: require('../assets/streaks/orange.png'),
+  green: require('../assets/streaks/green.png'),
+  purple: require('../assets/streaks/purple.png'),
+  pink: require('../assets/streaks/pink.png'),
+  blue: require('../assets/streaks/blue.png'),
+};
+
+function getFireImage(streak) {
+  if (streak === 0) return fireImages.gray;
+  else if (streak <= 10) return fireImages.orange;
+  else if (streak <= 25) return fireImages.green;
+  else if (streak <= 50) return fireImages.purple;
+  else if (streak <= 100) return fireImages.pink;
+  else return fireImages.blue;
+}
+
 const AnimatedImageBackground = Animated.createAnimatedComponent(ImageBackground);
 const GRID_RESOLUTION = 0.002;
 const speedLimitCache = new Map();
 let lastSpeedLimitFetchTime = 0;
+let lastSpeedLimitFetchCoords = null;
 
 const audioSource = require('../assets/sounds/alert.mp3');
 
@@ -82,6 +103,32 @@ function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c; 
 }
+
+function interpolateColor(speed, limit) {
+  if (!isFinite(limit) || limit <= 0) return "rgb(0,230,0)";
+
+  const percent = Math.max(0, Math.min(1, (speed - limit) / (limit * 0.4)));
+
+  const green  = { r: 0,   g: 200, b: 0 };
+  const yellow = { r: 255, g: 255, b: 0 };
+  const red    = { r: 255, g: 0,   b: 0 };
+
+  let r, g, b;
+  if (percent <= 0.5) {
+    const t = percent / 0.5;
+    r = Math.round(green.r  + (yellow.r - green.r) * t);
+    g = Math.round(green.g  + (yellow.g - green.g) * t);
+    b = Math.round(green.b  + (yellow.b - green.b) * t);
+  } else {
+    const t = (percent - 0.5) / 0.5;
+    r = Math.round(yellow.r + (red.r - yellow.r) * t);
+    g = Math.round(yellow.g + (red.g - yellow.g) * t);
+    b = Math.round(yellow.b + (red.b - yellow.b) * t);
+  }
+
+  return `rgb(${r},${g},${b})`;
+}
+
 
 
 export default function DriveScreen({ route }) {
@@ -145,6 +192,18 @@ export default function DriveScreen({ route }) {
   const contentTextColor = isDarkMode ? '#eee' : '#000';     
   const buttonBackgroundColor = isDarkMode ? '#444' : '#000'; 
   const buttonTextColor = isDarkMode ? '#fff' : '#fff';   
+
+  const backgroundColor = isDarkMode ? '#131313ff' : '#fff';
+  const titleColor = isDarkMode ? '#fff' : '#000';
+  const textColor = isDarkMode ? '#fff' : '#000';
+  const moduleBackground = isDarkMode ? '#272727ff' : '#ccccccff';
+  const altTextColor = isDarkMode ? '#aaa' : '#555';
+  const textOutline = isDarkMode? 'rgba(255, 255, 255, 0.47)' : '#0000008e';
+  const buttonColor = isDarkMode ? `rgba(92, 55, 255, 1)` : `rgba(99, 71, 255, 1)`;
+  const gradientTop = isDarkMode ? "#0c0c0ce1" : "#ddddddcc"; 
+  const gradientBottom = isDarkMode ? "#202020e1" : "#ffffffd0"; 
+
+  const [streak, setStreak] = useState(0);
 
   const soundRef = useRef(null);
 
@@ -239,6 +298,7 @@ export default function DriveScreen({ route }) {
         }
 
         await setDoc(userDocRef, { drivingStreak: newStreak }, { merge: true });
+        setStreak(newStreak);
         await AsyncStorage.setItem('@streakThisDrive', '1');
       }
     } catch (e) {
@@ -254,6 +314,27 @@ export default function DriveScreen({ route }) {
     
     setDriveJustCompleted(true);
   };
+       
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchStreak = async () => {
+        const uid = auth.currentUser?.uid;
+        if (!uid) return;
+
+        try {
+          const userDocRef = doc(db, "users", uid);
+          const userSnap = await getDoc(userDocRef);
+          if (userSnap.exists() && userSnap.data().drivingStreak) {
+            setStreak(userSnap.data().drivingStreak);
+          }
+        } catch (err) {
+          console.warn("⚠️ Failed to fetch streak:", err);
+        }
+      };
+
+      fetchStreak();
+    }, [])
+  );
 
   useEffect(() => {
     if (!hasStartedDriving.current && speedRef.current >= speedThreshold) {
@@ -509,13 +590,27 @@ export default function DriveScreen({ route }) {
             }
 
             setSpeedLimit(adjustedValue);
-          } else if (Date.now() - lastSpeedLimitFetchTime > 15000 && showSpeedLimit) {
-            lastSpeedLimitFetchTime = Date.now();
-            const sl = await fetchSpeedLimit(lat, lon, unit);
-            if (sl !== null) {
-              speedLimitCache.set(gridKey, { value: sl, unit: unit }); 
-              setSpeedLimit(sl);
-              await saveSpeedLimitCache();
+          } else {
+            const now = Date.now();
+            const distSinceLastFetch = lastSpeedLimitFetchCoords
+              ? getDistanceFromLatLonInMeters(
+                  lastSpeedLimitFetchCoords.latitude,
+                  lastSpeedLimitFetchCoords.longitude,
+                  lat,
+                  lon
+                )
+              : Infinity; 
+
+            if (showSpeedLimit && now - lastSpeedLimitFetchTime > 15000 && distSinceLastFetch >= 250) {
+              lastSpeedLimitFetchTime = now;
+              lastSpeedLimitFetchCoords = { latitude: lat, longitude: lon };
+
+              const sl = await fetchSpeedLimit(lat, lon, unit);
+              if (sl !== null) {
+                speedLimitCache.set(gridKey, { value: sl, unit: unit });
+                setSpeedLimit(sl);
+                await saveSpeedLimitCache();
+              }
             }
           }
 
@@ -808,6 +903,37 @@ export default function DriveScreen({ route }) {
     }
   };
 
+  const pulseOverlayAnim = useRef(new Animated.Value(0)).current;
+  const pulseLoop = useRef(null);
+
+  useEffect(() => {
+  if (isSpeeding) {
+      if (!pulseLoop.current) {
+        pulseLoop.current = Animated.loop(
+          Animated.sequence([
+            Animated.timing(pulseOverlayAnim, {
+              toValue: 0.8,
+              duration: 500,
+              useNativeDriver: false,
+            }),
+            Animated.timing(pulseOverlayAnim, {
+              toValue: 0,
+              duration: 500,
+              useNativeDriver: false,
+            }),
+          ])
+        );
+        pulseLoop.current.start();
+      }
+    } else {
+      if (pulseLoop.current) {
+        pulseLoop.current.stop();
+        pulseLoop.current = null;
+      }
+      pulseOverlayAnim.setValue(0);
+    }
+  }, [isSpeeding]);
+
   //UI element rendering
   return (
     <>
@@ -885,13 +1011,9 @@ export default function DriveScreen({ route }) {
         </View>
       )}
 
-      <AnimatedImageBackground
-        source={require('../assets/driveback.jpg')}
+      <LinearGradient
+        colors={[gradientBottom, gradientTop]} 
         style={[styles.background, { opacity }]}
-        resizeMode="cover"
-        onLoad={() =>
-          Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }).start()
-        }
       >
         <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={styles.darkOverlay} />
@@ -902,18 +1024,6 @@ export default function DriveScreen({ route }) {
         >
           <Text style={styles.emergencyButtonText}>Emergency</Text>
         </TouchableOpacity>
-
-        {showSpeedLimit && (
-          <View style={styles.speedLimitContainer}>
-            <ImageBackground
-              source={require('../assets/speedlimit.png')}
-              style={styles.speedLimitSign}
-              resizeMode="contain"
-            >
-              <Text style={styles.speedLimitText}>{Math.round(currentLimit)}</Text>
-            </ImageBackground>
-          </View>
-        )}
 
         {isEmergencyActive && (
           <View style={styles.emergencyBanner}>
@@ -932,62 +1042,162 @@ export default function DriveScreen({ route }) {
         )}
 
         <View style={styles.container}>
-          <View style={styles.pointsContainer}>
-            <View style={styles.pointsWrapper}>
-              <Text style={[styles.points, { fontSize: getFontSizeForPoints(displayedPoints) }]}>
+          <Text style={[styles.screenTitle, {color: titleColor}]}>Drive Details</Text>
+          
+          <View style={[styles.topRow]}>
+            <LinearGradient
+              colors={["#3000dbff", "#ad09eeff"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.gradientBorder, {marginRight: 10}]}
+            >
+            <View style={[styles.module, { backgroundColor: moduleBackground}]}>
+              <Text style={[styles.moduleLabel, { color: altTextColor, marginBottom: -8 }]}>Speed</Text>
+              <Text
+                style={[
+                  styles.moduleValue,
+                  { color: interpolateColor(speed, currentLimit), textShadowColor: textOutline, marginBottom: -8 },
+                ]}
+              >
+                {Math.round(speed)} 
+              </Text>
+              <Text
+                style={[
+                  styles.moduleLabel,
+                  { color: altTextColor, textShadowColor: textOutline, fontSize: 20 },
+                ]}
+              >
+                {unit.toUpperCase()}
+              </Text>
+            </View>
+            </LinearGradient>
+            
+            <LinearGradient
+              colors={["#3000dbff", "#ad09eeff"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.gradientBorder, {marginLeft: 10}]}
+            >
+            <View style={[styles.module, { backgroundColor: moduleBackground}]}>
+              <Animated.View
+                pointerEvents="none"
+                style={{
+                  ...StyleSheet.absoluteFillObject,
+                  backgroundColor: "#ff0000c2",
+                  borderRadius: 12, 
+                  opacity: pulseOverlayAnim,
+                }}
+              />
+              <Text style={[styles.moduleLabel, { color: altTextColor, marginBottom: -8 }]}>Limit</Text>
+              
+              <Text
+                style={[
+                  styles.moduleValue,
+                  { color: textColor, textShadowColor: textOutline, marginBottom: -8 },
+                ]}
+              >
+                {Math.round(currentLimit)}
+              </Text>
+              <Text
+                style={[
+                  styles.moduleLabel,
+                  { color: altTextColor, textShadowColor: textOutline, fontSize: 20 },
+                ]}
+              >
+                {unit.toUpperCase()}
+              </Text>
+            </View>
+            </LinearGradient>
+          </View>
+          
+          <LinearGradient
+            colors={["#3000dbff", "#ad09eeff"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.gradientBorderWide}
+          >
+          <View style={[styles.moduleWideRow, { backgroundColor: moduleBackground }]}>
+            <View style={styles.subModule}>
+              <Text style={[styles.moduleLabel, { color: altTextColor, fontSize: 18 }]}>Points</Text>
+              <Text
+                style={[
+                  styles.moduleValue,
+                  { color: textColor, textShadowColor: textOutline, fontSize: 45 },
+                ]}
+              >
                 {displayedPoints}
               </Text>
             </View>
-            <Text style={styles.pointsLabel}>Points</Text>
-          </View>
 
-          <View style={styles.completeDriveButtonWrapper}>
-            <TouchableOpacity
-              onPress={async () => {
-                await finalizeDrive();
-                navigation.goBack();
-              }}
-              style={styles.button}
-            >
-              <Text style={styles.completeDriveButton}>Complete Drive</Text>
-            </TouchableOpacity>
-          </View>
-
-          {showCurrentSpeed && (
-            <ImageBackground
-              source={require('../assets/dashboard.png')}
-              style={styles.speedBackground}
-              resizeMode="stretch"
-              imageStyle={{ borderRadius: 20 }}
-            >
-              <Text style={styles.speedText}>
-                {Math.round(speed)} {unit.toUpperCase()}
+            <View style={styles.subModule}>
+              <Text style={[styles.moduleLabel, { color: altTextColor, fontSize: 18 }]}>
+                Distractions
               </Text>
-            </ImageBackground>
-          )}
+              <Text
+                style={[
+                  styles.moduleValue,
+                  { color: textColor, textShadowColor: textOutline, fontSize: 45 },
+                ]}
+              >
+                {distractedCount}
+              </Text>
+            </View>
+            <View style={styles.subModule}>
+              <Text style={[styles.moduleLabel, { color: altTextColor, fontSize: 18 }]}>Streak</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 2*(Math.abs(streak).toString().length - 1) }}>
+              <Image
+                source={getFireImage(streak)}
+                style={{ width: 32, height: 32, marginRight: 2, marginTop: 6 }}
+                resizeMode="contain"
+              />
+              <Text
+                style={[
+                  styles.moduleValue,
+                  { color: textColor, textShadowColor: textOutline, fontSize: 45 - 5*(Math.abs(streak).toString().length - 1) },
+                ]}
+              >
+                {streak ?? 0}
+              </Text>
+              </View>
+            </View>
+          </View>
+          </LinearGradient>
+
+          <View style={{ flex: 1 }} />
+
+          <TouchableOpacity
+            onPress={async () => {
+              await finalizeDrive();
+              navigation.goBack();
+            }}
+            style={[styles.completeButton, { backgroundColor: buttonColor }]}
+          >
+            <Text style={styles.completeButtonText}>Complete Drive</Text>
+          </TouchableOpacity>
         </View>
-      </AnimatedImageBackground>
+
+      </LinearGradient>
     </>
   );
 }
 
 //styles
 const styles = StyleSheet.create({
-  background: { flex: 1 },
+  background: { flex: 1, padding: 20 },
   darkOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0)',
   },
   emergencyButton: {
-    position: 'absolute',
-    top: (height / 667) * 45,
-    left: (width / 375) * 20,
+    position: 'relative',
+    top: height/12,
     backgroundColor: '#ff3b30',
     paddingVertical: 15,
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
     borderRadius: 12,
     zIndex: 1000,
     elevation: 10,
+    width: "35%"
   },
 
   emergencyButtonText: {
@@ -1044,6 +1254,85 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
     textAlign: 'center',
+  },
+  
+  screenTitle: {
+    marginTop: height/12,
+    fontSize: 36,
+    fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+
+  gradientBorder: {
+    marginTop: 20,
+    padding: 3,
+    borderRadius: 18,
+    flex: 1
+  },
+
+  gradientBorderWide: {
+    marginTop: 20,
+    padding: 3,
+    borderRadius: 18,
+  },
+  
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    width: "100%",
+  },
+
+  module: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 16,
+    alignItems: "center",
+    position: "relative",
+    overflow: "hidden",
+  },
+  moduleLabel: {
+    fontSize: 26,
+    fontWeight: "600",
+    color: "#bbb",
+  },
+
+  moduleValue: {
+    fontSize: 75,
+    fontWeight: "bold",
+    color: "#fff",
+    marginTop: 5,
+  },
+
+  completeButton: {
+    width: "100%",
+    backgroundColor: "#0000007c",
+    paddingVertical: 15,
+    borderRadius: 20,
+    marginBottom: 40,
+    alignItems: "center",
+    alignSelf: "center",
+  },
+
+  completeButtonText: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+
+  moduleWideRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    padding: 15,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    width: "100%",
+    alignSelf: "center",
+  },
+
+  subModule: {
+    flex: 1,
+    alignItems: "center",
   },
 
   speedLimitContainer: {
