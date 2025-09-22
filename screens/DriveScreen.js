@@ -548,7 +548,9 @@ export default function DriveScreen({ route }) {
 
       if (wasActive && nowInactive) {
         unfocusedAt.current = Date.now();
-        setDistractedCount(prev => prev + 1);
+        if (pointsThisDrive > 0) {
+          setDistractedCount(prev => prev + 1);
+        }
         backgroundTimeout.current = setTimeout(async () => {
           
           if (pointsThisDrive > 0) {
@@ -784,7 +786,6 @@ export default function DriveScreen({ route }) {
           const result = await getRoadConditionSummary(currentMetrics);
           if (result) {
             setRoadSummary(result); 
-            console.log(result);
             lastWeatherRef.current = currentMetrics;
           }
         } catch (err) {
@@ -1172,12 +1173,13 @@ export default function DriveScreen({ route }) {
             borderWidth: 2,
             borderColor: getRoadBorderColor(roadSummary?.score),
             backgroundColor: moduleBackground,
-            padding: 10, 
+            padding: 8, 
             marginLeft: 45,
+            borderRadius: 20
           }
         ]}>
           <Text style={[styles.weatherText, { fontSize: 16, fontWeight: "600", color: textColor, textAlign: "center" }]}>
-            {roadSummary ? `${getRoadEmoji(roadSummary.score)} ${roadSummary.summary}` : "Loading..."}
+            {roadSummary ? `${getRoadEmoji(roadSummary.score)} ${roadSummary.summary}` : "Loading Summary..."}
           </Text>
         </View>
 
@@ -1285,7 +1287,7 @@ export default function DriveScreen({ route }) {
                 </View>
               ) : (
                 <View style={[styles.module, {flexDirection: "row", height: 175, justifyContent: "center"}]}>
-                <View style={{ alignItems: "center", marginRight: 12 }}>
+                <View style={{ alignItems: "center", marginRight: 28, marginLeft: 8 }}>
                   <MaterialCommunityIcons
                     name={getWeatherInfo(weather.current.weathercode).icon}
                     size={120}
@@ -1302,7 +1304,7 @@ export default function DriveScreen({ route }) {
 
                 <View style={{ flex: 1, alignItems: "center" }}>
                   <View style={{ alignItems: "center", marginBottom: 8 }}>
-                    <Text style={[styles.weatherText, { fontSize: 22, color: getVisibilityColor(weather.current.visibility) }]}>
+                    <Text style={[styles.weatherText, { fontSize: 24, color: getVisibilityColor(weather.current.visibility) }]}>
                       {Math.round(weather.current.visibility / 1609)} mi
                     </Text>
                     <Text style={[styles.weatherText, { fontSize: 14, color: altTextColor }]}>
@@ -1311,7 +1313,7 @@ export default function DriveScreen({ route }) {
                   </View>
 
                   <View style={{ alignItems: "center", marginBottom: 8 }}>
-                    <Text style={[styles.weatherText, { fontSize: 22, color: getPrecipitationColor(weather.current.precipitation) }]}>
+                    <Text style={[styles.weatherText, { fontSize: 24, color: getPrecipitationColor(weather.current.precipitation) }]}>
                       {weather.current.precipitation.toFixed(1)} in
                     </Text>
                     <Text style={[styles.weatherText, { fontSize: 14, color: altTextColor }]}>
@@ -1320,7 +1322,7 @@ export default function DriveScreen({ route }) {
                   </View>
 
                   <View style={{ alignItems: "center" }}>
-                    <Text style={[styles.weatherText, { fontSize: 22, color: textColor }]}>
+                    <Text style={[styles.weatherText, { fontSize: 24, color: textColor }]}>
                       {weather.current.precipitation_probability}%
                     </Text>
                     <Text style={[styles.weatherText, { fontSize: 14, color: altTextColor }]}>
@@ -1395,9 +1397,24 @@ export default function DriveScreen({ route }) {
               await finalizeDrive();
               navigation.goBack();
             }}
-            style={[styles.completeButton, { backgroundColor: buttonColor }]}
+            style={styles.completeButtonWrapper}
           >
-            <Text style={styles.completeButtonText}>Complete Drive</Text>
+            <LinearGradient
+              colors={["#3000dbff", "#ad09eeff"]} 
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.completeButton}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <MaterialCommunityIcons
+                  name="check-circle-outline"
+                  size={22}
+                  color="#fff"
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.completeButtonText}>Complete Drive</Text>
+              </View>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
@@ -1415,9 +1432,9 @@ const styles = StyleSheet.create({
   },
   emergencyButton: {
     backgroundColor: '#ff3b30',
-    paddingVertical: 15,
+    paddingVertical: 20,
     paddingHorizontal: 12,
-    borderRadius: 12,
+    borderRadius: 20,
     zIndex: 1000,
     elevation: 10,
     width: "35%"
@@ -1523,6 +1540,13 @@ const styles = StyleSheet.create({
     fontSize: 16, 
     fontWeight: "500", 
     textAlign: "left",
+  },
+
+  completeButtonWrapper: {
+    width: "100%",
+    borderRadius: 20,
+    overflow: "hidden", 
+    marginBottom: height / 30,
   },
 
   completeButton: {

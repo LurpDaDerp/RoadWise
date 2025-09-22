@@ -52,7 +52,7 @@ export default function MyDrivesScreen() {
   const detailColor = isDark ? '#aaa' : '#555';
   const distractedColor = '#cc0000';
   const focusedColor = isDark ? 'lightgreen' : 'green';
-  const moduleBackground = isDark ? '#2c2c2cff' : '#e6e6e6ff';
+  const moduleBackground = isDark ? '#1b1b1bff' : '#e6e6e6ff';
   const sheetGradientTop = isDark ? "#380864ff" : "#cab6ffff"; 
   const sheetGradientBottom = isDark ? "#070222ff" : "#f1f1f1ff"; 
 
@@ -179,7 +179,9 @@ export default function MyDrivesScreen() {
             data={drives.slice(0, visibleCount)}
             keyExtractor={(_, index) => index.toString()}
             renderItem={renderItem}
-            ListEmptyComponent={<Text style={styles.empty}>No drives yet.</Text>}
+            ListEmptyComponent={<View style={styles.emptyContainer}>
+              <Text style={styles.empty}>No drives yet.</Text>
+            </View>}
             ListFooterComponent={
               visibleCount < drives.length ? (
                 <TouchableOpacity
@@ -200,8 +202,8 @@ export default function MyDrivesScreen() {
             }
           />
 
-          <TouchableOpacity onPress={clearDriveHistory} style={styles.trashButton}>
-            <Ionicons name="trash-outline" size={24} color="#fff" />
+          <TouchableOpacity onPress={clearDriveHistory} style={[styles.trashButton, {backgroundColor: moduleBackground}]}>
+            <Ionicons name="trash-outline" size={30} color={titleColor} />
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -239,7 +241,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: width/12,
     fontWeight: 'bold',
-    marginTop: height/25,
+    marginTop: height/12,
     marginBottom: height/24,
     alignSelf: 'center',
   },
@@ -255,21 +257,25 @@ const styles = StyleSheet.create({
   detail: { 
     fontSize: 14,    
   },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    height: height * 0.6,
+  },
   empty: {
-    color: '#aaa',
-    fontSize: width / 23.4,            
-    textAlign: 'center',
-    marginTop: height / 13.3, 
+    color: "#aaa",
+    fontSize: 20,
+    textAlign: "center",
   },
   trashButton: {
     position: 'absolute',
-    top: height/16,
-    right: width/20,
-    padding: width / 60,         
-    borderRadius: width / 12.5,   
+    bottom: height/25,
+    right: width/16,
+    padding: 10,         
+    borderRadius: 30,   
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(24, 24, 24, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
