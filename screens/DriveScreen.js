@@ -33,6 +33,7 @@ import * as Speech from 'expo-speech';
 import { LinearGradient } from "expo-linear-gradient";
 import { fetchWeather, getWeatherIconName } from '../utils/weather';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { getRoadConditionSummary } from "../utils/gptApi";
 
 
 const db = getFirestore();
@@ -58,31 +59,70 @@ function getFireImage(streak) {
 }
 
 const weatherCodeMap = {
-  0: "Clear sky",
-  1: "Mainly clear",
-  2: "Partly cloudy",
-  3: "Overcast",
-  45: "Fog",
-  48: "Depositing rime fog",
-  51: "Light drizzle",
-  53: "Moderate drizzle",
-  55: "Dense drizzle",
-  61: "Slight rain",
-  63: "Moderate rain",
-  65: "Heavy rain",
-  71: "Slight snow fall",
-  73: "Moderate snow fall",
-  75: "Heavy snow fall",
-  80: "Light rain showers",
-  81: "Moderate rain showers",
-  82: "Heavy rain showers",
-  95: "Thunderstorm (slight/moderate)",
-  96: "Thunderstorm with slight hail",
-  99: "Thunderstorm with heavy hail",
+  0: { label: "Clear sky", icon: "weather-sunny" },
+  1: { label: "Mostly clear", icon: "weather-sunny" },
+  2: { label: "Partly cloudy", icon: "weather-partly-cloudy" },
+  3: { label: "Overcast", icon: "weather-cloudy" },
+  45: { label: "Fog", icon: "weather-fog" },
+  48: { label: "Depositing rime fog", icon: "weather-fog" },
+  51: { label: "Light drizzle", icon: "weather-rainy" },
+  53: { label: "Moderate drizzle", icon: "weather-rainy" },
+  55: { label: "Dense drizzle", icon: "weather-rainy" },
+  61: { label: "Slight rain", icon: "weather-pouring" },
+  63: { label: "Moderate rain", icon: "weather-pouring" },
+  65: { label: "Heavy rain", icon: "weather-pouring" },
+  71: { label: "Slight snow fall", icon: "weather-snowy" },
+  73: { label: "Moderate snow fall", icon: "weather-snowy" },
+  75: { label: "Heavy snow fall", icon: "weather-snowy" },
+  80: { label: "Light rain showers", icon: "weather-rainy" },
+  81: { label: "Moderate rain showers", icon: "weather-rainy" },
+  82: { label: "Heavy rain showers", icon: "weather-rainy" },
+  95: { label: "Thunderstorm (slight/moderate)", icon: "weather-lightning" },
+  96: { label: "Thunderstorm with slight hail", icon: "weather-lightning" },
+  99: { label: "Thunderstorm with heavy hail", icon: "weather-lightning" },
 };
 
-function celsiusToFahrenheit(celsius) {
-  return (celsius * 9) / 5 + 32;
+export function getWeatherInfo(code) {
+  return (
+    weatherCodeMap[code] || { label: "Unknown", icon: "weather-cloudy-alert" }
+  );
+}
+
+function getVisibilityColor(visibilityMeters) {
+  const miles = visibilityMeters / 1609; 
+  if (miles < 0.25) return "red"; 
+  if (miles < 1) return "orange"; 
+  if (miles >= 2) return "limegreen";
+  return "yellow";
+}
+
+function getPrecipitationColor(valueInInches) {
+  if (valueInInches < 0.1) return "limegreen"; 
+  if (valueInInches < 0.2) return "yellow";
+  if (valueInInches < 0.4) return "orange"; 
+  return "red"; 
+}
+
+function getRoadBorderColor(score) {
+  switch (score) {
+    case 5: return "limegreen";  
+    case 4: return "green"; 
+    case 3: return "orange"; 
+    case 2: return "orangered"; 
+    case 1: return "red";
+    default: return "#888";  
+  }
+}
+
+function getRoadEmoji(score) {
+  switch (score) {
+    case 5: return "";
+    case 4: return ""; 
+    case 3: return "⚠️"; 
+    case 2: return "❗"; 
+    case 1: return "‼️"; 
+    default: return "❓"; 
+  }
 }
 
 const AnimatedImageBackground = Animated.createAnimatedComponent(ImageBackground);
@@ -160,7 +200,38 @@ function interpolateColor(speed, limit) {
   return `rgb(${r},${g},${b})`;
 }
 
+function isRoadSlippery(weather) {
+  const tempF = weather.current.temperature_2m; 
+  const precip = weather.current.precipitation; 
+  const code = weather.current.weathercode;
 
+  if (tempF <= 32 && precip > 0) return true;
+
+  if ([71, 73, 75].includes(code)) return true;
+
+  if (precip > 0.4) return true;
+
+  return false;
+}
+
+function hasSignificantChange(prev, curr) {
+  if (!prev) return true; 
+
+  const visChange = Math.abs(curr.visibility - prev.visibility) / 1609; 
+  const precipChange = Math.abs(curr.precipitation - prev.precipitation);
+  const chanceChange = Math.abs(curr.precipitation_probability - prev.precipitation_probability);
+  const windChange = Math.abs(curr.windspeed_10m - prev.windspeed_10m);
+
+  return (
+    (visChange > 0.5 && prev.visibility <= 2.5) ||
+    (visChange > 1 && prev.visibility <= 5) ||
+    (visChange > 5 && prev.visibility <= 25) ||
+    (visChange > 10 && prev.visibility > 25) ||
+    precipChange > 0.05 ||
+    chanceChange > 10 ||
+    windChange > 5
+  );
+}
 
 export default function DriveScreen({ route }) {
   const player = useAudioPlayer(audioSource);
@@ -187,11 +258,8 @@ export default function DriveScreen({ route }) {
   const [HERE_API_KEY, setHereKey] = useState();
   const hasStartedDriving = useRef(false);
   const [audioSpeedUpdatesEnabled, setAudioSpeedUpdatesEnabled] = useState(true);
-
   const [isEmergencyActive, setIsEmergencyActive] = useState(false);
-
   const user = auth.currentUser;
-
   const speedRef = useRef(0);
   const speedingTimeoutRef = useRef(null);
   const appState = useRef(AppState.currentState);
@@ -203,31 +271,23 @@ export default function DriveScreen({ route }) {
   const warningOpacity = useRef(new Animated.Value(0)).current;
   const backgroundTimeout = useRef(null);
   const driveFinalizedRef = useRef(false);
-
   const lastLocation = useRef(null);
   const totalDistance = useRef(0); 
-
   const [weather, setWeather] = useState(null);
   const lastWeatherFetchTime = useRef(0);
   const lastWeatherCoords = useRef(null);
-
   const DEFAULT_SPEED_LIMIT_MPH = 25;
   const DEFAULT_SPEED_LIMIT_KPH = DEFAULT_SPEED_LIMIT_MPH * 1.60934;
   const DEFAULT_DELAY = 2500;
   const speedThreshold = unit === 'kph' ? 16.0934 : 10;
-
   const { setDriveJustCompleted } = useDrive();
-
   const { resolvedTheme } = useContext(ThemeContext);
-
   const isDarkMode = resolvedTheme === 'dark';
-
   const modalBackgroundColor = isDarkMode ? '#222' : '#fff'; 
   const titleTextColor = isDarkMode ? '#fff' : '#000'; 
   const contentTextColor = isDarkMode ? '#eee' : '#000';     
   const buttonBackgroundColor = isDarkMode ? '#444' : '#000'; 
   const buttonTextColor = isDarkMode ? '#fff' : '#fff';   
-
   const backgroundColor = isDarkMode ? '#131313ff' : '#fff';
   const titleColor = isDarkMode ? '#fff' : '#000';
   const textColor = isDarkMode ? '#fff' : '#000';
@@ -236,30 +296,24 @@ export default function DriveScreen({ route }) {
   const textOutline = isDarkMode? 'rgba(255, 255, 255, 0.47)' : '#0000008e';
   const buttonColor = isDarkMode ? `rgba(92, 55, 255, 1)` : `rgba(99, 71, 255, 1)`;
   const gradientTop = isDarkMode ? "#000000ff" : "#f1f1f1ff"; 
-  const gradientBottom = isDarkMode ? "#292929ff" : "#ffffffff"; 
-
+  const gradientBottom = isDarkMode ? "#1a1a1aff" : "#ffffffff"; 
   const [streak, setStreak] = useState(0);
-
   const soundRef = useRef(null);
-
   const driveStartTime = useRef(Date.now());
-
   const totalSpeedSum = useRef(0);
   const speedSampleCount = useRef(0);
-
   const speedingMarginSum = useRef(0);
   const speedingSampleCount = useRef(0);
-
   const suddenStops = useRef(0);
   const suddenAccelerations = useRef(0);
-
   const phoneUsageTime = useRef(0);
   const phoneUsageStart = useRef(null);
-
   const lastSpeedValue = useRef(0);
   const ACCEL_THRESHOLD = 3.0; 
   const BRAKE_THRESHOLD = -3.0; 
   let lastUpdateTime = Date.now();
+  const [roadSummary, setRoadSummary] = useState(null);
+  const lastWeatherRef = useRef(null);
 
   useLayoutEffect(() => {
     navigation.getParent()?.setOptions({
@@ -597,8 +651,8 @@ export default function DriveScreen({ route }) {
           const coordinates = [loc.coords.latitude, loc.coords.longitude];
           const testcoordinates = [47.56560520753297, -122.2253784109515];
           const rawSpeed = loc.coords.speed ?? 0;
-          const lat = testcoordinates[0];
-          const lon = testcoordinates[1];
+          const lat = coordinates[0];
+          const lon = coordinates[1];
 
           if (lastLocation.current) {
             const dist = getDistanceFromLatLonInMeters(
@@ -710,7 +764,38 @@ export default function DriveScreen({ route }) {
       stopPointEarning();
     };
   }, [unit, HERE_API_KEY]);
-  
+
+  //get weather summary from gpt
+  useEffect(() => {
+
+    if (!weather?.current) return;
+
+    const currentMetrics = {
+      visibility: weather.current.visibility,
+      precipitation: weather.current.precipitation,
+      precipitation_probability: weather.current.precipitation_probability,
+      windspeed_10m: weather.current.windspeed_10m,
+      slippery: isRoadSlippery(weather),
+    };
+
+    if (hasSignificantChange(lastWeatherRef.current, currentMetrics)) {
+      (async () => {
+        try {
+          const result = await getRoadConditionSummary(currentMetrics);
+          if (result) {
+            setRoadSummary(result); 
+            console.log(result);
+            lastWeatherRef.current = currentMetrics;
+          }
+        } catch (err) {
+          console.error("Error fetching road summary:", err);
+        }
+      })();
+    }
+  }, [weather]);
+
+
+    
   //audio update if changing speed limits
   useEffect(() => {
     if (!audioSpeedUpdatesEnabled) return;
@@ -872,23 +957,12 @@ export default function DriveScreen({ route }) {
     }
   }, [shouldShowWarning]);
 
-
-
   //start point earning when unit changes
   useEffect(() => {
     stopPointEarning();
     startPointEarning();
   }, [unit]);
 
-  //scale points font size to fit in screen comfortably
-  const getFontSizeForPoints = (points) => {
-    const digits = points.toString().length;
-    const maxFontSize = 120;
-    const minFontSize = 60;
-
-    const scaleFactor = Math.min(digits, 8) / 8;
-    return maxFontSize - scaleFactor * (maxFontSize - minFontSize);
-  };
 
   const notifyGroupEmergency = async () => {
     try {
@@ -1077,12 +1151,37 @@ export default function DriveScreen({ route }) {
         <BlurView intensity={10} tint="dark" style={StyleSheet.absoluteFill} />
         <View style={styles.darkOverlay} />
 
+        <View style={{ 
+          flexDirection: "row", 
+          justifyContent: "space-between", 
+          alignItems: "center",
+          marginTop: height / 15,
+          width: "100%"
+        }}>
         <TouchableOpacity
           style={styles.emergencyButton}
           onPress={() => setShowEmergencyModal(true)}
         >
           <Text style={styles.emergencyButtonText}>Emergency</Text>
         </TouchableOpacity>
+
+        <View style={[
+          styles.module,
+          {
+            flex: 1,
+            borderWidth: 2,
+            borderColor: getRoadBorderColor(roadSummary?.score),
+            backgroundColor: moduleBackground,
+            padding: 10, 
+            marginLeft: 45,
+          }
+        ]}>
+          <Text style={[styles.weatherText, { fontSize: 16, fontWeight: "600", color: textColor, textAlign: "center" }]}>
+            {roadSummary ? `${getRoadEmoji(roadSummary.score)} ${roadSummary.summary}` : "Loading..."}
+          </Text>
+        </View>
+
+        </View>
 
         {isEmergencyActive && (
           <View style={styles.emergencyBanner}>
@@ -1176,48 +1275,64 @@ export default function DriveScreen({ route }) {
           >
           <View style={[styles.moduleWideRow, { backgroundColor: moduleBackground }]}>
             
-            <View style={[styles.module, {height: 175, justifyContent: "center"}]}>
+            
               {!weather ? (
+                <View style={[styles.module, {height: 175, justifyContent: "center"}]}>
                 <View style={styles.loadingBox}>
-                  <ActivityIndicator size="large" color="#fff" />
-                  <Text style={styles.loadingText}>Loading weather data...</Text>
+                  <ActivityIndicator size="small" color="#fff" marginBottom={15} />
+                  <Text style={[styles.loadingText, {color: altTextColor}]}>Loading weather data...</Text>
+                </View>
                 </View>
               ) : (
-                <View style={styles.weatherBox}>
-                    <Text style={styles.weatherText}>
-                      <MaterialCommunityIcons
-                        name={getWeatherIconName(weather.current.weathercode)}
-                        size={28}
-                        color="white"
-                        style={{ marginBottom: 6 }}
-                      />
-                      Condition: {weatherCodeMap[weather.current.weathercode] || "Unknown"}
+                <View style={[styles.module, {flexDirection: "row", height: 175, justifyContent: "center"}]}>
+                <View style={{ alignItems: "center", marginRight: 12 }}>
+                  <MaterialCommunityIcons
+                    name={getWeatherInfo(weather.current.weathercode).icon}
+                    size={120}
+                    color={textColor}
+                    style={{ marginBottom: 4 }}
+                  />
+                  <Text style={[styles.weatherText, {color: textColor, fontSize: 20}]}>
+                    {getWeatherInfo(weather.current.weathercode).label || "Unknown"}
+                  </Text>
+                  <Text style={[styles.weatherText, {color: altTextColor}]}>
+                    {Math.round(weather.current.temperature_2m)}°F
+                  </Text>
+                </View>
+
+                <View style={{ flex: 1, alignItems: "center" }}>
+                  <View style={{ alignItems: "center", marginBottom: 8 }}>
+                    <Text style={[styles.weatherText, { fontSize: 22, color: getVisibilityColor(weather.current.visibility) }]}>
+                      {Math.round(weather.current.visibility / 1609)} mi
                     </Text>
-                    <Text style={styles.weatherText}>
-                      Now: {Math.round(weather.current.temperature_2m)}°F
+                    <Text style={[styles.weatherText, { fontSize: 14, color: altTextColor }]}>
+                      Visibility
                     </Text>
-                    <Text style={styles.weatherText}>
-                      High: {Math.round(weather.daily.temperature_2m_max[0])}°F | 
-                      Low: {Math.round(weather.daily.temperature_2m_min[0])}°F
+                  </View>
+
+                  <View style={{ alignItems: "center", marginBottom: 8 }}>
+                    <Text style={[styles.weatherText, { fontSize: 22, color: getPrecipitationColor(weather.current.precipitation) }]}>
+                      {weather.current.precipitation.toFixed(1)} in
                     </Text>
-                    <Text style={styles.weatherText}>
-                      Wind: {Math.round(weather.current.windspeed_10m)} mph
+                    <Text style={[styles.weatherText, { fontSize: 14, color: altTextColor }]}>
+                      Precipitation
                     </Text>
-                    <Text style={styles.weatherText}>
-                      Precipitation: {weather.current.precipitation} in
+                  </View>
+
+                  <View style={{ alignItems: "center" }}>
+                    <Text style={[styles.weatherText, { fontSize: 22, color: textColor }]}>
+                      {weather.current.precipitation_probability}%
                     </Text>
-                    <Text style={styles.weatherText}>
-                      Chance of Rain: {weather.current.precipitation_probability}%
+                    <Text style={[styles.weatherText, { fontSize: 14, color: altTextColor }]}>
+                      Chance of Rain
                     </Text>
-                    <Text style={styles.weatherText}>
-                      Visibility: {Math.round(weather.current.visibility / 1609)} mi
-                    </Text>
-                    
+                  </View>
+                </View>
+
                 </View>
               )}
             </View>
             
-          </View>
           </LinearGradient>
           
           <LinearGradient
@@ -1299,11 +1414,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0)',
   },
   emergencyButton: {
-    position: 'relative',
-    top: height/12,
     backgroundColor: '#ff3b30',
     paddingVertical: 15,
-    paddingHorizontal: 15,
+    paddingHorizontal: 12,
     borderRadius: 12,
     zIndex: 1000,
     elevation: 10,
@@ -1365,17 +1478,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
   },
-  
-  screenTitle: {
-    marginTop: height/12,
-    fontSize: 36,
-    fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
-  },
 
   gradientBorder: {
-    marginTop: 20,
     padding: 3,
     borderRadius: 18,
     flex: 1,
@@ -1392,7 +1496,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     width: "100%",
-    marginTop: height/20
   },
 
   module: {
@@ -1416,11 +1519,18 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
 
+  weatherText: {
+    fontSize: 16, 
+    fontWeight: "500", 
+    textAlign: "left",
+  },
+
   completeButton: {
     width: "100%",
     backgroundColor: "#0000007c",
     paddingVertical: 15,
     borderRadius: 20,
+    marginTop: 20,
     marginBottom: height/30,
     alignItems: "center",
     alignSelf: "center",

@@ -5,7 +5,7 @@ export const getAIFeedback = async (statsJSON) => {
   try {
     const apiKey = await getChatGPTKey();
     if (!apiKey) {
-      throw new Error("ChatGPT API key not found in Firestore");
+      throw new Error("ChatGPT API key not found");
     }
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -54,6 +54,58 @@ export const getAIFeedback = async (statsJSON) => {
     }
   } catch (error) {
     console.error("Error fetching AI feedback:", error);
+    throw error;
+  }
+};
+
+export const getRoadConditionSummary = async (metrics) => {
+  try {
+    const apiKey = await getChatGPTKey();
+    if (!apiKey) {
+      throw new Error("ChatGPT API key not found");
+    }
+
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-5-nano",
+        input: `You are evaluating road conditions.
+        Metrics: ${JSON.stringify(metrics)}
+
+        Return ONLY valid JSON in this schema:
+        {
+          "summary": "3-6 words about conditions",
+          "score": 1-5 (1 = very dangerous, 5 = very safe)
+        }`,
+      }),
+    });
+
+    const data = await response.json();
+
+    let text = "";
+    if (data.output_text) text = data.output_text.trim();
+    else if (data.output && Array.isArray(data.output)) {
+      const item = data.output.find(i => i.content);
+      const textPart = item?.content?.find(
+        c => c.type === "output_text" || c.type === "text"
+      );
+      if (textPart?.text) text = textPart.text.trim();
+    }
+
+    if (!text) return null;
+
+    try {
+      return JSON.parse(text); // { summary, score }
+    } catch (err) {
+      console.error("Failed to parse GPT JSON:", text, err);
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching road condition summary:", error);
     throw error;
   }
 };
