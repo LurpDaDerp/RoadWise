@@ -1157,25 +1157,28 @@ export default function DriveScreen({ route }) {
           justifyContent: "space-between", 
           alignItems: "center",
           marginTop: height / 15,
+          marginBlock: -10,
           width: "100%"
         }}>
         <TouchableOpacity
-          style={styles.emergencyButton}
+          style={[styles.emergencyButton, {backgroundColor: "#ff00006e", borderColor: "#ff0000ff", borderWidth: 3}]}
           onPress={() => setShowEmergencyModal(true)}
         >
-          <Text style={styles.emergencyButtonText}>Emergency</Text>
+          <Text style={[styles.emergencyButtonText, {color: "#fff"}]}>Emergency</Text>
         </TouchableOpacity>
 
         <View style={[
           styles.module,
           {
             flex: 1,
-            borderWidth: 2,
+            borderWidth: 3,
             borderColor: getRoadBorderColor(roadSummary?.score),
             backgroundColor: moduleBackground,
             padding: 8, 
-            marginLeft: 45,
-            borderRadius: 20
+            marginLeft: 20,
+            borderRadius: 20, 
+            minHeight: 60,
+            justifyContent: "center"
           }
         ]}>
           <Text style={[styles.weatherText, { fontSize: 16, fontWeight: "600", color: textColor, textAlign: "center" }]}>
@@ -1373,7 +1376,7 @@ export default function DriveScreen({ route }) {
               <Text style={[styles.moduleLabel, { color: altTextColor, fontSize: 18 }]}>Streak</Text>
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 2*(Math.abs(streak).toString().length - 1) }}>
               <Image
-                source={getFireImage(streak)}
+                source={getFireImage(isDistracted.current ? 0 : streak)}
                 style={{ width: 32, height: 32, marginRight: 2, marginTop: 6 }}
                 resizeMode="contain"
               />
@@ -1383,7 +1386,7 @@ export default function DriveScreen({ route }) {
                   { color: textColor, textShadowColor: textOutline, fontSize: 45 - 5*(Math.abs(streak).toString().length - 1) },
                 ]}
               >
-                {streak ?? 0}
+                {isDistracted.current ? 0 : streak ?? 0}
               </Text>
               </View>
             </View>
@@ -1431,8 +1434,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0)',
   },
   emergencyButton: {
-    backgroundColor: '#ff3b30',
-    paddingVertical: 20,
+    paddingVertical: 18,
     paddingHorizontal: 12,
     borderRadius: 20,
     zIndex: 1000,
@@ -1441,7 +1443,6 @@ const styles = StyleSheet.create({
   },
 
   emergencyButtonText: {
-    color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
     textAlign: 'center',
