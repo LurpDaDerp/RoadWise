@@ -42,10 +42,14 @@
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["location"],
+        "UIBackgroundModes": [
+          "location"
+        ],
         "CFBundleURLTypes": [
           {
-            "CFBundleURLSchemes": ["roadcash"]
+            "CFBundleURLSchemes": [
+              "roadcash"
+            ]
           }
         ]
       }
@@ -71,7 +75,8 @@
       "expo-audio",
       "expo-apple-authentication",
       "expo-location",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-asset"
     ]
   }
 }
