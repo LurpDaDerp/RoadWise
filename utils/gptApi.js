@@ -73,7 +73,7 @@ export const getRoadConditionSummary = async (metrics) => {
       },
       body: JSON.stringify({
         model: "gpt-5-nano",
-        input: `You are evaluating road conditions.
+        input: `You are evaluating road/outdoor conditions.
         Metrics: ${JSON.stringify(metrics)}
 
         Return ONLY valid JSON in this schema:

@@ -1,17 +1,32 @@
 // utils/weather.js
 export async function fetchWeather(lat, lon) {
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation,precipitation_probability,visibility,windspeed_10m,weathercode&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&windspeed_unit=mph&precipitation_unit=inch&timezone=auto`;
-    
-    const response = await fetch(url);
-    if (!response.ok) throw new Error("Weather fetch failed");
+    // Weather API
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation,precipitation_probability,visibility,windspeed_10m,weathercode&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&windspeed_unit=mph&precipitation_unit=inch&timezone=auto`;
 
-    return await response.json();
+    // Air Quality API
+    const airQualityUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=pm10,pm2_5,carbon_monoxide,ozone,uv_index,us_aqi&timezone=auto`;
+
+    const [weatherRes, airRes] = await Promise.all([
+      fetch(weatherUrl),
+      fetch(airQualityUrl),
+    ]);
+
+    if (!weatherRes.ok) throw new Error("Weather fetch failed");
+    if (!airRes.ok) throw new Error("Air quality fetch failed");
+
+    const [weather, airQuality] = await Promise.all([
+      weatherRes.json(),
+      airRes.json(),
+    ]);
+
+    return { ...weather, airQuality };
   } catch (err) {
     console.error("Weather fetch error:", err);
     return null;
   }
 }
+
 
 export async function getWeatherIconName(code) {
   switch (code) {

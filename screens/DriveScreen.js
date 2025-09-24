@@ -106,8 +106,8 @@ function getPrecipitationColor(valueInInches) {
 function getRoadBorderColor(score) {
   switch (score) {
     case 5: return "limegreen";  
-    case 4: return "green"; 
-    case 3: return "orange"; 
+    case 4: return "#85ce0fff"; 
+    case 3: return "yellow"; 
     case 2: return "orangered"; 
     case 1: return "red";
     default: return "#888";  
@@ -214,6 +214,25 @@ function isRoadSlippery(weather) {
   return false;
 }
 
+function getAirQualityColor(aqi) {
+  if (aqi <= 50) return "limegreen";
+  if (aqi <= 100) return "yellow";
+  if (aqi <= 150) return "orange"; 
+  if (aqi <= 200) return "red";
+  if (aqi <= 300) return "purple"; 
+  return "maroon";  
+}
+
+function getAirQualityLabel(aqi) {
+  if (aqi <= 50) return "Good";
+  if (aqi <= 100) return "Moderate";
+  if (aqi <= 150) return "Unhealthy (Sensitive)";
+  if (aqi <= 200) return "Unhealthy";
+  if (aqi <= 300) return "Very Unhealthy";
+  return "Hazardous";
+}
+
+
 function hasSignificantChange(prev, curr) {
   if (!prev) return true; 
 
@@ -221,6 +240,7 @@ function hasSignificantChange(prev, curr) {
   const precipChange = Math.abs(curr.precipitation - prev.precipitation);
   const chanceChange = Math.abs(curr.precipitation_probability - prev.precipitation_probability);
   const windChange = Math.abs(curr.windspeed_10m - prev.windspeed_10m);
+  const aqChange = Math.abs(curr.airQuality?.current?.us_aqi - prev.airQuality?.current?.us_aqi)
 
   return (
     (visChange > 0.5 && prev.visibility <= 2.5) ||
@@ -229,8 +249,9 @@ function hasSignificantChange(prev, curr) {
     (visChange > 10 && prev.visibility > 25) ||
     precipChange > 0.05 ||
     chanceChange > 10 ||
-    windChange > 5
-  );
+    windChange > 5 ||
+    aqChange > 25
+  );  
 }
 
 export default function DriveScreen({ route }) {
@@ -776,7 +797,7 @@ export default function DriveScreen({ route }) {
       visibility: weather.current.visibility,
       precipitation: weather.current.precipitation,
       precipitation_probability: weather.current.precipitation_probability,
-      windspeed_10m: weather.current.windspeed_10m,
+      air_quality: weather.airQuality?.current?.us_aqi,
       slippery: isRoadSlippery(weather),
     };
 
@@ -1289,7 +1310,7 @@ export default function DriveScreen({ route }) {
                 </View>
                 </View>
               ) : (
-                <View style={[styles.module, {flexDirection: "row", height: 175, justifyContent: "center"}]}>
+                <View style={[styles.module, {flexDirection: "row", height: 225, justifyContent: "center"}]}>
                 <View style={{ alignItems: "center", marginRight: 28, marginLeft: 8 }}>
                   <MaterialCommunityIcons
                     name={getWeatherInfo(weather.current.weathercode).icon}
@@ -1332,6 +1353,21 @@ export default function DriveScreen({ route }) {
                       Chance of Rain
                     </Text>
                   </View>
+                  <View style={{ alignItems: "center", marginBottom: 8 }}>
+                    <Text style={[
+                      styles.weatherText,
+                      { fontSize: 24, color: getAirQualityColor(weather.airQuality?.current?.us_aqi) }
+                    ]}>
+                      {weather.airQuality?.current?.us_aqi ?? "--"} 
+                    </Text>
+                    <Text style={[styles.weatherText, { fontSize: 12, color: getAirQualityColor(weather.airQuality?.current?.us_aqi) }]}>
+                      {getAirQualityLabel(weather.airQuality?.current?.us_aqi)}
+                    </Text>
+                    <Text style={[styles.weatherText, { fontSize: 14, color: altTextColor }]}>
+                      Air Quality
+                    </Text>
+                  </View>
+
                 </View>
 
                 </View>
