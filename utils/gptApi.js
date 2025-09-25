@@ -73,10 +73,10 @@ export const getRoadConditionSummary = async (metrics) => {
       },
       body: JSON.stringify({
         model: "gpt-5-nano",
-        input: `You are evaluating road/outdoor conditions.
+        input: `You are evaluating road conditions.
         Metrics: ${JSON.stringify(metrics)}
 
-        Return ONLY valid JSON in this schema:
+        Return ONLY valid JSON in this schema, use commas to separate phrases:
         {
           "summary": "3-6 words about conditions",
           "score": 1-5 (1 = very dangerous, 5 = very safe)

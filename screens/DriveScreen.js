@@ -797,7 +797,6 @@ export default function DriveScreen({ route }) {
       visibility: weather.current.visibility,
       precipitation: weather.current.precipitation,
       precipitation_probability: weather.current.precipitation_probability,
-      air_quality: weather.airQuality?.current?.us_aqi,
       slippery: isRoadSlippery(weather),
     };
 
@@ -1232,7 +1231,7 @@ export default function DriveScreen({ route }) {
               colors={["#3000dbff", "#ad09eeff"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={[styles.gradientBorder, {marginRight: 10}]}
+              style={[styles.gradientBorder, {marginRight: 7.5}]}
             >
             <View style={[styles.module, { backgroundColor: moduleBackground}]}>
               <Text style={[styles.moduleLabel, { color: altTextColor, marginBottom: -8 }]}>Speed</Text>
@@ -1259,7 +1258,7 @@ export default function DriveScreen({ route }) {
               colors={["#3000dbff", "#ad09eeff"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={[styles.gradientBorder, {marginLeft: 10}]}
+              style={[styles.gradientBorder, {marginLeft: 7.5}]}
             >
             <View style={[styles.module, { backgroundColor: moduleBackground}]}>
               <Animated.View
@@ -1293,89 +1292,6 @@ export default function DriveScreen({ route }) {
             </LinearGradient>
           </View>
 
-          <LinearGradient
-            colors={["#3000dbff", "#ad09eeff"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.gradientBorderWide}
-          >
-          <View style={[styles.moduleWideRow, { backgroundColor: moduleBackground }]}>
-            
-            
-              {!weather ? (
-                <View style={[styles.module, {height: 175, justifyContent: "center"}]}>
-                <View style={styles.loadingBox}>
-                  <ActivityIndicator size="small" color="#fff" marginBottom={15} />
-                  <Text style={[styles.loadingText, {color: altTextColor}]}>Loading weather data...</Text>
-                </View>
-                </View>
-              ) : (
-                <View style={[styles.module, {flexDirection: "row", height: 225, justifyContent: "center"}]}>
-                <View style={{ alignItems: "center", marginRight: 28, marginLeft: 8 }}>
-                  <MaterialCommunityIcons
-                    name={getWeatherInfo(weather.current.weathercode).icon}
-                    size={120}
-                    color={textColor}
-                    style={{ marginBottom: 4 }}
-                  />
-                  <Text style={[styles.weatherText, {color: textColor, fontSize: 20}]}>
-                    {getWeatherInfo(weather.current.weathercode).label || "Unknown"}
-                  </Text>
-                  <Text style={[styles.weatherText, {color: altTextColor}]}>
-                    {Math.round(weather.current.temperature_2m)}°F
-                  </Text>
-                </View>
-
-                <View style={{ flex: 1, alignItems: "center" }}>
-                  <View style={{ alignItems: "center", marginBottom: 8 }}>
-                    <Text style={[styles.weatherText, { fontSize: 24, color: getVisibilityColor(weather.current.visibility) }]}>
-                      {Math.round(weather.current.visibility / 1609)} mi
-                    </Text>
-                    <Text style={[styles.weatherText, { fontSize: 14, color: altTextColor }]}>
-                      Visibility
-                    </Text>
-                  </View>
-
-                  <View style={{ alignItems: "center", marginBottom: 8 }}>
-                    <Text style={[styles.weatherText, { fontSize: 24, color: getPrecipitationColor(weather.current.precipitation) }]}>
-                      {weather.current.precipitation.toFixed(1)} in
-                    </Text>
-                    <Text style={[styles.weatherText, { fontSize: 14, color: altTextColor }]}>
-                      Precipitation
-                    </Text>
-                  </View>
-
-                  <View style={{ alignItems: "center" }}>
-                    <Text style={[styles.weatherText, { fontSize: 24, color: textColor }]}>
-                      {weather.current.precipitation_probability}%
-                    </Text>
-                    <Text style={[styles.weatherText, { fontSize: 14, color: altTextColor }]}>
-                      Chance of Rain
-                    </Text>
-                  </View>
-                  <View style={{ alignItems: "center", marginBottom: 8 }}>
-                    <Text style={[
-                      styles.weatherText,
-                      { fontSize: 24, color: getAirQualityColor(weather.airQuality?.current?.us_aqi) }
-                    ]}>
-                      {weather.airQuality?.current?.us_aqi ?? "--"} 
-                    </Text>
-                    <Text style={[styles.weatherText, { fontSize: 12, color: getAirQualityColor(weather.airQuality?.current?.us_aqi) }]}>
-                      {getAirQualityLabel(weather.airQuality?.current?.us_aqi)}
-                    </Text>
-                    <Text style={[styles.weatherText, { fontSize: 14, color: altTextColor }]}>
-                      Air Quality
-                    </Text>
-                  </View>
-
-                </View>
-
-                </View>
-              )}
-            </View>
-            
-          </LinearGradient>
-          
           <LinearGradient
             colors={["#3000dbff", "#ad09eeff"]}
             start={{ x: 0, y: 0 }}
@@ -1429,8 +1345,6 @@ export default function DriveScreen({ route }) {
           </View>
           </LinearGradient>
 
-          <View style={{ flex: 1 }} />
-
           <TouchableOpacity
             onPress={async () => {
               await finalizeDrive();
@@ -1455,6 +1369,95 @@ export default function DriveScreen({ route }) {
               </View>
             </LinearGradient>
           </TouchableOpacity>
+
+          <LinearGradient
+            colors={["#3000dbff", "#ad09eeff"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.gradientBorderWide}
+          >
+          <View style={[styles.moduleWideRow, { backgroundColor: moduleBackground }]}>
+            
+            
+              {!weather ? (
+                <View style={[styles.module, {height: 175, justifyContent: "center"}]}>
+                <View style={styles.loadingBox}>
+                  <ActivityIndicator size="small" color="#fff" marginBottom={15} />
+                  <Text style={[styles.loadingText, {color: altTextColor}]}>Loading weather data...</Text>
+                </View>
+                </View>
+              ) : (
+                <View style={[styles.module, {flexDirection: "row", height: 220, justifyContent: "center"}]}>
+                <View style={{ alignItems: "center", marginRight: 24, marginLeft: -10 }}>
+                  <MaterialCommunityIcons
+                    name={getWeatherInfo(weather.current.weathercode).icon}
+                    size={160}
+                    color={textColor}
+                    style={{ marginBottom: 4 }}
+                  />
+                  <Text style={[styles.weatherText, {color: textColor, fontSize: 24}]}>
+                    {getWeatherInfo(weather.current.weathercode).label || "Unknown"}
+                  </Text>
+                  <Text style={[styles.weatherText, {color: altTextColor, fontSize: 20}]}>
+                    {Math.round(weather.current.temperature_2m)}°F
+                  </Text>
+                </View>
+
+                <View style={{ flex: 1, alignItems: "center" }}>
+                  <View style={{ alignItems: "center", marginBottom: 8 }}>
+                    <Text style={[styles.weatherText, { fontSize: 24, color: getVisibilityColor(weather.current.visibility) }]}>
+                      {Math.round(weather.current.visibility / 1609)} mi
+                    </Text>
+                    <Text style={[styles.weatherText, { fontSize: 14, color: altTextColor }]}>
+                      Visibility
+                    </Text>
+                  </View>
+
+                  <View style={{ alignItems: "center", marginBottom: 8 }}>
+                    <Text style={[styles.weatherText, { fontSize: 24, color: getPrecipitationColor(weather.current.precipitation) }]}>
+                      {weather.current.precipitation.toFixed(1)} in
+                    </Text>
+                    <Text style={[styles.weatherText, { fontSize: 14, color: altTextColor }]}>
+                      Precipitation
+                    </Text>
+                  </View>
+
+                  <View style={{ alignItems: "center", marginBottom: 8 }}>
+                    <Text style={[styles.weatherText, { fontSize: 24, color: textColor }]}>
+                      {weather.current.precipitation_probability}%
+                    </Text>
+                    <Text style={[styles.weatherText, { fontSize: 14, color: altTextColor }]}>
+                      Chance of Rain
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: "center", marginBottom: 8 }}>
+                    <Text style={[
+                      styles.weatherText,
+                      { fontSize: 24, color: getAirQualityColor(weather.airQuality?.current?.us_aqi) }
+                    ]}>
+                      {weather.airQuality?.current?.us_aqi ?? "--"} 
+                    </Text>
+                    <Text style={[styles.weatherText, { fontSize: 12, color: getAirQualityColor(weather.airQuality?.current?.us_aqi) }]}>
+                      {getAirQualityLabel(weather.airQuality?.current?.us_aqi)}
+                    </Text>
+                    <Text style={[styles.weatherText, { fontSize: 14, color: altTextColor }]}>
+                      Air Quality
+                    </Text>
+                  </View>
+
+                </View>
+
+                </View>
+              )}
+            </View>
+            
+          </LinearGradient>
+          
+          
+
+          <View style={{ flex: 1 }} />
+
+          
         </View>
 
       </LinearGradient>
@@ -1464,7 +1467,7 @@ export default function DriveScreen({ route }) {
 
 //styles
 const styles = StyleSheet.create({
-  background: { flex: 1, padding: 20 },
+  background: { flex: 1, padding: 18 },
   darkOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0)',
@@ -1541,7 +1544,7 @@ const styles = StyleSheet.create({
   },
 
   gradientBorderWide: {
-    marginTop: 20,
+    marginTop: 15,
     padding: 3,
     borderRadius: 18,
   },
@@ -1583,7 +1586,6 @@ const styles = StyleSheet.create({
     width: "100%",
     borderRadius: 20,
     overflow: "hidden", 
-    marginBottom: height / 30,
   },
 
   completeButton: {
@@ -1591,14 +1593,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#0000007c",
     paddingVertical: 15,
     borderRadius: 20,
-    marginTop: 20,
-    marginBottom: height/30,
+    marginTop: 15,
     alignItems: "center",
     alignSelf: "center",
   },
 
   completeButtonText: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "bold",
     color: "#fff",
   },
@@ -1672,7 +1673,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: (height / 667) * 25,
+    paddingVertical: 25,
   },
   pointsContainer: {
     flex: 1,
