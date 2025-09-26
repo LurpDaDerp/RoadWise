@@ -133,6 +133,35 @@ export async function startLocationUpdates() {
     }
   }
 
+   try {
+    const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+    const coords = current.coords;
+
+    const userSnap = await getDoc(doc(db, 'users', user.uid));
+    const groupId = userSnap.exists() ? userSnap.data().groupId : null;
+
+    if (groupId) {
+      const groupRef = doc(db, 'groups', groupId);
+      await setDoc(
+        groupRef,
+        {
+          memberLocations: {
+            [user.uid]: {
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+              speed: coords.speed ?? 0,
+              updatedAt: new Date(),
+              emergency: false
+            },
+          },
+        },
+        { merge: true }
+      );
+    }
+  } catch (err) {
+    console.error("Error pushing initial location:", err);
+  }
+
   const isTaskDefined = TaskManager.isTaskDefined(LOCATION_TASK_NAME);
   const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
 

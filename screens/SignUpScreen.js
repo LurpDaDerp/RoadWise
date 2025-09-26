@@ -40,14 +40,12 @@ export default function SignUpScreen() {
     }
     
     try {
-      console.log("test1");
       const q = query(
         collection(db, "users"),
         where("username", "==", username.trim().toLowerCase())
       );
 
       const querySnapshot = await getDocs(q);
-      console.log("test2");
 
       if (!querySnapshot.empty) {
         Alert.alert("Username Taken", "This username is already in use. Please choose another.");

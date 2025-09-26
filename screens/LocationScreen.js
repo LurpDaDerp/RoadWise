@@ -238,9 +238,8 @@ export default function LocationScreen() {
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const mapRef = useRef(null);
   const lastFetchTimes = useRef({});
-  const memberUnsubs = useRef({});
   const lastLocations = useRef({});
-
+  const [isResolvingCurrentAddr, setIsResolvingCurrentAddr] = useState(false);
   
   const openMemberModal = (member) => {
     setSelectedMember(member);
@@ -804,31 +803,13 @@ export default function LocationScreen() {
 
     const newGroupId = Math.random().toString(36).substring(2, 8).toUpperCase();
     const userRef = doc(db, "users", user.uid);
-    const groupRef = doc(db, "groups", newGroupId);
 
-    await setDoc(userRef, { groupId: newGroupId }, { merge: true });
-
-    const { coords } = await Location.getCurrentPositionAsync({});
-
-    await setDoc(groupRef, {
-      createdAt: new Date(),
-      createdBy: user.uid,
-      groupName: groupName.trim(),
-      memberLocations: {
-        [user.uid]: {
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-          speed: coords.speed,
-          updatedAt: new Date(),
-        },
-      },
-    });
+    startLocationUpdates();
 
     await setDoc(userRef, { groupId: newGroupId }, { merge: true });
 
     setGroupId(newGroupId);
     setIsCreating(false);
-    startLocationUpdates();
   };
 
   const handleJoinGroup = async () => {
@@ -847,22 +828,9 @@ export default function LocationScreen() {
 
     await setDoc(userRef, { groupId: gid }, { merge: true });
 
-    const { coords } = await Location.getCurrentPositionAsync({});
+    startLocationUpdates();
 
-    await setDoc(
-      groupRef,
-      {
-        memberLocations: {
-          [user.uid]: {
-            latitude: coords.latitude,
-            longitude: coords.longitude,
-            speed: coords.speed,
-            updatedAt: new Date(),
-          },
-        },
-      },
-      { merge: true }
-    );
+   
 
     const savedLocations = groupSnap.data().savedLocations || [];
     const normalizedSavedLocations = savedLocations.map((loc) => ({
@@ -870,12 +838,16 @@ export default function LocationScreen() {
       normalizedAddress: normalizeAddress(loc.address),
     }));
 
+    const { coords } = await Location.getCurrentPositionAsync({});
+
     const myAddress = await getAddressForUser(
       user.uid,
       { location: { latitude: coords.latitude, longitude: coords.longitude, speed: coords.speed ?? 0 } },
       savedLocations,
       normalizedSavedLocations
     );
+
+     
 
     setMembers((prev) => [
       ...prev.filter((m) => m.uid !== user.uid),
@@ -887,13 +859,11 @@ export default function LocationScreen() {
         renderCoord: { latitude: coords.latitude, longitude: coords.longitude },
         isDriving: (coords.speed ?? 0) > 10,
         emergency: false,
-        address: myAddress,
+        address: myAddress?.displayName || myAddress?.address || "Unknown"
       },
     ]);
 
     setGroupId(gid);
-
-    startLocationUpdates();
   };
 
   const confirmLeaveGroup = () => {
@@ -931,6 +901,41 @@ export default function LocationScreen() {
 
     stopLocationUpdates(); 
   };
+
+  const fillAddressFromOnscreen = async () => {
+    if (!location?.latitude || !location?.longitude) return;
+
+    const lat = location.latitude;
+    const lon = location.longitude;
+
+    const cached = await getCachedAddressNear(lat, lon, 0.00005);
+
+    if (cached) {
+      setNewLocationAddress(cached);
+      setAddressSuggestions([]);
+    } else {
+      setNewLocationAddress(""); 
+    }
+  };
+
+  const getCachedAddressNear = async (lat, lon, tolerance = 0.00005) => {
+    const keys = await AsyncStorage.getAllKeys();
+    const addrKeys = keys.filter((k) => k.startsWith("addr_"));
+
+    for (const key of addrKeys) {
+      const [, keyLat, keyLon] = key.split("_");
+      const kLat = parseFloat(keyLat);
+      const kLon = parseFloat(keyLon);
+
+      if (Math.abs(lat - kLat) <= tolerance && Math.abs(lon - kLon) <= tolerance) {
+        const val = await AsyncStorage.getItem(key);
+        if (val) return val;
+      }
+    }
+
+    return null; 
+  };
+
 
   const nameInputRef = useRef(null);
   const addressInputRef = useRef(null);
@@ -1436,7 +1441,7 @@ export default function LocationScreen() {
           </BottomSheet>
           
         )}
-        {/* Add Location Bottom Sheet */}
+        {/* Add Location */}
         <BottomSheet
           ref={addLocationSheetRef}
           index={-1}
@@ -1496,6 +1501,14 @@ export default function LocationScreen() {
                 debouncedFetch(text);
               }}
             />
+            <TouchableOpacity
+              onPress={fillAddressFromOnscreen}
+              style={{ marginTop: 8, alignSelf: "flex-start" }}
+            >
+              <Text style={{ color: buttonColor, textDecorationLine: "underline" }}>
+                Use my current location
+              </Text>
+            </TouchableOpacity>
             {isFetchingSuggestions && (
               <ActivityIndicator size="small" color={titleColor} style={{ marginTop: 10 }} />
             )}
