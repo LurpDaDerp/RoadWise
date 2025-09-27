@@ -239,7 +239,7 @@ export default function LocationScreen() {
   const mapRef = useRef(null);
   const lastFetchTimes = useRef({});
   const lastLocations = useRef({});
-  const [isResolvingCurrentAddr, setIsResolvingCurrentAddr] = useState(false);
+  const [myDisplayedAddress, setMyDisplayedAddress] = useState(null);
   
   const openMemberModal = (member) => {
     setSelectedMember(member);
@@ -576,6 +576,25 @@ export default function LocationScreen() {
       address: address 
     };
   };
+
+  useEffect(() => {
+    if (location && locations.length > 0) {
+      const normalizedSavedLocations = locations.map((loc) => ({
+        ...loc,
+        normalizedAddress: normalizeAddress(loc.address),
+      }));
+
+      getAddressForUser(
+        user.uid,
+        { location },
+        locations,
+        normalizedSavedLocations
+      ).then((result) => {
+        setMyDisplayedAddress(result.displayName || result.address || "Unknown");
+      });
+    }
+  }, [location, locations]);
+
 
 
   const fadeInContent = useCallback(() => { 
@@ -1259,9 +1278,9 @@ export default function LocationScreen() {
 
                           {item.coords && (
                             <Text style={{ color: altTextColor, fontSize: 12, marginTop: 3 }}>
-                              {item.displayName 
-                                ? `${item.displayName}` 
-                                : item.address || "Unknown"}
+                              {item.uid === user.uid
+                                ? (myDisplayedAddress || "Unknown")
+                                : (item.displayName ? item.displayName : item.address || "Unknown")}
                             </Text>
                           )}
                         </View>
