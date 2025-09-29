@@ -14,7 +14,7 @@ export const getAIFeedback = async (statsJSON) => {
         "Authorization": `Bearer ${apiKey}`, 
       },
       body: JSON.stringify({
-        model: "gpt-5-mini",
+        model: "gpt-5-chat-latest",
         input: `Act as a driving safety coach.
           The following driving stats summarize the user's driving behavior over the past 30 days:
           Stats: ${JSON.stringify(statsJSON)}

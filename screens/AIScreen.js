@@ -413,6 +413,7 @@ export default function AIScreen({ route, navigation }) {
           const duration = Number(values?.duration || 0);
 
           if (totalDistance < 10 || duration < 500) {
+            console.log(totalDistance + " " + duration);
             Alert.alert(
               "Not enough data",
               "Please complete a few more drives to get feedback."
