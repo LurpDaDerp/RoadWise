@@ -14,7 +14,7 @@ import debounce from "lodash.debounce";
 import { Ionicons } from "@expo/vector-icons";
 import { startLocationUpdates, stopLocationUpdates } from "../utils/LocationService";
 import * as Clipboard from "expo-clipboard"; 
-
+import * as Notifications from "expo-notifications";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image, Modal } from "react-native";
 
@@ -334,6 +334,48 @@ export default function LocationScreen() {
   const [newLocationAddress, setNewLocationAddress] = useState("");
   const addLocationSheetRef = useRef(null);
   const addLocationSnapPoints = useMemo(() => ["90%"], []);
+
+  useEffect(() => {
+    const ensurePermissions = async () => {
+      try {
+        let { status: locStatus } = await Location.getForegroundPermissionsAsync();
+        if (locStatus !== "granted") {
+          const req = await Location.requestForegroundPermissionsAsync();
+          locStatus = req.status;
+        }
+
+        let { status: bgStatus } = await Location.getBackgroundPermissionsAsync();
+        if (bgStatus !== "granted") {
+          const req = await Location.requestBackgroundPermissionsAsync();
+          bgStatus = req.status;
+        }
+
+        let { status: notifStatus } = await Notifications.getPermissionsAsync();
+        if (notifStatus !== "granted") {
+          const req = await Notifications.requestPermissionsAsync();
+          notifStatus = req.status;
+        }
+
+        const locationGranted = locStatus === "granted" && bgStatus === "granted";
+        const notificationsGranted = notifStatus === "granted";
+
+        if (!locationGranted || !notificationsGranted) {
+          Alert.alert(
+            "Permissions Required",
+            "To use this feature, please enable location and notifications in Settings. This allows your group to see your location and you can recieve alerts when there is an emergency.",
+            [
+              { text: "OK", onPress: () => navigation.goBack() }
+            ]
+          );
+        }
+      } catch (e) {
+        console.error("Permission request failed", e);
+      }
+    };
+
+    ensurePermissions();
+  }, [navigation]);
+
 
   const copyToClipboard = async (text) => {
     if (!text) return;

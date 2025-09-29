@@ -18,19 +18,6 @@
     "assetBundlePatterns": [
       "**/*"
     ],
-    "doctor": {
-      "reactNativeDirectoryCheck": {
-        "exclude": [
-          "react-native-chart-kit",
-          "react-native-confetti-cannon",
-          "cors",
-          "firebase",
-          "lodash.debounce",
-          "openai",
-          "prop-types"
-        ]
-      }
-    },
     "ios": {
       "supportsTablet": true,
       "userInterfaceStyle": "automatic",
@@ -54,6 +41,7 @@
         ],
         "NSLocationWhenInUseUsageDescription": "This app uses your location to track drives safely.",
         "NSLocationAlwaysUsageDescription": "This app uses your location even when running in the background for drive safety features.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app uses your location even when running in the background for drive safety features.",
         "NSCameraUsageDescription": "This app needs access to your camera for features like scanning QR codes.",
         "NSPhotoLibraryUsageDescription": "This app needs photo library access to let you pick a profile picture.",
         "NSUserTrackingUsageDescription": "This identifier will be used to deliver personalized rewards and improve the experience.",
@@ -82,7 +70,9 @@
       "expo-apple-authentication",
       "expo-location",
       "expo-notifications",
-      "expo-asset"
+      "expo-asset",
+      "expo-font",
+      "expo-web-browser"
     ]
   }
 }

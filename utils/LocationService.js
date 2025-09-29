@@ -120,17 +120,16 @@ export async function startLocationUpdates() {
     return;
   }
 
-  const { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== 'granted') {
+  const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
+  if (fgStatus !== 'granted') {
     console.warn('Foreground location permission denied');
     return;
   }
 
-  if (Platform.OS === 'android') {
-    const backgroundStatus = await Location.requestBackgroundPermissionsAsync();
-    if (backgroundStatus.status !== 'granted') {
-      console.warn('Background location permission denied');
-    }
+  const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
+  if (bgStatus !== 'granted') {
+    console.warn('Background location permission denied');
+    return;
   }
 
    try {
