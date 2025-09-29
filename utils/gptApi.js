@@ -81,7 +81,7 @@ export const getRoadConditionSummary = async (metrics) => {
           "summary": "3-6 words about conditions",
           "score": 1-5 (1 = very dangerous, 5 = very safe)
         }`,
-        reasonging: {"effort": "minimal"},
+        reasoning: {effort: "minimal"},
       }),
     });
 
