@@ -201,6 +201,50 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+const CACHE_PREFIX = "addr_";
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; 
+const CACHE_PURGE_THROTTLE_KEY = "addr_cache_last_purge";
+const CACHE_PURGE_THROTTLE_MS = 24 * 60 * 60 * 1000;
+
+async function purgeOldGeocodeCache() {
+  try {
+    const now = Date.now();
+    const lastRun = Number(await AsyncStorage.getItem(CACHE_PURGE_THROTTLE_KEY) || 0);
+    if (now - lastRun < CACHE_PURGE_THROTTLE_MS) return; 
+
+    const keys = await AsyncStorage.getAllKeys();
+    const addrKeys = keys.filter(k => k.startsWith(CACHE_PREFIX));
+    if (!addrKeys.length) {
+      await AsyncStorage.setItem(CACHE_PURGE_THROTTLE_KEY, String(now));
+      return;
+    }
+
+    const pairs = await AsyncStorage.multiGet(addrKeys);
+    const toRemove = [];
+    for (const [k, v] of pairs) {
+      if (!v) { toRemove.push(k); continue; }
+      try {
+        const parsed = JSON.parse(v);
+        const ts = parsed?.ts;
+        if (!ts || now - ts > CACHE_TTL_MS) {
+          toRemove.push(k);
+        }
+      } catch {
+        toRemove.push(k);
+      }
+    }
+
+    if (toRemove.length) {
+      await AsyncStorage.multiRemove(toRemove);
+    }
+    await AsyncStorage.setItem(CACHE_PURGE_THROTTLE_KEY, String(now));
+  } catch (e) {
+    console.warn("Cache purge failed:", e);
+  }
+}
+
+
+
 export default function LocationScreen() {
 
   const navigation = useNavigation();
@@ -237,9 +281,9 @@ export default function LocationScreen() {
   const [initialLoad, setInitialLoad] = useState(true);
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const mapRef = useRef(null);
-  const lastFetchTimes = useRef({});
   const lastLocations = useRef({});
   const [myDisplayedAddress, setMyDisplayedAddress] = useState(null);
+  const myLastGeocodeRef = useRef({ t: 0, lat: null, lon: null });
   
   const openMemberModal = (member) => {
     setSelectedMember(member);
@@ -420,6 +464,7 @@ export default function LocationScreen() {
       {
         accuracy: Location.Accuracy.Highest,
         distanceInterval: 1,
+        timeInterval: 1000,
       },
       (loc) => {
         const { latitude, longitude } = loc.coords;
@@ -565,16 +610,27 @@ export default function LocationScreen() {
     const cacheKey = `addr_${lat}_${lon}`;
 
     // Check cache
-    let cached = await AsyncStorage.getItem(cacheKey);
-    if (cached) {
-      address = cached;
+    let cachedRaw = await AsyncStorage.getItem(cacheKey);
+    if (cachedRaw) {
+      try {
+        const parsed = JSON.parse(cachedRaw);
+        if (parsed && typeof parsed === "object" && parsed.v) {
+          address = parsed.v; 
+        } else {
+          address = cachedRaw;
+        }
+      } catch {
+        address = cachedRaw;
+        try {
+          await AsyncStorage.setItem(
+            cacheKey,
+            JSON.stringify({ v: cachedRaw, ts: Date.now() })
+          );
+        } catch {}
+      }
     }
 
-    const now = Date.now();
-
-    if (!cached) {
-    const lastFetch = lastFetchTimes.current[uid] || 0;
-    lastFetchTimes.current[uid] = now;
+    if (!cachedRaw) {
       try {
         const response = await fetch(
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
@@ -599,7 +655,10 @@ export default function LocationScreen() {
             address = addrParts.join(" ");
           }
           if (address !== "Unknown location") {
-            await AsyncStorage.setItem(cacheKey, address);
+            await AsyncStorage.setItem(
+              cacheKey,
+              JSON.stringify({ v: address, ts: Date.now() })
+            );
           }
         }
       } catch (e) {
@@ -607,6 +666,7 @@ export default function LocationScreen() {
       }
       await new Promise(res => setTimeout(res, 1000));
     }
+
 
     // Check if matches saved location
     const normalized = normalizeAddress(address);
@@ -620,22 +680,34 @@ export default function LocationScreen() {
   };
 
   useEffect(() => {
-    if (location && locations.length > 0) {
-      const normalizedSavedLocations = locations.map((loc) => ({
-        ...loc,
-        normalizedAddress: normalizeAddress(loc.address),
-      }));
+    if (!location || locations.length === 0) return;
 
-      getAddressForUser(
-        user.uid,
-        { location },
-        locations,
-        normalizedSavedLocations
-      ).then((result) => {
-        setMyDisplayedAddress(result.displayName || result.address || "Unknown");
-      });
-    }
+    const now = Date.now();
+    const last = myLastGeocodeRef.current;
+
+    const dist = (last.lat == null || last.lon == null)
+      ? Infinity
+      : getDistance(last.lat, last.lon, location.latitude, location.longitude);
+
+    if (last.t && (now - last.t < 10_000 || dist < 10)) return;
+
+    myLastGeocodeRef.current = { t: now, lat: location.latitude, lon: location.longitude };
+
+    const normalizedSavedLocations = locations.map((loc) => ({
+      ...loc,
+      normalizedAddress: normalizeAddress(loc.address),
+    }));
+
+    getAddressForUser(
+      user.uid,
+      { location },
+      locations,
+      normalizedSavedLocations
+    ).then((result) => {
+      setMyDisplayedAddress(result.displayName || result.address || "Unknown");
+    });
   }, [location, locations]);
+
 
 
 
@@ -651,6 +723,7 @@ export default function LocationScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      purgeOldGeocodeCache();
       const loadAPIKey = async () => {
         const key = await getHereKey("HERE_API_KEY");
         setHereKey(key);
@@ -981,7 +1054,7 @@ export default function LocationScreen() {
 
   const getCachedAddressNear = async (lat, lon, tolerance = 0.00005) => {
     const keys = await AsyncStorage.getAllKeys();
-    const addrKeys = keys.filter((k) => k.startsWith("addr_"));
+    const addrKeys = keys.filter((k) => k.startsWith(CACHE_PREFIX)); 
 
     for (const key of addrKeys) {
       const [, keyLat, keyLon] = key.split("_");
@@ -989,13 +1062,20 @@ export default function LocationScreen() {
       const kLon = parseFloat(keyLon);
 
       if (Math.abs(lat - kLat) <= tolerance && Math.abs(lon - kLon) <= tolerance) {
-        const val = await AsyncStorage.getItem(key);
-        if (val) return val;
+        const raw = await AsyncStorage.getItem(key);
+        if (!raw) continue;
+
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object" && parsed.v) return parsed.v; 
+        } catch {
+          return raw; 
+        }
       }
     }
-
-    return null; 
+    return null;
   };
+
 
 
   const nameInputRef = useRef(null);
