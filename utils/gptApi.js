@@ -16,21 +16,27 @@ export const getAIFeedback = async (statsJSON) => {
       body: JSON.stringify({
         model: "gpt-5-chat-latest",
         input: `Act as a driving safety coach.
-          The following driving stats summarize the user's driving behavior over the past 30 days:
-          Stats: ${JSON.stringify(statsJSON)}
+        Stats (30 days): ${JSON.stringify(statsJSON)}
 
-          Return ONLY valid JSON in this schema:
-          {
-            "score": 0-100,
-            "summary": "1-2 sentences on strengths and weaknesses (make clear this is based on the past 30 days)",
-            "tips": ["5-10 short, specific improvement tips referencing the given stats"]
-          }
+        Thresholds:
+        - Speeding Margin: <3=excellent; 3–7=fair; >7=risky
+        - Sudden Stops: <10=safe; 10–20=moderate; >20=risky
+        - Sudden Accels: same as stops
+        - Distance: <100mi → mention data may be insufficient
 
-          Guidelines:
-          - DO NOT use the raw variable names in your output (e.g. don't say "avgSpeedingMargin").
-          - Mention the relevant statistic(s) in the summary/tips (e.g. "Your braking is above average at X"). 
-          - Keep tips concise, casual, constructive.
-          - No text outside JSON.`
+        Output JSON only:
+        {
+          "score": 0-100,
+          "summary": "1-2 sentences on strengths/weaknesses (mention 30 days)",
+          "tips": ["5-10 concise tips referencing stats, casual/constructive"]
+        }
+
+        Rules:
+        - Don’t use variable names (e.g. no "avgSpeedingMargin")
+        - Must cite actual numbers (e.g. "22 hard stops")
+        - Be encouraging
+        - No text outside JSON`
+
       }),
     });
 
