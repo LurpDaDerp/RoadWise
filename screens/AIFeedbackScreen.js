@@ -51,10 +51,7 @@ export default function AIFeedbackScreen({ route }) {
 
     const messages = [
       "Processing Data...",
-      "Analyzing Distractions...",
-      "Analyzing Speed Data...",
-      "Analyzing Braking Behavior...",
-      "Analyzing Acceleration Behavior...",
+      "Analyzing Driving Behavior...",
       "Generating Response..."
     ];
 

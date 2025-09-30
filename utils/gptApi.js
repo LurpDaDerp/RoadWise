@@ -47,7 +47,11 @@ export const getAIFeedback = async (statsJSON) => {
     if (!text) return null;
 
     try {
-      return JSON.parse(text);
+      const cleaned = text
+        .replace(/```json/gi, "")
+        .replace(/```/g, "")
+        .trim();
+      return JSON.parse(cleaned);
     } catch (err) {
       console.error("Failed to parse AI JSON:", text, err);
       return null;

@@ -247,6 +247,8 @@ export default function AIScreen({ route, navigation }) {
       averageSpeed: totalDuration > 0 ? (totalWeightedSpeed / totalDuration).toFixed(1) : 0,
       suddenStops: totalSuddenStops,
       suddenAccelerations: totalSuddenAccels,
+      totalDistance: (totalDistance * 0.000621371).toFixed(1),
+      totalDuration, 
       generatedAt: new Date().toISOString(),
     };
   };
@@ -409,8 +411,8 @@ export default function AIScreen({ route, navigation }) {
 
           const { generatedAt, ...values } = statsJSON;
 
-          const totalDistance = Number(values?.distance || values?.totalDistance || 0);
-          const duration = Number(values?.duration || 0);
+          const totalDistance = Number(values?.totalDistance || 0);
+          const duration = Number(values?.totalDuration || 0);
 
           if (totalDistance < 10 || duration < 500) {
             console.log(totalDistance + " " + duration);
