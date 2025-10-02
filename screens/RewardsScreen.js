@@ -52,7 +52,7 @@ export default function RewardsScreen({ route, navigation }) {
 
   return (
     <LinearGradient
-      colors={['#0a0035ff', '#500068ff']} // gradient colors
+      colors={['#43127cff', '#0f0f0fff']} 
       style={styles.background}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}

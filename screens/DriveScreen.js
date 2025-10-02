@@ -325,13 +325,15 @@ export default function DriveScreen({ route }) {
   const speedSampleCount = useRef(0);
   const speedingMarginSum = useRef(0);
   const speedingSampleCount = useRef(0);
+  const speedingEvents = useRef(0);
+  const wasSpeeding = useRef(false);
   const suddenStops = useRef(0);
   const suddenAccelerations = useRef(0);
   const phoneUsageTime = useRef(0);
   const phoneUsageStart = useRef(null);
   const lastSpeedValue = useRef(0);
-  const ACCEL_THRESHOLD = 3.0; 
-  const BRAKE_THRESHOLD = -3.0; 
+  const ACCEL_THRESHOLD = 4.5; 
+  const BRAKE_THRESHOLD = -4.5; 
   let lastUpdateTime = Date.now();
   const [roadSummary, setRoadSummary] = useState(null);
   const lastWeatherRef = useRef(null);
@@ -381,6 +383,7 @@ export default function DriveScreen({ route }) {
       suddenAccelerations: suddenAccelerations.current,
       phoneUsageTime: phoneUsageTime.current,
       totalDistance: totalDistance.current ?? 0,
+      speedingEvents: speedingEvents.current,
     };
 
     if (pointsThisDrive > 0 /* && droveLongEnough */) {
@@ -924,6 +927,17 @@ export default function DriveScreen({ route }) {
       });
     })();
   }, []);
+
+  useEffect(() => {
+    if (isSpeeding && !wasSpeeding.current) {
+      speedingEvents.current += 1;
+      wasSpeeding.current = true;
+    }
+    if (!isSpeeding) {
+      wasSpeeding.current = false; 
+    }
+  }, [isSpeeding]);
+
 
   useEffect(() => {
     if (showSpeedingWarning && isSpeeding) {

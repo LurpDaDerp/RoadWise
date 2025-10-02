@@ -153,6 +153,7 @@ export default function AIScreen({ route, navigation }) {
     suddenStops: 0,
     avgSpeed: 0,
     totalDistance: 0,
+    speedingEvents: 0,
   });
 
   const [unit, setUnit] = useState('mph');
@@ -211,6 +212,7 @@ export default function AIScreen({ route, navigation }) {
     let totalDistance = 0;
     let totalWeightedSpeed = 0;
     let totalDuration = 0;
+    let totalSpeedingEvents = 0;
     let distractedCountVal = 0;
 
     const now = new Date();
@@ -231,6 +233,7 @@ export default function AIScreen({ route, navigation }) {
       totalSuddenStops += drive.suddenStops || 0;
       totalDistance += drive.totalDistance || 0;
       totalDuration += duration;
+      totalSpeedingEvents += drive.speedingEvents || 0;
       if (drive.distracted > 0) distractedCountVal += 1;
     });
 
@@ -247,6 +250,7 @@ export default function AIScreen({ route, navigation }) {
       averageSpeed: totalDuration > 0 ? (totalWeightedSpeed / totalDuration).toFixed(1) : 0,
       suddenStops: totalSuddenStops,
       suddenAccelerations: totalSuddenAccels,
+      speedingEvents: totalSpeedingEvents,
       totalDistance: (totalDistance * 0.000621371).toFixed(1),
       totalDuration, 
       generatedAt: new Date().toISOString(),
@@ -278,6 +282,7 @@ export default function AIScreen({ route, navigation }) {
           avgSpeed: 0,
           totalDistance: 0,
           totalDuration: "0 minutes",
+          speedingEvents: 0, 
         });
         setDistractedCount(0);
         setUndistractedCount(0);
@@ -303,6 +308,7 @@ export default function AIScreen({ route, navigation }) {
       let totalDistance = 0;
       let totalDuration = 0;
       let distractedCountVal = 0;
+      let totalSpeedingEvents = 0;
 
       drivesToUse.forEach(drive => {
         const duration = drive.duration || 0;
@@ -312,6 +318,7 @@ export default function AIScreen({ route, navigation }) {
         totalSuddenStops += drive.suddenStops || 0;
         totalDistance += drive.totalDistance || 0;
         totalDuration += duration;
+        totalSpeedingEvents += drive.speedingEvents || 0;
         if (drive.distracted > 0) distractedCountVal += 1;
       });
 
@@ -327,6 +334,7 @@ export default function AIScreen({ route, navigation }) {
         avgSpeed: totalDuration > 0 ? (totalWeightedSpeed / totalDuration).toFixed(1) : 0,
         totalDistance: totalDistance.toFixed(1),
         totalDuration: formatTotalDuration(totalDuration),
+        speedingEvents: totalSpeedingEvents, 
       });
 
       setDistractedCount(distractedCountVal);
@@ -409,7 +417,7 @@ export default function AIScreen({ route, navigation }) {
         onPress={() => {
           const statsJSON = generateStatsJSON();
 
-          const { generatedAt, ...values } = statsJSON;
+          const { generatedAt, averageSpeed, ...values } = statsJSON;
 
           const totalDistance = Number(values?.totalDistance || 0);
           const duration = Number(values?.totalDuration || 0);
@@ -519,7 +527,10 @@ export default function AIScreen({ route, navigation }) {
         <StatBox label="of Drives are Distracted" value={`${percentDistracted}%`} textColor={percentColor} />
       </View>
       <View style={styles.statsRow}>
+        <StatBox label="Speeding Events" value={stats.speedingEvents} />
         <StatBox label="Avg Speeding Margin" value={`${stats.avgSpeedingMargin} mph`} />
+      </View>
+      <View style={styles.statsRow}>
         <StatBox label="Avg Speed" value={`${stats.avgSpeed} mph`} />
       </View>
       <View style={styles.statsRow}>
