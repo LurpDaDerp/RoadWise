@@ -20,6 +20,7 @@ import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { getUserDrives, clearUserDrives } from '../utils/firestore';
 import { auth } from '../utils/firebase';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Modal } from 'react-native';
 
 const firestore = getFirestore();
 
@@ -55,6 +56,9 @@ export default function MyDrivesScreen() {
   const moduleBackground = isDark ? '#1b1b1bff' : '#e6e6e6ff';
   const sheetGradientTop = isDark ? "#380864ff" : "#cab6ffff"; 
   const sheetGradientBottom = isDark ? "#070222ff" : "#f1f1f1ff"; 
+  const [selectedDrive, setSelectedDrive] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+
 
   const customFadeAnim = useRef(new Animated.Value(0)).current;
   
@@ -128,39 +132,41 @@ export default function MyDrivesScreen() {
   }
 
   const renderItem = ({ item }) => (
-    <View style={[styles.item, { backgroundColor: moduleBackground }]}>
-      <Text style={[styles.date, { color: dateColor }]}>
-        {new Date(item.timestamp).toLocaleString(undefined, {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true, 
-        })}
-      </Text>
-      <Text style={[styles.detail, { color: detailColor }]}>Points: {item.points}</Text>
-      <Text style={[styles.detail, { color: detailColor }]}>
-        Duration: {formatDuration(item.duration) ?? 'N/A'} 
-      </Text>
-      <Text
-        style={[
-          styles.detail,
-          { color: item.distracted ? distractedColor : focusedColor },
-        ]}
-      >
-        {item.distracted ? 'Distracted' : 'Focused'}
-      </Text>
-    </View>
+    <TouchableOpacity
+      onPress={() => {
+        setSelectedDrive(item);
+        setShowModal(true);
+      }}
+    >
+      <View style={[styles.item, { backgroundColor: moduleBackground }]}>
+        <Text style={[styles.date, { color: dateColor }]}>
+          {new Date(item.timestamp).toLocaleString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+          })}
+        </Text>
+        <Text style={[styles.detail, { color: detailColor }]}>
+          Points: {item.points}
+        </Text>
+        <Text style={[styles.detail, { color: detailColor }]}>
+          Duration: {formatDuration(item.duration) ?? 'N/A'}
+        </Text>
+        <Text
+          style={[
+            styles.detail,
+            { color: item.distracted ? distractedColor : focusedColor },
+          ]}
+        >
+          {item.distracted ? 'Distracted' : 'Focused'}
+        </Text>
+      </View>
+    </TouchableOpacity>
   );
 
-  if (loading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="medium" color="#fff" />
-      </View>
-    );
-  }
 
   return (
     <>
@@ -206,6 +212,62 @@ export default function MyDrivesScreen() {
             <Ionicons name="trash-outline" size={30} color={titleColor} />
           </TouchableOpacity>
         </View>
+        <Modal
+          visible={showModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { backgroundColor: moduleBackground }]}>
+              <Text style={[styles.modalTitle, { color: titleColor }]}>Drive Details</Text>
+
+              {selectedDrive && (
+                <>
+                  <Text style={[styles.modalText, { color: detailColor }]}>
+                    Date: {new Date(selectedDrive.timestamp).toLocaleString()}
+                  </Text>
+                  <Text style={[styles.modalText, { color: detailColor }]}>
+                    Sudden Stops: {selectedDrive.suddenStops ?? 0}
+                  </Text>
+                  <Text style={[styles.modalText, { color: detailColor }]}>
+                    Sudden Accelerations: {selectedDrive.suddenAccelerations ?? 0}
+                  </Text>
+                  <Text style={[styles.modalText, { color: detailColor }]}>
+                    Speeding Events: {selectedDrive.speedingEvents ?? 0}
+                  </Text>
+                  <Text style={[styles.modalText, { color: detailColor }]}>
+                    Average Speeding Margin: {selectedDrive.avgSpeedingMargin?.toFixed?.(1) ?? "N/A"}
+                  </Text>
+                  <Text style={[styles.modalText, { color: detailColor }]}>
+                    Average Speed: {selectedDrive.avgSpeed?.toFixed?.(1) ?? "N/A"}
+                  </Text>
+                  <Text style={[styles.modalText, { color: detailColor }]}>
+                    Points: {selectedDrive.points}
+                  </Text>
+                  <Text style={[styles.modalText, { color: detailColor }]}>
+                    Duration: {formatDuration(selectedDrive.duration)}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.modalText,
+                      { color: selectedDrive.distracted ? distractedColor : focusedColor },
+                    ]}
+                  >
+                    {selectedDrive.distracted ? "Distracted Drive" : "Focused Drive"}
+                  </Text>
+                </>
+              )}
+
+              <TouchableOpacity
+                onPress={() => setShowModal(false)}
+                style={[styles.closeButton, { backgroundColor: '#444' }]}
+              >
+                <Text style={styles.closeButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </LinearGradient>
     </>
   );
@@ -296,5 +358,38 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     alignSelf: "center"
-  }
+  },
+    modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '85%',
+    padding: 20,
+    borderRadius: 12,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  modalText: {
+    fontSize: 16,
+    marginVertical: 4,
+  },
+  closeButton: {
+    marginTop: 20,
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+
 });
