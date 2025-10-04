@@ -51,11 +51,13 @@ export default function MyDrivesScreen() {
   const titleColor = isDark ? "#fff" : "#000";
   const dateColor = isDark ? '#fff' : '#000';
   const detailColor = isDark ? '#aaa' : '#555';
+  const textColor = isDark ? '#ffffffff' : '#252525ff';
   const distractedColor = '#cc0000';
   const focusedColor = isDark ? 'lightgreen' : 'green';
-  const moduleBackground = isDark ? '#1b1b1bff' : '#e6e6e6ff';
-  const sheetGradientTop = isDark ? "#380864ff" : "#cab6ffff"; 
-  const sheetGradientBottom = isDark ? "#070222ff" : "#f1f1f1ff"; 
+  const moduleBackground = isDark ? '#1b1b1baf' : '#e6e6e698';
+  const modalBackground = isDark ? '#1b1b1bff' : '#e6e6e6ff';
+  const sheetGradientBottom = isDark ? "#380864ff" : "#f1f1f1ff"; 
+  const sheetGradientTop = isDark ? "#070222ff" : "#cab6ffff"; 
   const [selectedDrive, setSelectedDrive] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
@@ -130,6 +132,18 @@ export default function MyDrivesScreen() {
     }
     return formatted;
   }
+
+  const formatDistance = (meters) => {
+    const miles = meters / 1609.34;
+    let formatted = miles.toFixed(1) + " mi";
+
+    if (miles < 0.1) {
+      const feet = meters * 3.28084;
+      formatted = Math.round(feet) + " ft";
+    }
+
+    return formatted;
+  };
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
@@ -219,54 +233,93 @@ export default function MyDrivesScreen() {
           onRequestClose={() => setShowModal(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: moduleBackground }]}>
-              <Text style={[styles.modalTitle, { color: titleColor }]}>Drive Details</Text>
-
+            <View style={[styles.modalContent, { backgroundColor: modalBackground }]}>
               {selectedDrive && (
                 <>
-                  <Text style={[styles.modalText, { color: detailColor }]}>
-                    Date: {new Date(selectedDrive.timestamp).toLocaleString()}
-                  </Text>
-                  <Text style={[styles.modalText, { color: detailColor }]}>
-                    Sudden Stops: {selectedDrive.suddenStops ?? 0}
-                  </Text>
-                  <Text style={[styles.modalText, { color: detailColor }]}>
-                    Sudden Accelerations: {selectedDrive.suddenAccelerations ?? 0}
-                  </Text>
-                  <Text style={[styles.modalText, { color: detailColor }]}>
-                    Speeding Events: {selectedDrive.speedingEvents ?? 0}
-                  </Text>
-                  <Text style={[styles.modalText, { color: detailColor }]}>
-                    Average Speeding Margin: {selectedDrive.avgSpeedingMargin?.toFixed?.(1) ?? "N/A"}
-                  </Text>
-                  <Text style={[styles.modalText, { color: detailColor }]}>
-                    Average Speed: {selectedDrive.avgSpeed?.toFixed?.(1) ?? "N/A"}
-                  </Text>
-                  <Text style={[styles.modalText, { color: detailColor }]}>
-                    Points: {selectedDrive.points}
-                  </Text>
-                  <Text style={[styles.modalText, { color: detailColor }]}>
-                    Duration: {formatDuration(selectedDrive.duration)}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.modalText,
-                      { color: selectedDrive.distracted ? distractedColor : focusedColor },
-                    ]}
-                  >
-                    {selectedDrive.distracted ? "Distracted Drive" : "Focused Drive"}
-                  </Text>
+                  <View style={styles.modalHeader}>
+                    <Text style={[styles.modalTitle, { color: titleColor }]}>Drive Details</Text>
+                    <Text style={[styles.modalDate, { color: detailColor }]}>
+                      {new Date(selectedDrive.timestamp).toLocaleString()}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.driveType,
+                        { color: selectedDrive.distracted ? distractedColor : focusedColor },
+                      ]}
+                    >
+                      {selectedDrive.distracted ? "Distracted Drive" : "Focused Drive"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.statsContainer}>
+                    <View style={styles.statBox}>
+                      <Text style={styles.statLabel}>Distractions</Text>
+                      <Text style={[styles.statValue, { color: textColor }]}>
+                        {selectedDrive.distracted}
+                      </Text>
+                    </View>
+
+                    <View style={styles.statBox}>
+                      <Text style={styles.statLabel}>Sudden Stops</Text>
+                      <Text style={[styles.statValue, { color: textColor }]}>
+                        {selectedDrive.suddenStops ?? 0}
+                      </Text>
+                    </View>
+
+                    <View style={styles.statBox}>
+                      <Text style={styles.statLabel}>Sudden Accelerations</Text>
+                      <Text style={[styles.statValue, { color: textColor }]}>
+                        {selectedDrive.suddenAccelerations ?? 0}
+                      </Text>
+                    </View>
+
+                    <View style={styles.statBox}>
+                      <Text style={styles.statLabel}>Speeding Events</Text>
+                      <Text style={[styles.statValue, { color: textColor }]}>
+                        {selectedDrive.speedingEvents ?? 0}
+                      </Text>
+                    </View>
+
+                    <View style={styles.statBox}>
+                      <Text style={styles.statLabel}>Points</Text>
+                      <Text style={[styles.statValue, { color: textColor }]}>
+                        {selectedDrive.points}
+                      </Text>
+                    </View>
+
+                    <View style={styles.statBox}>
+                      <Text style={styles.statLabel}>Distance</Text>
+                      <Text style={[styles.statValue, { color: textColor }]}>
+                        {formatDistance(selectedDrive.totalDistance)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.statBox}>
+                      <Text style={styles.statLabel}>Duration</Text>
+                      <Text style={[styles.statValue, { color: textColor }]}>
+                        {formatDuration(selectedDrive.duration)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.statBox}>
+                      <Text style={styles.statLabel}>Average Speed</Text>
+                      <Text style={[styles.statValue, { color: textColor }]}>
+                        {selectedDrive.avgSpeed?.toFixed?.(1) ?? "N/A"}
+                      </Text>
+                    </View>
+                  </View>
                 </>
               )}
 
               <TouchableOpacity
                 onPress={() => setShowModal(false)}
-                style={[styles.closeButton, { backgroundColor: '#444' }]}
+                style={[styles.closeButton, { backgroundColor: "#444" }]}
               >
                 <Text style={styles.closeButtonText}>Close</Text>
               </TouchableOpacity>
             </View>
           </View>
+
         </Modal>
       </LinearGradient>
     </>
@@ -391,5 +444,64 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
-
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "90%",
+    borderRadius: 20,
+    padding: 20,
+  },
+  modalHeader: {
+    marginBottom: 15,
+  },
+  modalTitle: {
+    fontSize: 26,
+    fontWeight: "bold",
+  },
+  modalDate: {
+    fontSize: 14,
+    marginTop: 4,
+  },
+  driveType: {
+    marginTop: 8,
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  statsContainer: {
+    marginTop: 10,
+  },
+  statBox: {
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  statLabel: {
+    fontSize: 15,
+    color: "#888",
+  },
+  statValue: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  closeButton: {
+    marginTop: 20,
+    alignSelf: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 30,
+    borderRadius: 10,
+  },
+  closeButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
 });
