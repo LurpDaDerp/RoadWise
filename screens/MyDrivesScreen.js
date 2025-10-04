@@ -50,12 +50,13 @@ export default function MyDrivesScreen() {
 
   const titleColor = isDark ? "#fff" : "#000";
   const dateColor = isDark ? '#fff' : '#000';
-  const detailColor = isDark ? '#aaa' : '#555';
+  const detailColor = isDark ? '#aaa' : '#353535ff';
   const textColor = isDark ? '#ffffffff' : '#252525ff';
   const distractedColor = '#cc0000';
   const focusedColor = isDark ? 'lightgreen' : 'green';
   const moduleBackground = isDark ? '#1b1b1baf' : '#e6e6e698';
   const modalBackground = isDark ? '#1b1b1bff' : '#e6e6e6ff';
+  const statBackground = isDark ? '#2b2b2bff' : '#d1d1d1ff';
   const sheetGradientBottom = isDark ? "#380864ff" : "#f1f1f1ff"; 
   const sheetGradientTop = isDark ? "#070222ff" : "#cab6ffff"; 
   const [selectedDrive, setSelectedDrive] = useState(null);
@@ -252,57 +253,57 @@ export default function MyDrivesScreen() {
                   </View>
 
                   <View style={styles.statsContainer}>
-                    <View style={styles.statBox}>
-                      <Text style={styles.statLabel}>Distractions</Text>
+                    <View style={[styles.statBox, {backgroundColor: statBackground}]}>
+                      <Text style={[styles.statLabel, {color: detailColor}]}>Distractions</Text>
                       <Text style={[styles.statValue, { color: textColor }]}>
                         {selectedDrive.distracted}
                       </Text>
                     </View>
 
-                    <View style={styles.statBox}>
-                      <Text style={styles.statLabel}>Sudden Stops</Text>
+                    <View style={[styles.statBox, {backgroundColor: statBackground}]}>
+                      <Text style={[styles.statLabel, {color: detailColor}]}>Sudden Stops</Text>
                       <Text style={[styles.statValue, { color: textColor }]}>
                         {selectedDrive.suddenStops ?? 0}
                       </Text>
                     </View>
 
-                    <View style={styles.statBox}>
-                      <Text style={styles.statLabel}>Sudden Accelerations</Text>
+                    <View style={[styles.statBox, {backgroundColor: statBackground}]}>
+                      <Text style={[styles.statLabel, {color: detailColor}]}>Sudden Accelerations</Text>
                       <Text style={[styles.statValue, { color: textColor }]}>
                         {selectedDrive.suddenAccelerations ?? 0}
                       </Text>
                     </View>
 
-                    <View style={styles.statBox}>
-                      <Text style={styles.statLabel}>Speeding Events</Text>
+                    <View style={[styles.statBox, {backgroundColor: statBackground}]}>
+                      <Text style={[styles.statLabel, {color: detailColor}]}>Speeding Events</Text>
                       <Text style={[styles.statValue, { color: textColor }]}>
                         {selectedDrive.speedingEvents ?? 0}
                       </Text>
                     </View>
 
-                    <View style={styles.statBox}>
-                      <Text style={styles.statLabel}>Points</Text>
+                    <View style={[styles.statBox, {backgroundColor: statBackground}]}>
+                      <Text style={[styles.statLabel, {color: detailColor}]}>Points</Text>
                       <Text style={[styles.statValue, { color: textColor }]}>
                         {selectedDrive.points}
                       </Text>
                     </View>
 
-                    <View style={styles.statBox}>
-                      <Text style={styles.statLabel}>Distance</Text>
+                    <View style={[styles.statBox, {backgroundColor: statBackground}]}>
+                      <Text style={[styles.statLabel, {color: detailColor}]}>Distance</Text>
                       <Text style={[styles.statValue, { color: textColor }]}>
                         {formatDistance(selectedDrive.totalDistance)}
                       </Text>
                     </View>
 
-                    <View style={styles.statBox}>
-                      <Text style={styles.statLabel}>Duration</Text>
+                    <View style={[styles.statBox, {backgroundColor: statBackground}]}>
+                      <Text style={[styles.statLabel, {color: detailColor}]}>Duration</Text>
                       <Text style={[styles.statValue, { color: textColor }]}>
                         {formatDuration(selectedDrive.duration)}
                       </Text>
                     </View>
 
-                    <View style={styles.statBox}>
-                      <Text style={styles.statLabel}>Average Speed</Text>
+                    <View style={[styles.statBox, {backgroundColor: statBackground}]}>
+                      <Text style={[styles.statLabel, {color: detailColor}]}>Average Speed</Text>
                       <Text style={[styles.statValue, { color: textColor }]}>
                         {selectedDrive.avgSpeed?.toFixed?.(1) ?? "N/A"}
                       </Text>
@@ -475,7 +476,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   statBox: {
-    backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 14,
