@@ -1,8 +1,7 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useContext } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-
 import {
   View,
   Text,
@@ -13,16 +12,26 @@ import {
   Animated, 
   Easing
 } from 'react-native';
-
 import { Ionicons } from '@expo/vector-icons';
+import { ThemeContext } from '../context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
-
-const getStorageKey = (uid) => `totalPoints_${uid}`
+const getStorageKey = (uid) => `totalPoints_${uid}`;
 
 export default function RewardsScreen({ route, navigation }) {
   const [totalPoints, setTotalPoints] = useState(0);
   const contentOpacity = useRef(new Animated.Value(0)).current;
+  const { resolvedTheme } = useContext(ThemeContext);
+  const isDark = resolvedTheme === 'dark';
+  const gradientColors = isDark
+    ? ['#43127cff', '#0f0f0fff'] 
+    : ['#d1c4ff', '#f5f5f5']; 
+  const titleColor = isDark ? '#fff' : '#000';
+  const subtitleColor = isDark ? '#ddd' : '#444';
+  const textShadowColor = isDark ? '#ffffff' : '#00000050';
+  const borderColor = isDark ? '#fff' : '#00000085';
+  const overlayColor = isDark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)';
+  const imageOverlayColor = isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0, 0, 0, 0.19)';
 
   const fadeInContent = useCallback(() => {
     Animated.timing(contentOpacity, {
@@ -52,122 +61,93 @@ export default function RewardsScreen({ route, navigation }) {
 
   return (
     <LinearGradient
-      colors={['#43127cff', '#0f0f0fff']} 
+      colors={gradientColors}
       style={styles.background}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
     >
       <Animated.View style={[styles.fadeIn, { opacity: contentOpacity }]}>
-      <View style={styles.overlay}>
+        <View style={[styles.overlay, { backgroundColor: overlayColor }]}>
+          <Text style={[styles.title, { color: titleColor }]}>Rewards</Text>
+          <Text style={[styles.subtitle, { color: subtitleColor }]}>
+            Redeem points for prizes!
+          </Text>
 
-        <Text style={styles.title}>Rewards</Text>
-        <Text style={styles.subtitle}>Redeem points for prizes!</Text>
+          <Text style={[styles.points, { color: titleColor, textShadowColor }]}>
+            {totalPoints.toFixed(0)} Points
+          </Text>
 
-
-        <Text style={styles.points}>{totalPoints.toFixed(0)} Points</Text>
-
-        <View style={styles.grid}>
-          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('FoodRewards')}>
-            <ImageBackground
-              source={require('../assets/foodback.jpg')}
-              style={styles.buttonBackground}
-              imageStyle={styles.buttonImage}
-            >
-              <View style={styles.imageOverlay} />
-              <Text style={styles.buttonText}>Food & Drink</Text>
-            </ImageBackground>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('ShoppingRewards')}>
-            <ImageBackground
-              source={require('../assets/shopback.jpg')}
-              style={styles.buttonBackground}
-              imageStyle={styles.buttonImage}
-            >
-              <View style={styles.imageOverlay} />
-              <Text style={styles.buttonText}>Shopping</Text>
-            </ImageBackground>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('GamesRewards')}>
-            <ImageBackground
-              source={require('../assets/gameback.jpg')}
-              style={styles.buttonBackground}
-              imageStyle={styles.buttonImage}
-            >
-              <View style={styles.imageOverlay} />
-              <Text style={styles.buttonText}>Games & Entertainment</Text>
-            </ImageBackground>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('SubscriptionsRewards' )}>
-            <ImageBackground
-              source={require('../assets/subback.jpg')}
-              style={styles.buttonBackground}
-              imageStyle={styles.buttonImage}
-            >
-              <View style={styles.imageOverlay} />
-              <Text style={styles.buttonText}>Subscriptions</Text>
-            </ImageBackground>
-          </TouchableOpacity>
-
+          <View style={styles.grid}>
+            {[
+              { label: 'Food & Drink', img: require('../assets/foodback.jpg'), route: 'FoodRewards' },
+              { label: 'Shopping', img: require('../assets/shopback.jpg'), route: 'ShoppingRewards' },
+              { label: 'Games & Entertainment', img: require('../assets/gameback.jpg'), route: 'GamesRewards' },
+              { label: 'Subscriptions', img: require('../assets/subback.jpg'), route: 'SubscriptionsRewards' },
+            ].map((item, idx) => (
+              <TouchableOpacity
+                key={idx}
+                style={[styles.button, { borderColor }]}
+                onPress={() => navigation.navigate(item.route)}
+              >
+                <ImageBackground
+                  source={item.img}
+                  style={styles.buttonBackground}
+                  imageStyle={styles.buttonImage}
+                >
+                  <View style={[styles.imageOverlay, { backgroundColor: imageOverlayColor }]} />
+                  <Text style={styles.buttonText}>{item.label}</Text>
+                </ImageBackground>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-      </View>
       </Animated.View>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-  },
+  background: { flex: 1 },
   overlay: {
     flex: 1,
     paddingTop: height / (667 / 70),
     paddingHorizontal: width / (375 / 24),
-    backgroundColor: 'rgba(0,0,0,0.2)',
     alignItems: 'center',
   },
   fadeIn: {
     flex: 1,
     alignItems: 'center',
   },
-  points: {
-    fontSize: width / (375 / 24),
-    fontWeight: '600',
-    color: 'white',
-    marginBottom: height / (667 / 36),
-    textShadowColor: '#ffffff',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: width / (375 / 10),
-  },
   title: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#fff',
     marginTop: 0,
     paddingBottom: 20,
     alignSelf: 'center',
   },
   subtitle: {
     fontSize: 20,
-    color: 'white',
     marginBottom: height / (667 / 12),
     textAlign: 'center',
   },
+  points: {
+    fontSize: width / (375 / 24),
+    fontWeight: '600',
+    marginBottom: height / (667 / 36),
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: width / (375 / 10),
+  },
   grid: {
     width: '100%',
-    alignItems: 'center', 
+    alignItems: 'center',
   },
   button: {
-    width: width * 0.9, 
-    height: height / (667 / 75), 
-    borderRadius: width / (375 / 15),
-    borderWidth: 1,
-    borderColor: 'white',
+    width: width * 0.9,
+    height: height / (667 / 75),
+    borderRadius: width / (375 / 18),
+    borderWidth: 2,
     overflow: 'hidden',
-    marginBottom: height / (667 / 10), 
+    marginBottom: height / (667 / 10),
   },
   buttonBackground: {
     flex: 1,
@@ -180,7 +160,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
-    borderRadius: width / (375 / 25),
+    borderRadius: width / (375 / 15),
   },
   buttonText: {
     fontSize: width / (375 / 18),
@@ -194,7 +174,6 @@ const styles = StyleSheet.create({
   },
   imageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     borderRadius: width / (375 / 16),
   },
 });

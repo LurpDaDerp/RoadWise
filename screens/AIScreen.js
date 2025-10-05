@@ -177,6 +177,8 @@ export default function AIScreen({ route, navigation }) {
   const altTextColor = isDark ? '#aaa' : '#555';
   const chartLineColor = isDark ? `rgba(132, 87, 255, 0.5)` : `rgba(38, 0, 255, 0.5)`;
   const buttonColor = isDark ? `rgba(108, 55, 255, 1)` : `rgba(99, 71, 255, 1)`;
+  const percentTextShadowColor = isDark ? 'rgba(255, 255, 255, 0.35)' : 'rgba(0, 0, 0, 0.35)';
+
 
   useFocusEffect(
     React.useCallback(() => {
@@ -524,7 +526,22 @@ export default function AIScreen({ route, navigation }) {
         <StatBox label="Undistracted Drives" value={undistractedCount} />
       </View>
       <View style={styles.statsRow}>
-        <StatBox label="of Drives are Distracted" value={`${percentDistracted}%`} textColor={percentColor} />
+        <StatBox
+          label="of Drives are Distracted"
+          value={
+            <Text
+              style={{
+                color: percentColor,
+                fontWeight: 'bold',
+                textShadowColor: percentTextShadowColor,
+                textShadowOffset: { width: 0, height: 0 },
+                textShadowRadius: 4,
+              }}
+            >
+              {percentDistracted}%
+            </Text>
+          }
+        />
       </View>
       <View style={styles.statsRow}>
         <StatBox label="Speeding Events" value={stats.speedingEvents} />

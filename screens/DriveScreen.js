@@ -1031,7 +1031,8 @@ export default function DriveScreen({ route }) {
       }
       const raw = speedObj.maxSpeed;
       const unitSrc = String(speedObj.speedUnit).toLowerCase();
-      const valueKph = unitSrc === 'mph' ? raw * 1.60934 : raw; 
+      const valueKph = unitSrc === 'mph' ? raw * 1.60934 : raw;
+      console.log(valueKph + " " + street); 
       return { valueKph, street };
     } catch (err) {
       console.error('Failed to fetch speed limit via reverse geocode:', err);

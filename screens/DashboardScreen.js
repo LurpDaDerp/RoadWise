@@ -486,6 +486,24 @@ export default function DashboardScreen({ route }) {
     }, [])
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.uid || totalPoints == null) return;
+
+      const cachePoints = async () => {
+        try {
+          await AsyncStorage.setItem('totalPoints', String(totalPoints));
+          await AsyncStorage.setItem(getStorageKey(user.uid), String(totalPoints));
+        } catch (err) {
+          console.error('Error caching total points:', err);
+        }
+      };
+
+      cachePoints();
+    }, [user?.uid, totalPoints])
+  );
+
+
   const renderHeatBar = (score) => {
     const markerSize = 28;
     const barWidth = width * 0.8; 
