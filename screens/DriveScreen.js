@@ -391,8 +391,8 @@ export default function DriveScreen({ route }) {
   const phoneUsageTime = useRef(0);
   const phoneUsageStart = useRef(null);
   const lastSpeedValue = useRef(0);
-  const ACCEL_THRESHOLD = 4.5; 
-  const BRAKE_THRESHOLD = -4.5; 
+  const ACCEL_THRESHOLD = 3.0; 
+  const BRAKE_THRESHOLD = -3.0; 
   let lastUpdateTime = Date.now();
   const [roadSummary, setRoadSummary] = useState(null);
   const lastWeatherRef = useRef(null);
@@ -764,8 +764,8 @@ export default function DriveScreen({ route }) {
           const coordinates = [loc.coords.latitude, loc.coords.longitude];
           const testcoordinates = [47.47507848523105, -115.8893871887757];
           const rawSpeed = loc.coords.speed ?? 0;
-          const lat = testcoordinates[0];
-          const lon = testcoordinates[1];
+          const lat = coordinates[0];
+          const lon = coordinates[1];
 
           const currPt = { latitude: lat, longitude: lon };
 
