@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     fontSize: width/12,
     fontWeight: 'bold',
     marginTop: height/12,
-    marginBottom: height/24,
+    marginBottom: height/50,
     alignSelf: 'center',
   },
   item: {
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: height/25,
     right: width/16,
-    padding: 10,         
+    padding: 8,         
     borderRadius: 30,   
     justifyContent: 'center',
     alignItems: 'center',
@@ -397,6 +397,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 3,
     elevation: 5,
+    borderWidth: 2,
+    borderColor: "#ff4444ff",
   },
   loadMoreButton: {
     width: "100%",

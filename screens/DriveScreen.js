@@ -140,20 +140,23 @@ function getGridKey(lat, lon) {
 async function loadSpeedLimitCache() {
   try {
     const cached = await AsyncStorage.getItem('@speedLimitCache');
-    if (cached) {
-      const entries = JSON.parse(cached);
-      for (const [key, val] of entries) {
-        if (typeof val === 'number') {
-          speedLimitCache.set(key, { value: val, unit: 'mph' });
-        } else if (val && typeof val === 'object' && 'value' in val && 'unit' in val) {
-          speedLimitCache.set(key, val);
-        }
+    if (!cached) return;
+    const entries = JSON.parse(cached);
+    for (const [key, val] of entries) {
+      if (val && typeof val === 'object' && 'valueKph' in val) {
+        speedLimitCache.set(key, val);
+      } else if (typeof val === 'number') {
+        speedLimitCache.set(key, { valueKph: val * 1.60934, timestamp: Date.now() });
+      } else if (val && typeof val === 'object' && 'value' in val && 'unit' in val) {
+        const kph = val.unit === 'mph' ? val.value * 1.60934 : val.value;
+        speedLimitCache.set(key, { valueKph: kph, timestamp: Date.now(), street: val.street });
       }
     }
   } catch (err) {
     console.warn('⚠️ Failed to load speed limit cache:', err);
   }
 }
+
 async function saveSpeedLimitCache() {
   try {
     await AsyncStorage.setItem('@speedLimitCache', JSON.stringify(Array.from(speedLimitCache.entries())));
@@ -173,6 +176,57 @@ function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c; 
+}
+
+function toRad(d){ return d * Math.PI / 180; }
+function toDeg(r){ return r * 180 / Math.PI; }
+
+function haversineM(a,b){
+  return getDistanceFromLatLonInMeters(a.latitude, a.longitude, b.latitude, b.longitude);
+}
+function bearingDeg(a,b){
+  const φ1 = toRad(a.latitude), φ2 = toRad(b.latitude);
+  const Δλ = toRad(b.longitude - a.longitude);
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1)*Math.sin(φ2) - Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+  return (toDeg(Math.atan2(y,x)) + 360) % 360;
+}
+function offsetPoint(lat, lon, bearing, distM){
+  const R=6371000, br=toRad(bearing), lat1=toRad(lat), lon1=toRad(lon), dr=distM/R;
+  const lat2 = Math.asin(Math.sin(lat1)*Math.cos(dr) + Math.cos(lat1)*Math.sin(dr)*Math.cos(br));
+  const lon2 = lon1 + Math.atan2(Math.sin(br)*Math.sin(dr)*Math.cos(lat1), Math.cos(dr)-Math.sin(lat1)*Math.sin(lat2));
+  return { latitude: toDeg(lat2), longitude: toDeg(lon2) };
+}
+
+const FILL_STEP_M = 80;
+const FILL_WIDTH_M = 30;
+async function fillCachePolyline(points, valueKph, street){
+  if (!points || points.length < 2) return;
+  for (let s = 0; s < points.length - 1; s++){
+    const a = points[s], b = points[s+1];
+    const d = haversineM(a,b);
+    if (!isFinite(d) || d < 1) continue;
+    const steps = Math.max(1, Math.ceil(d / FILL_STEP_M));
+    const brg = bearingDeg(a,b);
+    for (let i = 0; i <= steps; i++){
+      const p = offsetPoint(a.latitude, a.longitude, brg, i * (d/steps));
+      const key = getGridKey(p.latitude, p.longitude);
+      if (!speedLimitCache.has(key)){
+        speedLimitCache.set(key, { valueKph, timestamp: Date.now(), street });
+      }
+      if (FILL_WIDTH_M > 0){
+        const left  = offsetPoint(p.latitude, p.longitude, (brg+270)%360, FILL_WIDTH_M);
+        const right = offsetPoint(p.latitude, p.longitude, (brg+90)%360,  FILL_WIDTH_M);
+        for (const q of [left, right]){
+          const k2 = getGridKey(q.latitude, q.longitude);
+          if (!speedLimitCache.has(k2)){
+            speedLimitCache.set(k2, { valueKph, timestamp: Date.now(), street });
+          }
+        }
+      }
+    }
+  }
+  await saveSpeedLimitCache();
 }
 
 function interpolateColor(speed, limit) {
@@ -252,6 +306,11 @@ function hasSignificantChange(prev, curr) {
     windChange > 5 ||
     aqChange > 25
   );  
+}
+
+function getAdaptiveGridKey(lat, lon, speed) {
+  const res = speed > 50 ? 0.005 : 0.001; 
+  return `${Math.round(lat / res)}_${Math.round(lon / res)}_${res}`;
 }
 
 export default function DriveScreen({ route }) {
@@ -337,6 +396,17 @@ export default function DriveScreen({ route }) {
   let lastUpdateTime = Date.now();
   const [roadSummary, setRoadSummary] = useState(null);
   const lastWeatherRef = useRef(null);
+  const lastSpeedMSRef = useRef(null);
+
+  const currentSegRef = useRef([]);  
+  const segHeadingRef = useRef(null); 
+  const prevFetchedLimitRef = useRef(null); 
+  const prevFetchedStreetRef = useRef(null);
+
+  const HEADING_TOL_DEG = 20; 
+  const MAX_SEG_LEN_M   = 4000;
+  const MIN_SEG_TO_FILL_M = 120; 
+
 
   useLayoutEffect(() => {
     navigation.getParent()?.setOptions({
@@ -351,6 +421,22 @@ export default function DriveScreen({ route }) {
       });
     };
   }, [navigation]);
+
+  const fillFinalSegmentIfAny = async () => {
+    try {
+      const seg = currentSegRef.current;
+      const prevKph = prevFetchedLimitRef.current;
+      const prevStreet = prevFetchedStreetRef.current;
+      if (seg.length >= 2 && prevKph != null) {
+        const a = seg[0], b = seg[seg.length - 1];
+        if (haversineM(a, b) >= MIN_SEG_TO_FILL_M) {
+          await fillCachePolyline(seg, prevKph, prevStreet);
+        }
+      }
+    } catch (e) {
+      console.warn('Final segment fill failed:', e);
+    }
+  };
 
   //finalize drive function
   const finalizeDrive = async () => {
@@ -388,6 +474,7 @@ export default function DriveScreen({ route }) {
 
     if (pointsThisDrive > 0 /* && droveLongEnough */) {
       try {
+        await fillFinalSegmentIfAny();
         await saveDriveMetrics(user.uid, driveMetrics);
       } catch (e) {
         console.warn('Failed to save drive history:', e);
@@ -675,10 +762,41 @@ export default function DriveScreen({ route }) {
           if (!isAppActive.current) return;
 
           const coordinates = [loc.coords.latitude, loc.coords.longitude];
-          const testcoordinates = [47.56560520753297, -122.2253784109515];
+          const testcoordinates = [47.47507848523105, -115.8893871887757];
           const rawSpeed = loc.coords.speed ?? 0;
-          const lat = coordinates[0];
-          const lon = coordinates[1];
+          const lat = testcoordinates[0];
+          const lon = testcoordinates[1];
+
+          const currPt = { latitude: lat, longitude: lon };
+
+          const seg = currentSegRef.current;
+          if (seg.length === 0) {
+            seg.push(currPt);
+            segHeadingRef.current = null;
+          } else {
+            const lastPt = seg[seg.length - 1];
+            const d = haversineM(lastPt, currPt);
+            if (d >= 5) { 
+              const brg = bearingDeg(lastPt, currPt);
+              if (segHeadingRef.current == null) {
+                segHeadingRef.current = brg;
+              }
+              const diff = Math.abs(segHeadingRef.current - brg);
+              const headingDelta = Math.min(diff, 360 - diff);
+
+              const segStart = seg[0];
+              const segLen   = haversineM(segStart, currPt);
+
+              if (headingDelta > HEADING_TOL_DEG || segLen > MAX_SEG_LEN_M) {
+                currentSegRef.current = [lastPt, currPt];
+                segHeadingRef.current = brg;
+              } else {
+                seg.push(currPt);
+                segHeadingRef.current = segHeadingRef.current * 0.9 + brg * 0.1;
+              }
+            }
+          }
+
 
           if (lastLocation.current) {
             const dist = getDistanceFromLatLonInMeters(
@@ -694,17 +812,13 @@ export default function DriveScreen({ route }) {
           const gridKey = getGridKey(lat, lon);
           if (speedLimitCache.has(gridKey)) {
             const cached = speedLimitCache.get(gridKey);
-            let adjustedValue = cached.value;
+            const adjusted = unit === 'mph' ? cached.valueKph * 0.621371 : cached.valueKph;
+            setSpeedLimit(adjusted);
 
-            if (cached.unit !== unit) {
-              if (cached.unit === 'mph' && unit === 'kph') {
-                adjustedValue = cached.value * 1.60934;
-              } else if (cached.unit === 'kph' && unit === 'mph') {
-                adjustedValue = cached.value * 0.621371;
-              }
+            if (prevFetchedLimitRef.current == null) {
+              prevFetchedLimitRef.current  = cached.valueKph;
+              prevFetchedStreetRef.current = cached.street ?? undefined;
             }
-
-            setSpeedLimit(adjustedValue);
           } else {
             const now = Date.now();
             const distSinceLastFetch = lastSpeedLimitFetchCoords
@@ -720,11 +834,34 @@ export default function DriveScreen({ route }) {
               lastSpeedLimitFetchTime = now;
               lastSpeedLimitFetchCoords = { latitude: lat, longitude: lon };
 
-              const sl = await fetchSpeedLimit(lat, lon, unit);
-              if (sl !== null) {
-                speedLimitCache.set(gridKey, { value: sl, unit: unit });
-                setSpeedLimit(sl);
+              const result = await fetchSpeedLimit(lat, lon);
+              if (result && result.valueKph != null) {
+                const { valueKph, street } = result;
+
+                const prevKph   = prevFetchedLimitRef.current;
+                const prevStreet= prevFetchedStreetRef.current;
+                const changedLimit = prevKph != null && Math.abs(prevKph - valueKph) >= 0.5;
+                const changedStreet = prevStreet && street && prevStreet !== street;
+
+                if ((changedLimit || changedStreet) && currentSegRef.current.length >= 2) {
+                  const a = currentSegRef.current[0];
+                  const b = currentSegRef.current[currentSegRef.current.length - 1];
+                  if (haversineM(a, b) >= MIN_SEG_TO_FILL_M) {
+                    await fillCachePolyline(currentSegRef.current, prevKph, prevStreet);
+                  }
+                  currentSegRef.current = [ { latitude: lat, longitude: lon } ];
+                  segHeadingRef.current = null;
+                }
+
+                const gridKeyNow = getGridKey(lat, lon);
+                speedLimitCache.set(gridKeyNow, { valueKph, timestamp: Date.now(), street });
                 await saveSpeedLimitCache();
+
+                const uiValue = unit === 'mph' ? valueKph * 0.621371 : valueKph;
+                setSpeedLimit(uiValue);
+
+                prevFetchedLimitRef.current  = valueKph;
+                prevFetchedStreetRef.current = street;
               }
             }
           }
@@ -746,15 +883,17 @@ export default function DriveScreen({ route }) {
 
           
 
-          const now = Date.now();
-          const timeDiff = (now - lastUpdateTime) / 1000; 
-          const acceleration = ((rawSpeed) - (lastSpeedValue.current / (unit === 'kph' ? 3.6 : 2.23694))) / timeDiff;
+          const nowAccel = Date.now();
+          const dt = (nowAccel - lastUpdateTime) / 1000;
+          const speedMS = rawSpeed ?? 0;
+          const prevMS  = lastSpeedMSRef.current ?? speedMS;
+          const accel   = dt > 0 ? (speedMS - prevMS) / dt : 0;
 
-          if (acceleration > ACCEL_THRESHOLD) suddenAccelerations.current++;
-          if (acceleration < BRAKE_THRESHOLD) suddenStops.current++;
+          if (accel > ACCEL_THRESHOLD)  suddenAccelerations.current++;  
+          if (accel < BRAKE_THRESHOLD) suddenStops.current++;
 
-          lastSpeedValue.current = safeSpeed;
-          lastUpdateTime = now;
+          lastSpeedMSRef.current = speedMS;
+          lastUpdateTime = nowAccel;
 
           const nowWeather = Date.now();
           const elapsed = (nowWeather - lastWeatherFetchTime.current) / 1000; 
@@ -788,6 +927,7 @@ export default function DriveScreen({ route }) {
     return () => {
       locationSubscription.current?.remove();
       stopPointEarning();
+      fillFinalSegmentIfAny();
     };
   }, [unit, HERE_API_KEY]);
 
@@ -821,50 +961,45 @@ export default function DriveScreen({ route }) {
 
     
   //audio update if changing speed limits
-  useEffect(() => {
-    if (!audioSpeedUpdatesEnabled) return;
 
-    if (speedLimit != null && speedLimit !== prevLimitRef.current) {
-      Speech.stop();
-      Speech.speak(`Speed limit is now ${speedLimit}`, {
-        language: "en",
-        pitch: 0.8,
-        rate: 0.8,
-      });
-      prevLimitRef.current = speedLimit;
-    }
-  }, [speedLimit, audioSpeedUpdatesEnabled]);
+  useEffect(() => {
+    if (!audioSpeedUpdatesEnabled || speedLimit == null) return;
+
+    const rounded = Math.round(Number(speedLimit));
+    if (prevLimitRef.current === rounded) return; 
+
+    Speech.stop();
+    Speech.speak(`Speed limit is ${rounded} ${unit === 'kph' ? 'kilometers per hour' : 'miles per hour'}`, {
+      language: "en",
+      pitch: 0.8,
+      rate: 0.8,
+    });
+
+    prevLimitRef.current = rounded;
+  }, [speedLimit, unit, audioSpeedUpdatesEnabled]);
+
 
   //increment points based on speed
   const scheduleNextPoint = () => {
     const currentSpeed = speedRef.current;
-    const effectiveSpeedLimit = Number(speedLimitRef.current ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));    
+    const eff = Number(speedLimitRef.current ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
+    let delay = currentSpeed <= eff
+      ? DEFAULT_DELAY
+      : DEFAULT_DELAY + Math.min((currentSpeed - eff) / eff, 2) * 2000;
 
-    if (currentSpeed > effectiveSpeedLimit * 1.5) {
+    if (currentSpeed > eff * 1.5) {
       pointTimer.current = setTimeout(scheduleNextPoint, delay);
       return;
     }
 
-    let delay = currentSpeed <= effectiveSpeedLimit
-      ? DEFAULT_DELAY
-      : DEFAULT_DELAY + Math.min((currentSpeed - effectiveSpeedLimit) / effectiveSpeedLimit, 2) * 2000;
-
     pointTimer.current = setTimeout(() => {
-      const latestSpeed = speedRef.current; 
-      const latestEffectiveLimit = Number(speedLimitRef.current ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
-
-      if (latestSpeed > latestEffectiveLimit * 1.5) {
-        scheduleNextPoint();
-        return;
-      }
-
-      if (latestSpeed > speedThreshold) {
-        setPointsThisDrive((prev) => prev + 1);
-      }
-
-      scheduleNextPoint(); 
+      const v = speedRef.current;
+      const e = Number(speedLimitRef.current ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
+      if (v <= e * 1.5 && v > speedThreshold) setPointsThisDrive(p => p + 1);
+      scheduleNextPoint();
     }, delay);
   };
+
 
 
   //start and stop point earning based on app state
@@ -880,7 +1015,7 @@ export default function DriveScreen({ route }) {
   };
 
   //fetch speed limit from HERE API
-  const fetchSpeedLimit = async (lat, lon, unit) => {
+  const fetchSpeedLimit = async (lat, lon) => {
     try {
       const url = `https://revgeocode.search.hereapi.com/v1/revgeocode?at=${lat},${lon}&lang=en-US&showNavAttributes=speedLimits&apikey=${HERE_API_KEY}`;
       const res = await fetch(url);
@@ -888,32 +1023,22 @@ export default function DriveScreen({ route }) {
 
       const item = data?.items?.[0];
       const street = item?.address?.street || item?.address?.label || '[Unknown Street]';
-
       const speedObj = item?.navigationAttributes?.speedLimits?.[0];
 
       if (!speedObj?.maxSpeed || !speedObj?.speedUnit) {
         console.warn(`No speed limit info returned. Street: ${street}`);
         return null;
       }
-      const rawSpeed = speedObj.maxSpeed;
-      const sourceUnit = speedObj.speedUnit.toLowerCase();
-
-      let convertedSpeed;
-      if (sourceUnit === 'mph') {
-        convertedSpeed = unit === 'kph' ? rawSpeed * 1.60934 : rawSpeed;
-      } else if (sourceUnit === 'km/h' || sourceUnit === 'kph') {
-        convertedSpeed = unit === 'mph' ? rawSpeed * 0.621371 : rawSpeed;
-      } else {
-        console.warn(`Unknown speed unit: ${sourceUnit}`);
-        return null;
-      }
-
-      return convertedSpeed;
+      const raw = speedObj.maxSpeed;
+      const unitSrc = String(speedObj.speedUnit).toLowerCase();
+      const valueKph = unitSrc === 'mph' ? raw * 1.60934 : raw; 
+      return { valueKph, street };
     } catch (err) {
       console.error('Failed to fetch speed limit via reverse geocode:', err);
       return null;
     }
   };
+
 
   //calculate current speed limit and speeding status
   const currentLimit = Number(speedLimit ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
@@ -1767,4 +1892,13 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: (width / 375) * 6,
   },
+  modalButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    alignSelf: 'center',
+  },
+  loadingBox: { alignItems: 'center' },
+  loadingText: { marginTop: 8, fontSize: 14 },
 });
