@@ -9,7 +9,7 @@ import { ThemeContext } from "../context/ThemeContext";
 import BottomSheet, { BottomSheetView, BottomSheetSectionList } from "@gorhom/bottom-sheet";
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import debounce from "lodash.debounce";
 import { Ionicons } from "@expo/vector-icons";
 import { startLocationUpdates, stopLocationUpdates } from "../utils/LocationService";
@@ -378,6 +378,31 @@ export default function LocationScreen() {
   const [newLocationAddress, setNewLocationAddress] = useState("");
   const addLocationSheetRef = useRef(null);
   const addLocationSnapPoints = useMemo(() => ["90%"], []);
+
+  const route = useRoute();
+  const emergencyUid = route.params?.emergencyUid;
+
+  useEffect(() => {
+    if (!route.params?.emergencyUid) return;
+
+    const uid = route.params.emergencyUid;
+    const member = members.find((m) => m.uid === uid);
+
+    if (member?.coords && mapRef.current) {
+      setTimeout(() => {
+        bottomSheetRef.current?.snapToIndex(0);
+        mapRef.current.animateToRegion(
+          {
+            latitude: member.coords.latitude,
+            longitude: member.coords.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          },
+          3000
+        );
+      }, 500);
+    }
+  }, [route.params?.emergencyUid, members]);
 
   useEffect(() => {
     const ensurePermissions = async () => {

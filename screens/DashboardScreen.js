@@ -699,9 +699,9 @@ export default function DashboardScreen({ route }) {
           <TouchableOpacity
             style={styles.groupButton}
             onPress={() => {
-              fadeOutContent().then(() =>
-                navigation.navigate('LocationScreen')
-              );
+              fadeOutContent().then(() => {
+                navigation.navigate("LocationScreen");
+              });
             }}
           >
             <LinearGradient

@@ -2,17 +2,19 @@ const { setGlobalOptions } = require("firebase-functions/v2/options");
 const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
 const fetch = require("node-fetch");
+const processedEvents = new Set();
 
 admin.initializeApp();
 setGlobalOptions({ maxInstances: 10 });
 
 //send Expo notifications
-async function sendExpoPush(tokens, title, body) {
+async function sendExpoPush(tokens, title, body, extraData = {}) {
   const messages = tokens.map(token => ({
     to: token,
     sound: "default",
     title,
     body,
+    data: extraData,  
   }));
 
   try {
@@ -26,12 +28,16 @@ async function sendExpoPush(tokens, title, body) {
       body: JSON.stringify(messages),
     });
 
-    const data = await response.json();
   } catch (err) {
   }
 }
 
 exports.notifyOnEmergency = onDocumentUpdated("groups/{groupId}", async (event) => {
+  if (processedEvents.has(event.id)) {
+    return;
+  }
+  processedEvents.add(event.id);
+
   const before = event.data.before.data();
   const after = event.data.after.data();
 
@@ -40,9 +46,12 @@ exports.notifyOnEmergency = onDocumentUpdated("groups/{groupId}", async (event) 
   const beforeMembers = before.memberLocations || {};
   const afterMembers = after.memberLocations || {};
 
+
   for (const [uid, member] of Object.entries(afterMembers)) {
     const wasEmergency = beforeMembers[uid]?.emergency || false;
     const isEmergency = member?.emergency || false;
+
+    if (wasEmergency === isEmergency) continue;
 
     if (!wasEmergency && isEmergency) {
       console.log(`Emergency detected for user ${uid} in group ${event.params.groupId}`);
@@ -68,7 +77,8 @@ exports.notifyOnEmergency = onDocumentUpdated("groups/{groupId}", async (event) 
         await sendExpoPush(
           tokens,
           "⚠️ Emergency Alert",
-          `${username} signaled an emergency! Click here to view location.` 
+          `${username} signaled an emergency! Click here to view location.`,
+          { emergencyUid: uid }
         );
       }
     }
@@ -97,7 +107,8 @@ exports.notifyOnEmergency = onDocumentUpdated("groups/{groupId}", async (event) 
         await sendExpoPush(
           tokens,
           "Emergency Cleared",
-          `${username} is no longer in an emergency.` 
+          `${username} is no longer in an emergency.`,
+          { emergencyUid: uid }
         );
       }
     }
