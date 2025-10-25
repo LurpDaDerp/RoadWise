@@ -1251,7 +1251,7 @@ export default function LocationScreen() {
             style={styles.joinPanel}
           >
             <Text style={[styles.starttitle, { color: "#fff" }]}>
-              RoadCash Groups
+              RoadWise Groups
             </Text>
 
             <Text style={[styles.startsubtitle, { color: "#fff" }]}>

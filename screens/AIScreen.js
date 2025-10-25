@@ -538,7 +538,7 @@ export default function AIScreen({ route, navigation }) {
                 textShadowRadius: 4,
               }}
             >
-              {percentDistracted} 
+              {percentDistracted}%
             </Text>
           }
         />
