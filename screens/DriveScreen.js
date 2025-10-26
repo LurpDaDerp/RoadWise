@@ -333,6 +333,7 @@ export default function DriveScreen({ route }) {
   const [startingPoints, setStartingPoints] = useState(route.params?.totalPoints ?? 0);
   const [distractedNotificationsEnabled, setDistractedNotificationsEnabled] = useState(true);
   const [distractedCount, setDistractedCount] = useState(0);
+  const [distractedUI, setDistractedUI] = useState(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [trustedContacts, setTrustedContacts] = useState([]);
   const [HERE_API_KEY, setHereKey] = useState();
@@ -634,6 +635,7 @@ export default function DriveScreen({ route }) {
 
   //reset points and isDistracted on mount
   useEffect(() => {
+    setDistractedUI(false);
     setStartingPoints(route.params?.totalPoints ?? 0);
     setPointsThisDrive(0);
     isDistracted.current = false;
@@ -666,6 +668,7 @@ export default function DriveScreen({ route }) {
           
           if (pointsThisDrive > 0) {
             isDistracted.current = true;
+            setDistractedUI(true);
             
             await Notifications.scheduleNotificationAsync({
               content: {
@@ -702,6 +705,8 @@ export default function DriveScreen({ route }) {
           
           if (unfocusedDuration > 5000) {
             isDistracted.current = true;
+            stopPointEarning();
+            setDistractedUI(true);
 
             if (firstNotificationId.current) {
               await Notifications.cancelScheduledNotificationAsync(firstNotificationId.current);
@@ -995,7 +1000,7 @@ export default function DriveScreen({ route }) {
     pointTimer.current = setTimeout(() => {
       const v = speedRef.current;
       const e = Number(speedLimitRef.current ?? (unit === 'kph' ? DEFAULT_SPEED_LIMIT_KPH : DEFAULT_SPEED_LIMIT_MPH));
-      if (v <= e * 1.5 && v > speedThreshold) setPointsThisDrive(p => p + 1);
+      if (v <= e * 1.25 && v > speedThreshold) setPointsThisDrive(p => p + 1);
       scheduleNextPoint();
     }, delay);
   };
@@ -1444,7 +1449,11 @@ export default function DriveScreen({ route }) {
               <Text
                 style={[
                   styles.moduleValue,
-                  { color: textColor, textShadowColor: textOutline, fontSize: 45 },
+                  {
+                    color: distractedUI ? '#b00000' : textColor,
+                    textShadowColor: textOutline,
+                    fontSize: 45,
+                  },
                 ]}
               >
                 {displayedPoints}
@@ -1468,7 +1477,7 @@ export default function DriveScreen({ route }) {
               <Text style={[styles.moduleLabel, { color: altTextColor, fontSize: 18 }]}>Streak</Text>
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 2*(Math.abs(streak).toString().length - 1) }}>
               <Image
-                source={getFireImage(isDistracted.current ? 0 : streak)}
+                source={getFireImage(distractedUI ? 0 : streak)}
                 style={{ width: 32, height: 32, marginRight: 2, marginTop: 6 }}
                 resizeMode="contain"
               />
@@ -1478,7 +1487,7 @@ export default function DriveScreen({ route }) {
                   { color: textColor, textShadowColor: textOutline, fontSize: 45 - 5*(Math.abs(streak).toString().length - 1) },
                 ]}
               >
-                {isDistracted.current ? 0 : streak ?? 0}
+                {distractedUI ? 0 : streak ?? 0}
               </Text>
               </View>
             </View>
